@@ -579,7 +579,7 @@ export const TagWordCloud = forwardRef<TagWordCloudHandle, TagWordCloudProps>(fu
               ["--tag-hue" as string]: layout.hue,
             }}
           >
-            {layout.tag.name}
+            <span className="relative z-[1]">{layout.tag.name}</span>
           </div>
         );
       })}
