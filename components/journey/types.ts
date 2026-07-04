@@ -35,7 +35,6 @@ export interface JourneyTransitionSources {
   leftPanel: HTMLElement;
   iphoneFrame: HTMLElement;
   tagSnapshots: TagSnapshot[];
-  injectPoint: { x: number; y: number };
 }
 
 export const JOURNEY_STORAGE_KEY = "roadmate:journey-landing";

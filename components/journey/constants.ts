@@ -2,18 +2,33 @@ import { DEVICE_H, DEVICE_W } from "@/components/device-playground/constants";
 
 export const JOURNEY_TIMINGS = {
   leftPanelExit: 0.4,
-  tagInjectDuration: 0.85,
-  tagInjectStagger: 0.035,
-  frameMorphDuration: 0.7,
-  navigateAt: 1.55,
+  tagBloomStart: 0.08,
+  tagBloomBurstDuration: 0.34,
+  tagBloomSettleDuration: 0.42,
+  tagBloomStagger: 0.032,
+  tagBloomRandomDelay: 0.14,
+  tagBloomScaleMin: 2.2,
+  tagBloomScaleMax: 4.4,
+  /** 爆发落点区域（相对视口） */
+  tagBurstPadX: 0.04,
+  tagBurstPadTop: 0.05,
+  /** 落点不超过 origin.y 之上多少 px（避免往手机下方飞） */
+  tagBurstOriginClearance: 40,
+  tagInjectGap: 0.05,
+  tagInjectDuration: 0.68,
+  tagInjectScale: 0.05,
+  navigateAtMin: 2.05,
+  navigateLead: 0.15,
   handoffDuration: 0.55,
   devicesEnterDuration: 0.45,
   devicesEnterStagger: 0.06,
-  totalApprox: 2.4,
+  totalApprox: 2.8,
 } as const;
 
 export const JOURNEY_EASE = {
   out: "power2.inOut",
+  burst: "power4.out",
+  bloom: "sine.out",
   inject: "power3.in",
   enter: "power2.out",
 } as const;

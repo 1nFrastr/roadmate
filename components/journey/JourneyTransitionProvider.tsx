@@ -92,17 +92,10 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
       const overlayEl = overlayRef.current;
       overlayEl.style.pointerEvents = "auto";
 
-      const frameRect = input.iphoneFrame.getBoundingClientRect();
-      const injectPoint = {
-        x: frameRect.left + frameRect.width / 2,
-        y: frameRect.top + frameRect.height * 0.62,
-      };
-
       const sources: JourneyTransitionSources = {
         leftPanel: input.leftPanel,
         iphoneFrame: input.iphoneFrame,
         tagSnapshots: input.tagSnapshots,
-        injectPoint,
       };
 
       setPhase("preparing");
