@@ -22,5 +22,90 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.device-playground {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(74, 222, 128, 0.04), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.05), transparent 35%),
+    linear-gradient(180deg, #0a0a0c 0%, #111116 100%);
+}
+
+.device-shell {
+  background: linear-gradient(145deg, #4a4a52 0%, #2a2a30 45%, #1a1a1f 100%);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 2px 4px rgba(255, 255, 255, 0.08) inset,
+    0 -2px 6px rgba(0, 0, 0, 0.4) inset;
+}
+
+.device-bezel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(0, 0, 0, 0.15) 100%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+.device-screen {
+  background: linear-gradient(180deg, #0f1419 0%, #06080c 100%);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.device-wheel {
+  background: radial-gradient(circle at 35% 30%, #3f3f46 0%, #27272a 55%, #18181b 100%);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.12),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.device-wheel::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.device-shell-owner {
+  background: linear-gradient(145deg, #6b7280 0%, #3f4654 40%, #2a3140 100%);
+  box-shadow:
+    0 8px 28px rgba(34, 211, 238, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 2px 4px rgba(255, 255, 255, 0.12) inset,
+    0 -2px 6px rgba(0, 0, 0, 0.4) inset;
+}
+
+.device-owner-ring {
+  border: 1.5px solid rgba(34, 211, 238, 0.55);
+  box-shadow:
+    0 0 16px rgba(34, 211, 238, 0.25),
+    inset 0 0 12px rgba(34, 211, 238, 0.08);
+  animation: owner-ring-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes owner-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.device-led-stack {
+  width: 22px;
+  height: 22px;
+}
+
+.device-led-glow,
+.device-led-core {
+  will-change: opacity, transform;
+  transform-origin: center center;
+}
+
+.device-led {
+  will-change: opacity, transform;
 }
