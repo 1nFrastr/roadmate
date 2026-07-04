@@ -1,4 +1,4 @@
-import { CANVAS_PADDING, SPAWN_GAP, TAG_SIZE } from "./constants";
+import { CANVAS_PADDING, SPAWN_GAP, TAG_SIZE_BY_PRESET, type TagSizePreset } from "./constants";
 import type { CanvasSize, TagLayout, WordCloudTag } from "./types";
 import type Matter from "matter-js";
 
@@ -30,12 +30,17 @@ export function buildVisualWeights(tags: WordCloudTag[]): Map<string, number> {
   return map;
 }
 
-export function measureTagBox(name: string, visualWeight: number) {
+export function measureTagBox(
+  name: string,
+  visualWeight: number,
+  preset: TagSizePreset = "default",
+) {
+  const metrics = TAG_SIZE_BY_PRESET[preset];
   const t = Math.max(0, Math.min(1, visualWeight));
-  const fontSize = geometricScale(t, TAG_SIZE.minFont, TAG_SIZE.maxFont);
-  const textWidth = name.length * TAG_SIZE.charWidth + TAG_SIZE.paddingX * 2;
-  const diameter = Math.max(geometricScale(t, 56, 168), textWidth);
-  const size = Math.min(diameter, 168);
+  const fontSize = geometricScale(t, metrics.minFont, metrics.maxFont);
+  const textWidth = name.length * metrics.charWidth + metrics.paddingX * 2;
+  const diameter = Math.max(geometricScale(t, metrics.minDiameter, metrics.maxDiameter), textWidth);
+  const size = Math.min(diameter, metrics.maxDiameterCap);
 
   return {
     width: size,
@@ -54,23 +59,24 @@ const BODY_OPTIONS = {
 function packSpawnPositions(
   sizes: { width: number; height: number }[],
   canvas: CanvasSize,
+  canvasPadding = CANVAS_PADDING,
 ): { x: number; y: number }[] {
   const positions: { x: number; y: number }[] = [];
-  let rowX = CANVAS_PADDING;
-  let rowY = CANVAS_PADDING;
+  let rowX = canvasPadding;
+  let rowY = canvasPadding;
   let rowMaxH = 0;
   let airRow = 0;
 
   sizes.forEach(({ width, height }) => {
-    if (rowX + width + CANVAS_PADDING > canvas.width) {
-      rowX = CANVAS_PADDING;
+    if (rowX + width + canvasPadding > canvas.width) {
+      rowX = canvasPadding;
       rowY += rowMaxH + SPAWN_GAP;
       rowMaxH = 0;
     }
 
-    if (rowY + height + CANVAS_PADDING > canvas.height) {
-      rowX = CANVAS_PADDING;
-      rowY = -(airRow + 1) * (height + SPAWN_GAP) - CANVAS_PADDING;
+    if (rowY + height + canvasPadding > canvas.height) {
+      rowX = canvasPadding;
+      rowY = -(airRow + 1) * (height + SPAWN_GAP) - canvasPadding;
       rowMaxH = 0;
       airRow += 1;
     }
@@ -83,13 +89,18 @@ function packSpawnPositions(
   return positions;
 }
 
-export function createTagLayouts(tags: WordCloudTag[], canvas: CanvasSize): TagLayout[] {
+export function createTagLayouts(
+  tags: WordCloudTag[],
+  canvas: CanvasSize,
+  preset: TagSizePreset = "default",
+): TagLayout[] {
   if (canvas.width === 0 || canvas.height === 0 || tags.length === 0) return [];
 
+  const canvasPadding = preset === "compact" ? 14 : CANVAS_PADDING;
   const visualWeights = buildVisualWeights(tags);
   const drafts = tags.map((tag, index) => {
     const visualWeight = visualWeights.get(tag.name) ?? 0.5;
-    const { width, height, fontSize } = measureTagBox(tag.name, visualWeight);
+    const { width, height, fontSize } = measureTagBox(tag.name, visualWeight, preset);
     return {
       id: `tag-${index}-${tag.name}`,
       tag,
@@ -106,10 +117,11 @@ export function createTagLayouts(tags: WordCloudTag[], canvas: CanvasSize): TagL
   const positions = packSpawnPositions(
     drafts.map((item) => ({ width: item.width, height: item.height })),
     canvas,
+    canvasPadding,
   );
 
   return drafts.map((item, index) => {
-    const pos = positions[index] ?? { x: CANVAS_PADDING, y: CANVAS_PADDING };
+    const pos = positions[index] ?? { x: canvasPadding, y: canvasPadding };
     return {
       ...item,
       x: pos.x,

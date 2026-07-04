@@ -1,9 +1,5 @@
-import { InterestLab } from "@/components/interest-lab/InterestLab";
+import { redirect } from "next/navigation";
 
-export default function InterestsPage() {
-  return (
-    <main className="min-h-dvh w-full bg-[#0a0a0c] text-zinc-100">
-      <InterestLab />
-    </main>
-  );
+export default function InterestsRedirectPage() {
+  redirect("/");
 }

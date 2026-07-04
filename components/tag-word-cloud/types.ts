@@ -23,9 +23,25 @@ export interface TagLayout {
   hue: number;
 }
 
+export interface TagSnapshot {
+  id: string;
+  name: string;
+  rect: DOMRectReadOnly;
+  hue: number;
+  fontSize: number;
+  weight: number;
+}
+
 export interface TagWordCloudProps {
   tags: WordCloudTag[];
   height?: number;
   className?: string;
   emptyMessage?: string;
+  interactive?: boolean;
+  size?: "default" | "compact";
+}
+
+export interface TagWordCloudHandle {
+  freezeAndSnapshot: () => TagSnapshot[];
+  getContainerRect: () => DOMRect;
 }

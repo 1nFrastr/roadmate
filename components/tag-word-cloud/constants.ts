@@ -7,6 +7,26 @@ export const TAG_SIZE = {
   maxFont: 40,
   paddingX: 14,
   charWidth: 8,
+  minDiameter: 56,
+  maxDiameter: 168,
+  maxDiameterCap: 168,
+} as const;
+
+export const TAG_SIZE_COMPACT = {
+  minFont: 10,
+  maxFont: 26,
+  paddingX: 11,
+  charWidth: 7,
+  minDiameter: 38,
+  maxDiameter: 102,
+  maxDiameterCap: 102,
+} as const;
+
+export type TagSizePreset = "default" | "compact";
+
+export const TAG_SIZE_BY_PRESET = {
+  default: TAG_SIZE,
+  compact: TAG_SIZE_COMPACT,
 } as const;
 
 export const PHYSICS = {

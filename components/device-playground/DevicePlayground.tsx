@@ -4,7 +4,14 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { Draggable } from "gsap/Draggable";
 import Matter from "matter-js";
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  clearJourneyLanding,
+  loadJourneyLanding,
+  useJourneyTransitionOptional,
+} from "@/components/journey";
+import { JOURNEY_TIMINGS } from "@/components/journey/constants";
 import { DeviceCard } from "./DeviceCard";
 import {
   DEVICE_H,
@@ -18,13 +25,16 @@ import {
   TOTAL_DEVICES,
 } from "./constants";
 import type { DeviceState, PlaygroundSize } from "./types";
-import {
-  bodyToDevicePosition,
-  useDevicePhysics,
-} from "./useDevicePhysics";
+import { bodyToDevicePosition, useDevicePhysics } from "./useDevicePhysics";
 import { useProximityEffects } from "./useProximityEffects";
 
 gsap.registerPlugin(useGSAP, Draggable);
+
+export type PlaygroundEntrance = "default" | "journey";
+
+interface DevicePlaygroundProps {
+  entrance?: PlaygroundEntrance;
+}
 
 function createInitialDevices(size: PlaygroundSize): DeviceState[] {
   const matchableIndices = pickMatchableIndices(MATCH_COUNT, TOTAL_DEVICES);
@@ -42,11 +52,61 @@ function createInitialDevices(size: PlaygroundSize): DeviceState[] {
   }));
 }
 
-export function DevicePlayground() {
+function clampDevicePosition(x: number, y: number, size: PlaygroundSize) {
+  const maxX = size.width - DEVICE_W - PLAYGROUND_PADDING;
+  const maxY = size.height - DEVICE_H - PLAYGROUND_PADDING;
+  return {
+    x: Math.max(PLAYGROUND_PADDING, Math.min(x, maxX)),
+    y: Math.max(PLAYGROUND_PADDING, Math.min(y, maxY)),
+  };
+}
+
+function offscreenStart(index: number, size: PlaygroundSize) {
+  const slots = [
+    { x: -DEVICE_W - 24, y: size.height * 0.2 },
+    { x: size.width + 24, y: size.height * 0.18 },
+    { x: -DEVICE_W - 24, y: size.height * 0.55 },
+    { x: size.width + 24, y: size.height * 0.48 },
+    { x: size.width * 0.25, y: -DEVICE_H - 24 },
+    { x: size.width * 0.55, y: -DEVICE_H - 24 },
+    { x: size.width * 0.2, y: size.height + 24 },
+    { x: size.width * 0.7, y: size.height + 24 },
+    { x: size.width + 40, y: size.height * 0.72 },
+  ];
+  return slots[index % slots.length];
+}
+
+function createJourneyDevices(size: PlaygroundSize, ownerX: number, ownerY: number): DeviceState[] {
+  const matchableIndices = pickMatchableIndices(MATCH_COUNT, TOTAL_DEVICES);
+  const maxX = size.width - DEVICE_W - PLAYGROUND_PADDING;
+  const maxY = size.height - DEVICE_H - PLAYGROUND_PADDING;
+  const ownerPos = clampDevicePosition(ownerX, ownerY, size);
+
+  return Array.from({ length: TOTAL_DEVICES }, (_, index) => {
+    const isOwner = index === OWNER_DEVICE_INDEX;
+    return {
+      id: `device-${index}`,
+      label: DEVICE_LABELS[index],
+      isOwner,
+      matchable: matchableIndices.has(index),
+      matchScore: matchableIndices.has(index) ? randomMatchScore() : 0,
+      x: isOwner
+        ? ownerPos.x
+        : PLAYGROUND_PADDING + Math.random() * Math.max(maxX - PLAYGROUND_PADDING, 1),
+      y: isOwner
+        ? ownerPos.y
+        : PLAYGROUND_PADDING + Math.random() * Math.max(maxY - PLAYGROUND_PADDING, 1),
+    };
+  });
+}
+
+export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps) {
   const playgroundRef = useRef<HTMLDivElement>(null);
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
+  const devicesEnterRegisteredRef = useRef(false);
+  const journey = useJourneyTransitionOptional();
 
   const [playgroundSize, setPlaygroundSize] = useState<PlaygroundSize>({
     width: 0,
@@ -55,12 +115,19 @@ export function DevicePlayground() {
   const [devices, setDevices] = useState<DeviceState[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [journeyMode, setJourneyMode] = useState(false);
+  const [handoffDone, setHandoffDone] = useState(entrance !== "journey");
+  const [devicesEnterDone, setDevicesEnterDone] = useState(entrance !== "journey");
+  const [playgroundReadySent, setPlaygroundReadySent] = useState(false);
 
-  const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized);
+  const entranceComplete = !journeyMode || (handoffDone && devicesEnterDone);
+
+  const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized && entranceComplete);
   const { updateMatchLeds, updateDockProximity, resetDockScales, cleanup } =
     useProximityEffects(reducedMotion);
 
   const ownerDevice = devices.find((device) => device.isOwner);
+  const ownerId = `device-${OWNER_DEVICE_INDEX}`;
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -91,9 +158,99 @@ export function DevicePlayground() {
     if (initialized || playgroundSize.width === 0 || playgroundSize.height === 0) {
       return;
     }
+
+    if (entrance === "journey") {
+      const payload = loadJourneyLanding();
+      if (payload) {
+        const playgroundRect = playgroundRef.current?.getBoundingClientRect();
+        if (playgroundRect) {
+          const ownerX = payload.landingRect.x - playgroundRect.left;
+          const ownerY = payload.landingRect.y - playgroundRect.top;
+          setDevices(createJourneyDevices(playgroundSize, ownerX, ownerY));
+          setJourneyMode(true);
+          setInitialized(true);
+          return;
+        }
+      }
+    }
+
     setDevices(createInitialDevices(playgroundSize));
+    setJourneyMode(false);
+    setHandoffDone(true);
+    setDevicesEnterDone(true);
     setInitialized(true);
-  }, [initialized, playgroundSize]);
+  }, [entrance, initialized, playgroundSize]);
+
+  useEffect(() => {
+    if (!journeyMode || !initialized) return;
+
+    devices.forEach((device, index) => {
+      const element = deviceRefs.current.get(device.id);
+      if (!element) return;
+
+      if (device.isOwner) {
+        gsap.set(element, { x: device.x, y: device.y, opacity: 0, scale: 1 });
+        return;
+      }
+
+      const start = offscreenStart(index, playgroundSize);
+      gsap.set(element, { x: start.x, y: start.y, opacity: 0, scale: 0.85 });
+    });
+  }, [devices, initialized, journeyMode, playgroundSize]);
+
+  useEffect(() => {
+    if (!journeyMode || !initialized || playgroundReadySent) return;
+
+    const ownerEl = deviceRefs.current.get(ownerId);
+    if (!ownerEl) return;
+
+    journey?.notifyPlaygroundReady();
+    setPlaygroundReadySent(true);
+
+    gsap.to(ownerEl, {
+      opacity: 1,
+      duration: JOURNEY_TIMINGS.handoffDuration,
+      ease: "power1.inOut",
+      onComplete: () => {
+        setHandoffDone(true);
+        clearJourneyLanding();
+      },
+    });
+  }, [initialized, journey, journeyMode, ownerId, playgroundReadySent]);
+
+  const runDevicesEnter = useCallback(() => {
+    const tl = gsap.timeline({
+      onComplete: () => setDevicesEnterDone(true),
+    });
+    const others = devices.filter((device) => !device.isOwner);
+
+    others.forEach((device, index) => {
+      const element = deviceRefs.current.get(device.id);
+      if (!element) return;
+
+      tl.to(
+        element,
+        {
+          x: device.x,
+          y: device.y,
+          opacity: 1,
+          scale: 1,
+          duration: JOURNEY_TIMINGS.devicesEnterDuration,
+          ease: "power2.out",
+        },
+        index * JOURNEY_TIMINGS.devicesEnterStagger,
+      );
+    });
+
+    return tl;
+  }, [devices]);
+
+  useEffect(() => {
+    if (!journeyMode || !initialized || !journey || devicesEnterRegisteredRef.current) return;
+
+    journey.triggerDevicesEnter(runDevicesEnter);
+    devicesEnterRegisteredRef.current = true;
+  }, [initialized, journey, journeyMode, runDevicesEnter]);
 
   useEffect(() => {
     if (!initialized || devices.length === 0) return;
@@ -113,7 +270,7 @@ export function DevicePlayground() {
 
   useEffect(() => {
     const api = physicsApiRef.current;
-    if (!api || !initialized) return;
+    if (!api || !initialized || !entranceComplete) return;
 
     const syncDomFromPhysics = () => {
       const draggingId = draggingIdRef.current;
@@ -130,11 +287,13 @@ export function DevicePlayground() {
     return () => {
       Matter.Events.off(api.engine, "afterUpdate", syncDomFromPhysics);
     };
-  }, [initialized, physicsApiRef]);
+  }, [entranceComplete, initialized, physicsApiRef]);
 
   useGSAP(
     () => {
-      if (!initialized || devices.length === 0 || !playgroundRef.current) return;
+      if (!initialized || devices.length === 0 || !playgroundRef.current || !entranceComplete) {
+        return;
+      }
 
       const draggables: Draggable[] = [];
       const bounds = {
@@ -148,7 +307,7 @@ export function DevicePlayground() {
         const element = deviceRefs.current.get(device.id);
         if (!element) return;
 
-        gsap.set(element, { x: device.x, y: device.y, scale: 1 });
+        gsap.set(element, { x: device.x, y: device.y, scale: 1, opacity: 1 });
 
         const [draggable] = Draggable.create(element, {
           type: "x,y",
@@ -192,7 +351,13 @@ export function DevicePlayground() {
     },
     {
       scope: playgroundRef,
-      dependencies: [initialized, devices, playgroundSize.width, playgroundSize.height],
+      dependencies: [
+        initialized,
+        devices,
+        playgroundSize.width,
+        playgroundSize.height,
+        entranceComplete,
+      ],
       revertOnUpdate: true,
     },
   );
@@ -203,16 +368,24 @@ export function DevicePlayground() {
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 py-5">
-        <p className="text-sm text-zinc-400">
-          匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮
-        </p>
-        {initialized ? (
-          <p className="mt-1 font-mono text-xs text-zinc-600">
-            我的设备: {ownerDevice?.label ?? "RM-01"} · {matchableCount} / {TOTAL_DEVICES}{" "}
-            matchable
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between px-6 py-5">
+        <div>
+          <p className="text-sm text-zinc-400">
+            匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮
           </p>
-        ) : null}
+          {initialized ? (
+            <p className="mt-1 font-mono text-xs text-zinc-600">
+              我的设备: {ownerDevice?.label ?? "RM-01"} · {matchableCount} / {TOTAL_DEVICES}{" "}
+              matchable
+            </p>
+          ) : null}
+        </div>
+        <Link
+          href="/"
+          className="pointer-events-auto rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-300 backdrop-blur transition hover:border-zinc-500 hover:text-white"
+        >
+          ← 兴趣 Lab
+        </Link>
       </header>
 
       <div ref={playgroundRef} className="device-playground relative min-h-0 flex-1">

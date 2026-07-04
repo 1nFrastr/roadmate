@@ -22,13 +22,13 @@ export function TagWordCloudDemo() {
         </div>
         <div className="flex gap-2">
           <Link
-            href="/interests"
+            href="/"
             className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
           >
             兴趣推断 →
           </Link>
           <Link
-            href="/"
+            href="/playground"
             className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
           >
             ← 设备 Demo

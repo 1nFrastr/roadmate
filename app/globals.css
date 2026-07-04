@@ -19,8 +19,13 @@
   }
 }
 
+html,
 body {
-  background: var(--background);
+  height: 100dvh;
+}
+
+body {
+  background: #0a0a0c;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
@@ -111,10 +116,87 @@ body {
 }
 
 .interest-lab {
+  background: transparent;
+}
+
+.journey-canvas {
   background:
+    radial-gradient(circle at 20% 20%, rgba(74, 222, 128, 0.04), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.05), transparent 35%),
     radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.06), transparent 35%),
-    radial-gradient(circle at 85% 80%, rgba(167, 139, 250, 0.05), transparent 30%),
     linear-gradient(180deg, #0a0a0c 0%, #111116 100%);
+}
+
+.journey-transition-overlay {
+  background: transparent;
+}
+
+.iphone-app-frame {
+  background: linear-gradient(165deg, #52525b 0%, #3f3f46 18%, #27272a 55%, #18181b 100%);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.iphone-app-screen {
+  background: #000;
+  border-radius: var(--iphone-screen-radius, 36px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.iphone-app-screen-content {
+  background: #0a0a0c;
+}
+
+.iphone-app-island {
+  background: #000;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+  width: var(--iphone-island-w, 96px);
+  height: var(--iphone-island-h, 26px);
+}
+
+.iphone-app-home-indicator {
+  background: rgba(255, 255, 255, 0.42);
+  width: var(--iphone-home-w, 100px);
+}
+
+.journey-frame-ghost.journey-frame-morphed {
+  background: linear-gradient(145deg, #6b7280 0%, #3f4654 40%, #2a3140 100%);
+  border-radius: 14px;
+  padding: 0;
+  box-shadow:
+    0 8px 28px rgba(34, 211, 238, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.journey-frame-ghost.journey-frame-morphed .iphone-app-screen,
+.journey-frame-ghost.journey-frame-morphed .iphone-app-screen-content {
+  border-radius: 11px;
+  min-height: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.journey-tag-clone {
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device-owner-ring {
+    animation: none;
+  }
+
+  .journey-transition-overlay {
+    display: none;
+  }
 }
 
 .tag-word-cloud-demo {

@@ -4,9 +4,9 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { Draggable } from "gsap/Draggable";
 import Matter from "matter-js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { CANVAS_PADDING, PHYSICS } from "./constants";
-import type { CanvasSize, TagLayout, TagWordCloudProps } from "./types";
+import type { CanvasSize, TagLayout, TagSnapshot, TagWordCloudHandle, TagWordCloudProps } from "./types";
 import { createTagLayouts, createTagPhysicsBody, separateOverlappingBodies } from "./utils";
 
 gsap.registerPlugin(useGSAP, Draggable);
@@ -18,15 +18,23 @@ function bodyToTagPosition(body: Matter.Body, layout: TagLayout) {
   };
 }
 
-export function TagWordCloud({
-  tags,
-  height = PHYSICS.defaultHeight,
-  className = "",
-  emptyMessage = "暂无标签",
-}: TagWordCloudProps) {
+export const TagWordCloud = forwardRef<TagWordCloudHandle, TagWordCloudProps>(function TagWordCloud(
+  {
+    tags,
+    height = PHYSICS.defaultHeight,
+    className = "",
+    emptyMessage = "暂无标签",
+    interactive = true,
+    size = "default",
+  },
+  ref,
+) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const tagRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
+  const draggablesRef = useRef<Draggable[]>([]);
+  const runnerRef = useRef<Matter.Runner | null>(null);
+  const frozenRef = useRef(false);
   const physicsRef = useRef<{
     engine: Matter.Engine;
     bodies: Map<string, Matter.Body>;
@@ -42,9 +50,48 @@ export function TagWordCloud({
 
   const layouts = useMemo(() => {
     if (canvasSize.width === 0 || canvasSize.height === 0 || tags.length === 0) return [];
-    return createTagLayouts(tags, canvasSize);
-  }, [tags, canvasSize]);
+    return createTagLayouts(tags, canvasSize, size);
+  }, [tags, canvasSize, size]);
   const ready = layouts.length > 0;
+
+  useImperativeHandle(ref, () => ({
+    freezeAndSnapshot: () => {
+      frozenRef.current = true;
+      draggablesRef.current.forEach((item) => item.kill());
+      draggablesRef.current = [];
+
+      if (runnerRef.current) {
+        Matter.Runner.stop(runnerRef.current);
+      }
+
+      physicsRef.current?.bodies.forEach((body, id) => {
+        physicsRef.current?.setBodyStatic(id, true);
+      });
+
+      const snapshots: TagSnapshot[] = [];
+      layouts.forEach((layout) => {
+        const element = tagRefs.current.get(layout.id);
+        if (!element) return;
+        snapshots.push({
+          id: layout.id,
+          name: layout.tag.name,
+          rect: element.getBoundingClientRect(),
+          hue: layout.hue,
+          fontSize: layout.fontSize,
+          weight: layout.tag.weight,
+        });
+      });
+
+      return snapshots;
+    },
+    getContainerRect: () => {
+      const element = canvasRef.current;
+      if (!element) {
+        return new DOMRect(0, 0, 0, 0);
+      }
+      return element.getBoundingClientRect();
+    },
+  }));
 
   useEffect(() => {
     if (tags.length === 0) return;
@@ -64,7 +111,7 @@ export function TagWordCloud({
   }, [height, tags.length]);
 
   useEffect(() => {
-    if (!ready || layouts.length === 0) return;
+    if (!ready || layouts.length === 0 || frozenRef.current) return;
 
     const engine = Matter.Engine.create({
       gravity: { x: 0, y: PHYSICS.gravityY },
@@ -109,6 +156,7 @@ export function TagWordCloud({
 
     const runner = Matter.Runner.create();
     Matter.Runner.run(runner, engine);
+    runnerRef.current = runner;
 
     physicsRef.current = {
       engine,
@@ -133,7 +181,7 @@ export function TagWordCloud({
 
     const syncDomFromPhysics = () => {
       const api = physicsRef.current;
-      if (!api) return;
+      if (!api || frozenRef.current) return;
       const draggingId = draggingIdRef.current;
       api.bodies.forEach((body, id) => {
         if (id === draggingId) return;
@@ -151,6 +199,7 @@ export function TagWordCloud({
     return () => {
       gsap.ticker.remove(syncDomFromPhysics);
       Matter.Runner.stop(runner);
+      runnerRef.current = null;
       Matter.Engine.clear(engine);
       Matter.Composite.clear(engine.world, false);
       physicsRef.current = null;
@@ -159,7 +208,9 @@ export function TagWordCloud({
 
   useGSAP(
     () => {
-      if (!ready || layouts.length === 0 || !canvasRef.current) return;
+      if (!ready || layouts.length === 0 || !canvasRef.current || !interactive || frozenRef.current) {
+        return;
+      }
 
       const draggables: Draggable[] = [];
       const bounds = {
@@ -211,13 +262,16 @@ export function TagWordCloud({
         draggables.push(draggable);
       });
 
+      draggablesRef.current = draggables;
+
       return () => {
         draggables.forEach((item) => item.kill());
+        draggablesRef.current = [];
       };
     },
     {
       scope: canvasRef,
-      dependencies: [ready, layouts, canvasSize.width, height],
+      dependencies: [ready, layouts, canvasSize.width, height, interactive],
       revertOnUpdate: true,
     },
   );
@@ -249,7 +303,9 @@ export function TagWordCloud({
             if (element) tagRefs.current.set(layout.id, element);
             else tagRefs.current.delete(layout.id);
           }}
-          className="tag-word-cloud-item tag-word-cloud-shape tag-word-cloud-shape-circle absolute left-0 top-0 flex touch-none cursor-grab items-center justify-center px-2 text-center font-semibold leading-tight text-zinc-50 active:cursor-grabbing"
+          className={`tag-word-cloud-item tag-word-cloud-shape tag-word-cloud-shape-circle absolute left-0 top-0 flex items-center justify-center px-2 text-center font-semibold leading-tight text-zinc-50 ${
+            interactive ? "touch-none cursor-grab active:cursor-grabbing" : "pointer-events-none"
+          }`}
           style={{
             width: layout.width,
             height: layout.height,
@@ -264,4 +320,4 @@ export function TagWordCloud({
       ))}
     </div>
   );
-}
+});
