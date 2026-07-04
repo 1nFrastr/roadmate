@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { cloneTagElementForJourney } from "@/components/tag-word-cloud/journeyClone";
 import { computeLandingRect, JOURNEY_EASE, JOURNEY_TIMINGS } from "./constants";
 import type { InjectTarget, LandingRect, JourneyTransitionSources, TagSnapshot } from "./types";
 
@@ -14,26 +15,6 @@ function tagCenter(snap: TagSnapshot) {
     x: snap.rect.left + snap.rect.width / 2,
     y: snap.rect.top + snap.rect.height / 2,
   };
-}
-
-function createTagClone(overlayEl: HTMLElement, snap: TagSnapshot, zIndex: number): HTMLElement {
-  const center = tagCenter(snap);
-  const clone = document.createElement("div");
-  clone.className =
-    "tag-word-cloud-item tag-word-cloud-shape tag-word-cloud-shape-circle journey-tag-clone flex items-center justify-center px-2 text-center font-semibold leading-tight text-zinc-50";
-  clone.textContent = snap.name;
-  clone.style.position = "fixed";
-  clone.style.left = `${center.x}px`;
-  clone.style.top = `${center.y}px`;
-  clone.style.width = `${snap.rect.width}px`;
-  clone.style.height = `${snap.rect.height}px`;
-  clone.style.fontSize = `${snap.fontSize}px`;
-  clone.style.setProperty("--tag-hue", String(snap.hue));
-  clone.style.zIndex = String(zIndex);
-  clone.style.pointerEvents = "none";
-  clone.style.transformOrigin = "center center";
-  overlayEl.appendChild(clone);
-  return clone;
 }
 
 function fallbackInjectTarget(landing: LandingRect): InjectTarget {
@@ -73,7 +54,7 @@ function runInjectPhase(
       {
         x: target.x - center.x,
         y: target.y - center.y,
-        scale: JOURNEY_TIMINGS.tagInjectScale,
+        scale: snap.visualScale * JOURNEY_TIMINGS.tagInjectScale,
         rotation: gsap.utils.random(-6, 6),
         duration,
         ease: JOURNEY_EASE.inject,
@@ -116,17 +97,19 @@ export function runInterestsToPlaygroundTransition(
   const tagClones: HTMLElement[] = [];
 
   sortedTags.forEach((snap, index) => {
-    tagClones.push(createTagClone(overlayEl, snap, 110 + index));
+    tagClones.push(cloneTagElementForJourney(snap, overlayEl, 110 + index));
   });
 
   gsap.set(frameRoot, { opacity: 0 });
   gsap.set(sources.iphoneFrame, { opacity: 0 });
 
-  tagClones.forEach((clone) => {
+  tagClones.forEach((clone, index) => {
+    const snap = sortedTags[index];
+    if (!snap) return;
     gsap.set(clone, {
       xPercent: -50,
       yPercent: -50,
-      scale: 1,
+      scale: snap.visualScale,
       opacity: 1,
       rotation: gsap.utils.random(-4, 4),
     });

@@ -28,7 +28,11 @@ export interface TagLayout {
 export interface TagSnapshot {
   id: string;
   name: string;
+  /** 冻结时的真实 DOM，供 Journey 过渡深拷贝 */
+  element: HTMLElement;
   rect: DOMRectReadOnly;
+  /** 祖先 scale 等造成的视口/布局比，过渡 clone 用 gsap scale 还原 */
+  visualScale: number;
   hue: number;
   fontSize: number;
   weight: number;

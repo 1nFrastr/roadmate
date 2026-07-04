@@ -51,7 +51,12 @@ export function buildTagLayoutDraft(
   preset: TagSizePreset = "default",
 ): Omit<TagLayout, "x" | "y"> {
   const visualWeight = resolveTagVisualWeight(tag, tags);
-  const { width, height, fontSize } = measureTagBox(tag.name, visualWeight, preset);
+  const { width, height, fontSize } = measureTagBox(
+    tag.name,
+    visualWeight,
+    preset,
+    tag.custom === true,
+  );
   return {
     id,
     tag,
@@ -72,13 +77,21 @@ export function measureTagBox(
   name: string,
   visualWeight: number,
   preset: TagSizePreset = "default",
+  /** 自定义标签：权重直接驱动球体直径，不被文本宽度下限钉死 */
+  weightDrivesSize = false,
 ) {
   const metrics = TAG_SIZE_BY_PRESET[preset];
   const t = Math.max(0, Math.min(1, visualWeight));
   const fontSize = geometricScale(t, metrics.minFont, metrics.maxFont);
-  const textWidth = name.length * metrics.charWidth + metrics.paddingX * 2;
-  const diameter = Math.max(geometricScale(t, metrics.minDiameter, metrics.maxDiameter), textWidth);
-  const size = Math.min(diameter, metrics.maxDiameterCap);
+  const weightedDiameter = geometricScale(t, metrics.minDiameter, metrics.maxDiameter);
+
+  let size: number;
+  if (weightDrivesSize) {
+    size = Math.min(weightedDiameter, metrics.maxDiameterCap);
+  } else {
+    const textWidth = name.length * metrics.charWidth + metrics.paddingX * 2;
+    size = Math.min(Math.max(weightedDiameter, textWidth), metrics.maxDiameterCap);
+  }
 
   return {
     width: size,

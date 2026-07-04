@@ -1,11 +1,6 @@
-export interface TagSnapshot {
-  id: string;
-  name: string;
-  rect: DOMRectReadOnly;
-  hue: number;
-  fontSize: number;
-  weight: number;
-}
+import type { TagSnapshot } from "@/components/tag-word-cloud/types";
+
+export type { TagSnapshot };
 
 export interface LandingRect {
   x: number;

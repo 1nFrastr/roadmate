@@ -6,6 +6,7 @@ import { Draggable } from "gsap/Draggable";
 import Matter from "matter-js";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { CANVAS_PADDING, PHYSICS } from "./constants";
+import { measureTagVisualScale } from "./journeyClone";
 import type { CanvasSize, TagLayout, TagSnapshot, TagWordCloudHandle, TagWordCloudProps } from "./types";
 import type { TagSizePreset } from "./constants";
 import {
@@ -106,7 +107,9 @@ export const TagWordCloud = forwardRef<TagWordCloudHandle, TagWordCloudProps>(fu
         snapshots.push({
           id: layout.id,
           name: layout.tag.name,
+          element,
           rect: element.getBoundingClientRect(),
+          visualScale: measureTagVisualScale(element),
           hue: layout.hue,
           fontSize: layout.fontSize,
           weight: layout.tag.weight,
