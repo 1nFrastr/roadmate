@@ -12,9 +12,10 @@ import {
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { OWNER_DEVICE_INDEX } from "@/components/device-playground/constants";
-import { runInterestsToPlaygroundTransition } from "./runInterestsToPlaygroundTransition";
+import { runInterestsToPlaygroundTransition, fallbackInjectTarget } from "./runInterestsToPlaygroundTransition";
 import { saveJourneyLanding } from "./storage";
-import type { JourneyPhase, JourneyTransitionSources, TagSnapshot } from "./types";
+import { computeLandingRect } from "./constants";
+import type { InjectTarget, JourneyPhase, JourneyTransitionSources, TagSnapshot } from "./types";
 
 interface StartTransitionInput {
   header: HTMLElement;
@@ -29,7 +30,7 @@ interface JourneyTransitionContextValue {
   phase: JourneyPhase;
   isTransitioning: boolean;
   startTransition: (input: StartTransitionInput) => void;
-  notifyPlaygroundReady: () => void;
+  notifyPlaygroundReady: (target: InjectTarget) => void;
   triggerDevicesEnter: (animate: () => gsap.core.Timeline | void) => void;
 }
 
@@ -55,7 +56,7 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
   const router = useRouter();
   const overlayRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
-  const handoffResolverRef = useRef<(() => void) | null>(null);
+  const handoffResolverRef = useRef<((target: InjectTarget) => void) | null>(null);
   const devicesEnterRef = useRef<(() => gsap.core.Timeline | void) | null>(null);
 
   const [phase, setPhase] = useState<JourneyPhase>("idle");
@@ -71,8 +72,8 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
     return () => media.removeEventListener("change", onChange);
   }, []);
 
-  const notifyPlaygroundReady = useCallback(() => {
-    handoffResolverRef.current?.();
+  const notifyPlaygroundReady = useCallback((target: InjectTarget) => {
+    handoffResolverRef.current?.(target);
     handoffResolverRef.current = null;
   }, []);
 
@@ -81,9 +82,12 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
   }, []);
 
   const waitForHandoff = useCallback(() => {
-    return new Promise<void>((resolve) => {
+    const landing = computeLandingRect(window.innerWidth, window.innerHeight);
+    const fallback = fallbackInjectTarget(landing);
+
+    return new Promise<InjectTarget>((resolve) => {
       handoffResolverRef.current = resolve;
-      window.setTimeout(resolve, 1200);
+      window.setTimeout(() => resolve(fallback), 1200);
     });
   }, []);
 
@@ -141,7 +145,7 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
           },
           onHandoffReady: async () => {
             setPhase("handoff");
-            await waitForHandoff();
+            return waitForHandoff();
           },
           onDevicesEnter: () => {
             setPhase("devices-enter");

@@ -11,6 +11,7 @@ export { loadJourneyLanding, clearJourneyLanding, saveJourneyLanding } from "./s
 export type {
   TagSnapshot,
   LandingRect,
+  InjectTarget,
   JourneyLandingPayload,
   JourneyPhase,
 } from "./types";

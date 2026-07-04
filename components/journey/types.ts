@@ -14,6 +14,12 @@ export interface LandingRect {
   height: number;
 }
 
+/** 标签 inject 落点（视口坐标，一般为 owner 设备屏幕中心） */
+export interface InjectTarget {
+  x: number;
+  y: number;
+}
+
 export interface JourneyLandingPayload {
   landingRect: LandingRect;
   ownerDeviceId: string;

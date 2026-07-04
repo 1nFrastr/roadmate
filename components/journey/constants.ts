@@ -4,34 +4,24 @@ export const JOURNEY_TIMINGS = {
   headerExit: 0.28,
   leftPanelExit: 0.4,
   previewAsideExit: 0.4,
-  tagBloomStart: 0.08,
-  tagBloomBurstDuration: 0.34,
-  tagBloomSettleDuration: 0.42,
-  tagBloomStagger: 0.032,
-  tagBloomRandomDelay: 0.14,
-  tagBloomScaleMin: 2.2,
-  tagBloomScaleMax: 4.4,
-  /** 爆发落点区域（相对视口） */
-  tagBurstPadX: 0.04,
-  tagBurstPadTop: 0.05,
-  /** 落点不超过 origin.y 之上多少 px（避免往手机下方飞） */
-  tagBurstOriginClearance: 40,
-  tagInjectGap: 0.05,
-  tagInjectDuration: 0.68,
-  tagInjectScale: 0.05,
-  navigateAtMin: 2.05,
-  navigateLead: 0.15,
+  /** UI 退场后立刻 navigate + 开始 inject */
+  injectPhaseStart: 0.32,
+  handoffWait: 0.05,
+  tagInjectStagger: 0.02,
+  tagInjectRandomDelay: 0.06,
+  tagInjectDuration: 0.62,
+  /** inject 进度到此比例后再淡出标签 */
+  tagInjectOpacityAt: 0.58,
+  tagInjectScale: 0.07,
   handoffDuration: 0.55,
   devicesEnterDuration: 0.45,
   devicesEnterStagger: 0.06,
-  totalApprox: 2.8,
+  totalApprox: 1.35,
 } as const;
 
 export const JOURNEY_EASE = {
   out: "power2.inOut",
-  burst: "power4.out",
-  bloom: "sine.out",
-  inject: "power3.in",
+  inject: "power2.inOut",
   enter: "power2.out",
 } as const;
 

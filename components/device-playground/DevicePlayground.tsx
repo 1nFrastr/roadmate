@@ -189,7 +189,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
       if (!element) return;
 
       if (device.isOwner) {
-        gsap.set(element, { x: device.x, y: device.y, opacity: 0, scale: 1 });
+        gsap.set(element, { x: device.x, y: device.y, opacity: 1, scale: 1 });
         return;
       }
 
@@ -204,18 +204,22 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     const ownerEl = deviceRefs.current.get(ownerId);
     if (!ownerEl) return;
 
-    journey?.notifyPlaygroundReady();
-    setPlaygroundReadySent(true);
+    const screenEl = ownerEl.querySelector<HTMLElement>(".device-screen");
+    const screenRect = screenEl?.getBoundingClientRect();
+    const injectTarget = screenRect
+      ? {
+          x: screenRect.left + screenRect.width / 2,
+          y: screenRect.top + screenRect.height / 2,
+        }
+      : {
+          x: ownerEl.getBoundingClientRect().left + DEVICE_W / 2,
+          y: ownerEl.getBoundingClientRect().top + DEVICE_H * 0.42,
+        };
 
-    gsap.to(ownerEl, {
-      opacity: 1,
-      duration: JOURNEY_TIMINGS.handoffDuration,
-      ease: "power1.inOut",
-      onComplete: () => {
-        setHandoffDone(true);
-        clearJourneyLanding();
-      },
-    });
+    journey?.notifyPlaygroundReady(injectTarget);
+    setPlaygroundReadySent(true);
+    setHandoffDone(true);
+    clearJourneyLanding();
   }, [initialized, journey, journeyMode, ownerId, playgroundReadySent]);
 
   const runDevicesEnter = useCallback(() => {
