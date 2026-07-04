@@ -13,6 +13,8 @@ import {
 } from "@/components/journey";
 import { JOURNEY_TIMINGS } from "@/components/journey/constants";
 import { DeviceCard } from "./DeviceCard";
+import { MatchConfirmButton } from "./match-pairing/MatchConfirmButton";
+import { useMatchPairing } from "./match-pairing/useMatchPairing";
 import {
   DEVICE_H,
   DEVICE_LABELS,
@@ -102,6 +104,7 @@ function createJourneyDevices(size: PlaygroundSize, ownerX: number, ownerY: numb
 
 export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps) {
   const playgroundRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
@@ -125,6 +128,28 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized && entranceComplete);
   const { updateMatchLeds, updateDockProximity, resetDockScales, cleanup } =
     useProximityEffects(reducedMotion);
+
+  const {
+    phase: pairingPhase,
+    holdProgress,
+    anchor: pairingAnchor,
+    matchedPair,
+    successScreenVisible,
+    startHold,
+    endHold,
+    dismissSuccess,
+    pairingLocked,
+  } = useMatchPairing({
+    devices,
+    deviceRefs,
+    playgroundRef,
+    headerRef,
+    playgroundSize,
+    reducedMotion,
+    enabled: initialized && entranceComplete,
+  });
+
+  const pairingReady = pairingPhase === "ready" || pairingPhase === "holding";
 
   const ownerDevice = devices.find((device) => device.isOwner);
   const ownerId = `device-${OWNER_DEVICE_INDEX}`;
@@ -295,7 +320,13 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
 
   useGSAP(
     () => {
-      if (!initialized || devices.length === 0 || !playgroundRef.current || !entranceComplete) {
+      if (
+        !initialized ||
+        devices.length === 0 ||
+        !playgroundRef.current ||
+        !entranceComplete ||
+        pairingLocked
+      ) {
         return;
       }
 
@@ -311,7 +342,11 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         const element = deviceRefs.current.get(device.id);
         if (!element) return;
 
-        gsap.set(element, { x: device.x, y: device.y, scale: 1, opacity: 1 });
+        const x = (gsap.getProperty(element, "x") as number) || device.x;
+        const y = (gsap.getProperty(element, "y") as number) || device.y;
+        gsap.set(element, { scale: 1, opacity: 1 });
+        physicsApiRef.current?.setBodyPosition(device.id, x, y);
+        physicsApiRef.current?.setBodyStatic(device.id, false);
 
         const [draggable] = Draggable.create(element, {
           type: "x,y",
@@ -361,6 +396,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         playgroundSize.width,
         playgroundSize.height,
         entranceComplete,
+        pairingLocked,
       ],
       revertOnUpdate: true,
     },
@@ -372,10 +408,17 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between px-6 py-5">
+      <header
+        ref={headerRef}
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between px-6 py-5"
+      >
         <div>
           <p className="text-sm text-zinc-400">
-            匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮
+            {pairingLocked
+              ? "配对成功 · 共同兴趣已同步到设备屏幕"
+              : pairingReady
+                ? "设备已靠近 · 长按确认匹配完成配对"
+                : "匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮 · 碰一碰可确认配对"}
           </p>
           {initialized ? (
             <p className="mt-1 font-mono text-xs text-zinc-600">
@@ -393,7 +436,13 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
       </header>
 
       <div ref={playgroundRef} className="device-playground relative min-h-0 flex-1">
-        {devices.map((device) => (
+        {devices.map((device) => {
+          const isPairParticipant =
+            matchedPair &&
+            (device.id === matchedPair.owner.id || device.id === matchedPair.partner.id);
+          const showMatchSuccess = Boolean(successScreenVisible && isPairParticipant);
+
+          return (
           <div
             key={device.id}
             ref={(element) => {
@@ -401,17 +450,47 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
               else deviceRefs.current.delete(device.id);
             }}
             className="absolute left-0 top-0 touch-none"
-            style={{ transformOrigin: "center bottom" }}
+            style={{
+              transformOrigin: "center bottom",
+              pointerEvents:
+                pairingLocked && isPairParticipant ? "auto" : undefined,
+            }}
           >
             <DeviceCard
               device={device}
+              showMatchSuccess={showMatchSuccess}
+              matchScore={matchedPair?.matchScore}
+              matchTopics={matchedPair?.topics}
               ledRef={(element) => {
                 if (element) ledRefs.current.set(device.id, element);
                 else ledRefs.current.delete(device.id);
               }}
             />
           </div>
-        ))}
+          );
+        })}
+
+        <MatchConfirmButton
+          visible={pairingReady}
+          progress={holdProgress}
+          x={pairingAnchor.x}
+          y={pairingAnchor.y}
+          onHoldStart={startHold}
+          onHoldEnd={endHold}
+        />
+
+        {pairingLocked && successScreenVisible ? (
+          <button
+            type="button"
+            className="pair-success-backdrop absolute inset-0 z-[160] cursor-default border-0 bg-transparent p-0"
+            onClick={dismissSuccess}
+            aria-label="点击空白处返回"
+          >
+            <span className="pair-success-dismiss-hint pointer-events-none absolute inset-x-0 bottom-8 text-center font-mono text-xs text-zinc-500/90">
+              点击空白处返回
+            </span>
+          </button>
+        ) : null}
       </div>
     </div>
   );

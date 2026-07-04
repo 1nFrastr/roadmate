@@ -7,12 +7,19 @@ import type { DeviceState } from "./types";
 interface DeviceCardProps {
   device: DeviceState;
   ledRef?: React.Ref<HTMLDivElement>;
+  showMatchSuccess?: boolean;
+  matchScore?: number;
+  matchTopics?: string[];
 }
 
 export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
-  function DeviceCard({ device, ledRef }, ref) {
+  function DeviceCard(
+    { device, ledRef, showMatchSuccess = false, matchScore, matchTopics = [] },
+    ref,
+  ) {
     const ledActive = device.matchable || device.isOwner;
     const ledColor = ledActive ? LED_COLOR : "#334155";
+    const topics = matchTopics.slice(0, 3);
 
     return (
       <div
@@ -58,29 +65,53 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
           </div>
 
           <div className="device-screen absolute left-[10px] right-[10px] top-[26px] bottom-[52px] overflow-hidden rounded-[4px]">
-            <div className="flex h-full flex-col justify-between p-[6px]">
-              <span
-                className={`font-mono text-[8px] uppercase tracking-widest ${
-                  device.isOwner ? "text-cyan-300/90" : "text-emerald-400/70"
-                }`}
-              >
-                {device.isOwner ? "roadmate · you" : "roadmate"}
-              </span>
-              <div className="flex flex-col gap-[2px]">
-                <span className="font-mono text-[11px] font-semibold text-zinc-100">
-                  {device.label}
+            {showMatchSuccess ? (
+              <div className="device-match-success-screen flex h-full flex-col justify-between p-[6px]">
+                <span className="font-mono text-[7px] uppercase tracking-widest text-emerald-400/80">
+                  matched
                 </span>
-                {device.isOwner ? (
-                  <span className="font-mono text-[8px] text-cyan-300/80">我的设备</span>
-                ) : device.matchable ? (
-                  <span className="font-mono text-[8px] text-zinc-400">
-                    match {device.matchScore}%
+                <div className="flex flex-col items-center gap-[3px] text-center">
+                  <span className="font-mono text-[18px] font-bold leading-none text-emerald-300">
+                    {matchScore ?? device.matchScore}%
                   </span>
-                ) : (
-                  <span className="font-mono text-[8px] text-zinc-600">idle</span>
-                )}
+                  <span className="font-mono text-[7px] text-zinc-500">契合度</span>
+                </div>
+                <ul className="flex flex-col gap-[2px]">
+                  {topics.map((topic) => (
+                    <li
+                      key={topic}
+                      className="truncate font-mono text-[7px] leading-tight text-zinc-300/90"
+                    >
+                      · {topic}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            ) : (
+              <div className="flex h-full flex-col justify-between p-[6px]">
+                <span
+                  className={`font-mono text-[8px] uppercase tracking-widest ${
+                    device.isOwner ? "text-cyan-300/90" : "text-emerald-400/70"
+                  }`}
+                >
+                  {device.isOwner ? "roadmate · you" : "roadmate"}
+                </span>
+                <div className="flex flex-col gap-[2px]">
+                  <span className="font-mono text-[11px] font-semibold text-zinc-100">
+                    {device.label}
+                  </span>
+                  {device.isOwner ? (
+                    <span className="font-mono text-[8px] text-cyan-300/80">我的设备</span>
+                  ) : device.matchable ? (
+                    <span className="font-mono text-[8px] text-zinc-400">
+                      match {device.matchScore}%
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[8px] text-zinc-600">idle</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="device-wheel absolute bottom-[8px] left-1/2 h-[36px] w-[36px] -translate-x-1/2 rounded-full" />

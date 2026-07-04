@@ -115,6 +115,67 @@ body {
   will-change: opacity, transform;
 }
 
+.device-match-success-screen {
+  animation: match-screen-reveal 0.55s ease-out both;
+}
+
+@keyframes match-screen-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.match-confirm-button {
+  -webkit-touch-callout: none;
+}
+
+.pair-confetti-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 180;
+}
+
+.pair-confetti-particle {
+  position: absolute;
+  border-radius: 2px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.pair-confetti-emoji {
+  position: absolute;
+  font-size: 2rem;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform, opacity;
+  translate: -50% -50%;
+}
+
+.pair-success-backdrop {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pair-success-dismiss-hint {
+  animation: pair-dismiss-hint 2.4s ease-in-out infinite;
+}
+
+@keyframes pair-dismiss-hint {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 .interest-lab {
   background: transparent;
 }
@@ -192,6 +253,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .device-owner-ring {
     animation: none;
+  }
+
+  .device-match-success-screen {
+    animation: none;
+  }
+
+  .pair-success-dismiss-hint {
+    animation: none;
+    opacity: 0.75;
   }
 
   .journey-transition-overlay {
