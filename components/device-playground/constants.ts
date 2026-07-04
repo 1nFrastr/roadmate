@@ -1,4 +1,13 @@
-import type { LedConfig } from "./types";
+import type { DeviceState, LedConfig } from "./types";
+
+export function devicesMatch(a: DeviceState, b: DeviceState): boolean {
+  if (a.id === b.id) return false;
+  return (a.isOwner && b.matchable) || (b.isOwner && a.matchable);
+}
+
+export function isMatchParticipant(device: DeviceState): boolean {
+  return device.isOwner || device.matchable;
+}
 
 export const DEVICE_W = 88;
 export const DEVICE_H = 148;
@@ -8,8 +17,18 @@ export const OWNER_DEVICE_INDEX = 0;
 export const DOCK_RADIUS = 180;
 export const DOCK_MAX_SCALE = 1.35;
 export const PLAYGROUND_PADDING = 24;
-export const LED_IDLE_OPACITY = 0.15;
-export const LED_PROXIMITY_RANGE = DOCK_RADIUS * 1.2;
+export const LED_IDLE_OPACITY = 0.12;
+/** 匹配灯光有效距离：5 倍设备宽度，超出则熄灭 */
+export const LED_MATCH_RANGE = DEVICE_W * 5;
+export const LED_COLOR = "#6bbfa0";
+export const LED_PULSE_BASE_CYCLE = 1.04;
+export const LED_SMOOTHING = 0.055;
+
+export const LED_CONFIG: LedConfig = {
+  color: LED_COLOR,
+  minDuration: 3.8,
+  maxDuration: 0.95,
+};
 
 export const DEVICE_LABELS = [
   "RM-01",
@@ -24,33 +43,35 @@ export const DEVICE_LABELS = [
   "RM-10",
 ];
 
-export function getLedConfig(matchScore: number): LedConfig {
-  if (matchScore >= 85) {
-    return { color: "#4ade80", minDuration: 0.06, maxDuration: 1.8 };
-  }
-  if (matchScore >= 72) {
-    return { color: "#fbbf24", minDuration: 0.08, maxDuration: 2.0 };
-  }
-  return { color: "#60a5fa", minDuration: 0.1, maxDuration: 2.2 };
+/** 距离 → [0, 1]，0 为最远有效距离，1 为紧贴 */
+export function distanceToProximity(distance: number): number {
+  if (distance > LED_MATCH_RANGE) return 0;
+  return Math.max(0, Math.min(1, 1 - distance / LED_MATCH_RANGE));
 }
 
-/** 距离 → GSAP timeline timeScale；越近越快，指数曲线拉开区分度 */
-export function distanceToLedTimeScale(
-  distance: number,
-  config: LedConfig,
-  mode: "idle" | "proximity",
-): number {
-  if (mode === "idle") {
-    return 0.22;
-  }
+/** 距离 → 一次完整闪烁周期（秒）；越远越慢，曲线平缓 */
+export function distanceToCycleDuration(distance: number): number {
+  const proximity = distanceToProximity(distance);
+  const urgency = Math.pow(proximity, 1.25);
 
-  const proximity = Math.max(0, Math.min(1, 1 - distance / LED_PROXIMITY_RANGE));
-  const urgency = Math.pow(proximity, 2.4);
+  return (
+    LED_CONFIG.minDuration -
+    urgency * (LED_CONFIG.minDuration - LED_CONFIG.maxDuration)
+  );
+}
 
-  const minScale = 0.35;
-  const maxScale = 18 / config.minDuration;
+export function distanceToLedTimeScale(distance: number): number {
+  return LED_PULSE_BASE_CYCLE / distanceToCycleDuration(distance);
+}
 
-  return minScale + urgency * (maxScale - minScale);
+/** 距离 → 亮度 / 光晕强度 [0, 1] */
+export function distanceToLedIntensity(distance: number): number {
+  const proximity = distanceToProximity(distance);
+  return Math.pow(proximity, 1.15);
+}
+
+export function isWithinLedMatchRange(distance: number): boolean {
+  return distance <= LED_MATCH_RANGE;
 }
 
 export function randomMatchScore(): number {

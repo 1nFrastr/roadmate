@@ -1,12 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
-import {
-  DEVICE_H,
-  DEVICE_W,
-  getLedConfig,
-  LED_IDLE_OPACITY,
-} from "./constants";
+import { DEVICE_H, DEVICE_W, LED_COLOR, LED_IDLE_OPACITY } from "./constants";
 import type { DeviceState } from "./types";
 
 interface DeviceCardProps {
@@ -16,8 +11,8 @@ interface DeviceCardProps {
 
 export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
   function DeviceCard({ device, ledRef }, ref) {
-    const ledConfig = device.matchable ? getLedConfig(device.matchScore) : null;
-    const ledColor = ledConfig?.color ?? "#334155";
+    const ledActive = device.matchable || device.isOwner;
+    const ledColor = ledActive ? LED_COLOR : "#334155";
 
     return (
       <div
@@ -47,7 +42,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
               className="device-led-glow absolute left-1/2 top-1/2 h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full"
               style={{
                 backgroundColor: ledColor,
-                opacity: device.matchable ? 0.08 : 0,
+                opacity: ledActive ? 0.08 : 0,
               }}
             />
             <div
@@ -55,7 +50,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
               style={{
                 backgroundColor: ledColor,
                 opacity: device.matchable ? 0.35 : LED_IDLE_OPACITY,
-                boxShadow: device.matchable
+                boxShadow: ledActive
                   ? `0 0 10px ${ledColor}, 0 0 20px ${ledColor}66`
                   : "none",
               }}

@@ -57,11 +57,10 @@ export function DevicePlayground() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized);
-  const { updateProximity, resetAllEffects, startMatchableIdlePulse, cleanup } =
+  const { updateMatchLeds, updateDockProximity, resetDockScales, cleanup } =
     useProximityEffects(reducedMotion);
 
   const ownerDevice = devices.find((device) => device.isOwner);
-  const ownerId = ownerDevice?.id ?? `device-${OWNER_DEVICE_INDEX}`;
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -99,15 +98,18 @@ export function DevicePlayground() {
   useEffect(() => {
     if (!initialized || devices.length === 0) return;
 
-    const frame = requestAnimationFrame(() => {
-      startMatchableIdlePulse(devices, {
+    const tick = () => {
+      updateMatchLeds(devices, {
         deviceElements: deviceRefs.current,
         ledElements: ledRefs.current,
       });
-    });
+    };
 
-    return () => cancelAnimationFrame(frame);
-  }, [initialized, devices, startMatchableIdlePulse]);
+    gsap.ticker.add(tick);
+    return () => {
+      gsap.ticker.remove(tick);
+    };
+  }, [initialized, devices, updateMatchLeds]);
 
   useEffect(() => {
     const api = physicsApiRef.current;
@@ -161,7 +163,7 @@ export function DevicePlayground() {
             const x = gsap.getProperty(element, "x") as number;
             const y = gsap.getProperty(element, "y") as number;
             physicsApiRef.current?.setBodyPosition(device.id, x, y);
-            updateProximity(device.id, { x, y }, ownerId, devices, {
+            updateDockProximity(device.id, { x, y }, devices, {
               deviceElements: deviceRefs.current,
               ledElements: ledRefs.current,
             });
@@ -174,11 +176,7 @@ export function DevicePlayground() {
             gsap.to(element, { scale: 1, duration: 0.2, overwrite: "auto" });
             element.style.zIndex = "";
             draggingIdRef.current = null;
-            resetAllEffects(devices, {
-              deviceElements: deviceRefs.current,
-              ledElements: ledRefs.current,
-            });
-            startMatchableIdlePulse(devices, {
+            resetDockScales(devices, {
               deviceElements: deviceRefs.current,
               ledElements: ledRefs.current,
             });
@@ -207,7 +205,7 @@ export function DevicePlayground() {
     <div className="relative flex h-full w-full flex-col">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 py-5">
         <p className="text-sm text-zinc-400">
-          拖动带青色边框的「我的设备」靠近 match 设备 — LED 会随距离加速闪烁
+          匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮
         </p>
         {initialized ? (
           <p className="mt-1 font-mono text-xs text-zinc-600">
