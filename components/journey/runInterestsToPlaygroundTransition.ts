@@ -191,11 +191,33 @@ export function runInterestsToPlaygroundTransition(
   });
 
   tl.to(
+    sources.header,
+    {
+      opacity: 0,
+      y: -20,
+      duration: JOURNEY_TIMINGS.headerExit,
+      ease: JOURNEY_EASE.out,
+    },
+    0,
+  );
+
+  tl.to(
     sources.leftPanel,
     {
       opacity: 0,
       x: -48,
       duration: JOURNEY_TIMINGS.leftPanelExit,
+      ease: JOURNEY_EASE.out,
+    },
+    0,
+  );
+
+  tl.to(
+    sources.previewAside,
+    {
+      opacity: 0,
+      x: 48,
+      duration: JOURNEY_TIMINGS.previewAsideExit,
       ease: JOURNEY_EASE.out,
     },
     0,
@@ -292,7 +314,9 @@ export function runInterestsToPlaygroundTransition(
     tagClones.forEach((el) => el.remove());
     gsap.set(frameRoot, { opacity: 1 });
     gsap.set(sources.iphoneFrame, { opacity: 1, scale: 1, x: 0, y: 0, rotation: 0 });
+    gsap.set(sources.header, { opacity: 1, y: 0 });
     gsap.set(sources.leftPanel, { opacity: 1, x: 0 });
+    gsap.set(sources.previewAside, { opacity: 1, x: 0 });
   });
 
   return tl;

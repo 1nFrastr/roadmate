@@ -1,7 +1,9 @@
 import { DEVICE_H, DEVICE_W } from "@/components/device-playground/constants";
 
 export const JOURNEY_TIMINGS = {
+  headerExit: 0.28,
   leftPanelExit: 0.4,
+  previewAsideExit: 0.4,
   tagBloomStart: 0.08,
   tagBloomBurstDuration: 0.34,
   tagBloomSettleDuration: 0.42,

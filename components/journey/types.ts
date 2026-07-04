@@ -32,7 +32,9 @@ export type JourneyPhase =
   | "complete";
 
 export interface JourneyTransitionSources {
+  header: HTMLElement;
   leftPanel: HTMLElement;
+  previewAside: HTMLElement;
   iphoneFrame: HTMLElement;
   tagSnapshots: TagSnapshot[];
 }

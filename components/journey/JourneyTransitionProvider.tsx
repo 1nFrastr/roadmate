@@ -17,7 +17,9 @@ import { saveJourneyLanding } from "./storage";
 import type { JourneyPhase, JourneyTransitionSources, TagSnapshot } from "./types";
 
 interface StartTransitionInput {
+  header: HTMLElement;
   leftPanel: HTMLElement;
+  previewAside: HTMLElement;
   iphoneFrame: HTMLElement;
   tagSnapshots: TagSnapshot[];
   tagNames: string[];
@@ -93,7 +95,9 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
       overlayEl.style.pointerEvents = "auto";
 
       const sources: JourneyTransitionSources = {
+        header: input.header,
         leftPanel: input.leftPanel,
+        previewAside: input.previewAside,
         iphoneFrame: input.iphoneFrame,
         tagSnapshots: input.tagSnapshots,
       };

@@ -24,7 +24,9 @@ type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
 const IPHONE_WORD_CLOUD_HEIGHT = IPHONE_FRAME.compact.contentHeight;
 
 export function InterestLab() {
+  const headerRef = useRef<HTMLElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
+  const previewAsideRef = useRef<HTMLElement>(null);
   const iphoneFrameRef = useRef<HTMLDivElement>(null);
   const wordCloudRef = useRef<TagWordCloudHandle>(null);
 
@@ -153,7 +155,14 @@ export function InterestLab() {
   };
 
   const handleEnterPlayground = () => {
-    if (!profile || !leftPanelRef.current || !iphoneFrameRef.current || !wordCloudRef.current) {
+    if (
+      !profile ||
+      !headerRef.current ||
+      !leftPanelRef.current ||
+      !previewAsideRef.current ||
+      !iphoneFrameRef.current ||
+      !wordCloudRef.current
+    ) {
       return;
     }
 
@@ -161,7 +170,9 @@ export function InterestLab() {
     if (tagSnapshots.length === 0) return;
 
     startTransition({
+      header: headerRef.current,
       leftPanel: leftPanelRef.current,
+      previewAside: previewAsideRef.current,
       iphoneFrame: iphoneFrameRef.current,
       tagSnapshots,
       tagNames: profile.tags.map((tag) => tag.name),
@@ -188,7 +199,10 @@ export function InterestLab() {
 
   return (
     <div className="interest-lab mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col gap-4 overflow-hidden px-4 py-4 lg:px-8">
-      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+      <header
+        ref={headerRef}
+        className="flex shrink-0 flex-wrap items-start justify-between gap-3"
+      >
         <div>
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
@@ -411,7 +425,10 @@ export function InterestLab() {
           </div>
         </div>
 
-        <aside className="flex min-h-[240px] max-h-[42dvh] shrink-0 flex-col gap-3 overflow-hidden lg:max-h-none lg:min-h-0 lg:shrink lg:self-stretch">
+        <aside
+          ref={previewAsideRef}
+          className="flex min-h-[240px] max-h-[42dvh] shrink-0 flex-col gap-3 overflow-hidden lg:max-h-none lg:min-h-0 lg:shrink lg:self-stretch"
+        >
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <h2 className="text-sm font-medium text-zinc-200">
