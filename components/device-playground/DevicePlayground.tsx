@@ -14,6 +14,10 @@ import {
 import { JOURNEY_TIMINGS } from "@/components/journey/constants";
 import { DeviceCard } from "./DeviceCard";
 import { MatchConfirmButton } from "./match-pairing/MatchConfirmButton";
+import {
+  DEVICE_DOCK_TRANSFORM_ORIGIN,
+  DEVICE_STAGE_TRANSFORM_ORIGIN,
+} from "./match-pairing/constants";
 import { useMatchPairing } from "./match-pairing/useMatchPairing";
 import {
   DEVICE_H,
@@ -108,6 +112,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
+  const draggablesRef = useRef<Draggable[]>([]);
   const devicesEnterRegisteredRef = useRef(false);
   const journey = useJourneyTransitionOptional();
 
@@ -128,6 +133,8 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized && entranceComplete);
   const { updateMatchLeds, updateDockProximity, resetDockScales, cleanup } =
     useProximityEffects(reducedMotion);
+  const pairingLockedRef = useRef(false);
+  const wasPairingLockedRef = useRef(false);
 
   const {
     phase: pairingPhase,
@@ -147,9 +154,44 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     playgroundSize,
     reducedMotion,
     enabled: initialized && entranceComplete,
+    pairingLockedRef,
   });
 
   const pairingReady = pairingPhase === "ready" || pairingPhase === "holding";
+
+  useEffect(() => {
+    pairingLockedRef.current = pairingLocked;
+  }, [pairingLocked]);
+
+  const syncPhysicsFromDom = useCallback(() => {
+    const api = physicsApiRef.current;
+    if (!api) return;
+
+    deviceRefs.current.forEach((element, id) => {
+      const x = gsap.getProperty(element, "x") as number;
+      const y = gsap.getProperty(element, "y") as number;
+      api.setBodyPosition(id, x, y);
+      api.setBodyStatic(id, false);
+    });
+  }, [physicsApiRef]);
+
+  useEffect(() => {
+    if (!pairingLocked || !matchedPair) return;
+
+    draggingIdRef.current = null;
+    const api = physicsApiRef.current;
+    if (!api) return;
+
+    api.setBodyStatic(matchedPair.owner.id, true);
+    api.setBodyStatic(matchedPair.partner.id, true);
+  }, [matchedPair, pairingLocked, physicsApiRef]);
+
+  useEffect(() => {
+    if (wasPairingLockedRef.current && !pairingLocked) {
+      syncPhysicsFromDom();
+    }
+    wasPairingLockedRef.current = pairingLocked;
+  }, [pairingLocked, syncPhysicsFromDom]);
 
   const ownerDevice = devices.find((device) => device.isOwner);
   const ownerId = `device-${OWNER_DEVICE_INDEX}`;
@@ -302,6 +344,8 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     if (!api || !initialized || !entranceComplete) return;
 
     const syncDomFromPhysics = () => {
+      if (pairingLockedRef.current) return;
+
       const draggingId = draggingIdRef.current;
       api.bodies.forEach((body, id) => {
         if (id === draggingId) return;
@@ -324,8 +368,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         !initialized ||
         devices.length === 0 ||
         !playgroundRef.current ||
-        !entranceComplete ||
-        pairingLocked
+        !entranceComplete
       ) {
         return;
       }
@@ -352,12 +395,14 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
           type: "x,y",
           bounds,
           onPress() {
+            if (pairingLockedRef.current) return;
             draggingIdRef.current = device.id;
             physicsApiRef.current?.setBodyStatic(device.id, true);
             gsap.to(element, { scale: 1.05, duration: 0.2, overwrite: "auto" });
             element.style.zIndex = "100";
           },
           onDrag() {
+            if (pairingLockedRef.current) return;
             const x = gsap.getProperty(element, "x") as number;
             const y = gsap.getProperty(element, "y") as number;
             physicsApiRef.current?.setBodyPosition(device.id, x, y);
@@ -367,6 +412,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             });
           },
           onRelease() {
+            if (pairingLockedRef.current) return;
             const x = gsap.getProperty(element, "x") as number;
             const y = gsap.getProperty(element, "y") as number;
             physicsApiRef.current?.setBodyPosition(device.id, x, y);
@@ -384,8 +430,11 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         draggables.push(draggable);
       });
 
+      draggablesRef.current = draggables;
+
       return () => {
         draggables.forEach((draggable) => draggable.kill());
+        draggablesRef.current = [];
       };
     },
     {
@@ -396,11 +445,17 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         playgroundSize.width,
         playgroundSize.height,
         entranceComplete,
-        pairingLocked,
       ],
       revertOnUpdate: true,
     },
   );
+
+  useEffect(() => {
+    draggablesRef.current.forEach((draggable) => {
+      if (pairingLocked) draggable.disable();
+      else draggable.enable();
+    });
+  }, [pairingLocked]);
 
   useEffect(() => cleanup, [cleanup]);
 
@@ -451,7 +506,10 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             }}
             className="absolute left-0 top-0 touch-none"
             style={{
-              transformOrigin: "center bottom",
+              transformOrigin:
+                pairingLocked && isPairParticipant
+                  ? DEVICE_STAGE_TRANSFORM_ORIGIN
+                  : DEVICE_DOCK_TRANSFORM_ORIGIN,
               pointerEvents:
                 pairingLocked && isPairParticipant ? "auto" : undefined,
             }}

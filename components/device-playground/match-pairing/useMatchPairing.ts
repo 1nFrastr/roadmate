@@ -31,6 +31,7 @@ interface UseMatchPairingOptions {
   playgroundSize: { width: number; height: number };
   reducedMotion: boolean;
   enabled: boolean;
+  pairingLockedRef: React.MutableRefObject<boolean>;
 }
 
 function getElementPosition(element: HTMLDivElement) {
@@ -61,6 +62,7 @@ export function useMatchPairing({
   playgroundSize,
   reducedMotion,
   enabled,
+  pairingLockedRef,
 }: UseMatchPairingOptions) {
   const [phase, setPhase] = useState<PairingPhase>("idle");
   const [holdProgress, setHoldProgress] = useState(0);
@@ -73,7 +75,6 @@ export function useMatchPairing({
   const holdTweenRef = useRef<gsap.core.Tween | null>(null);
   const progressRef = useRef({ value: 0 });
   const transitionTimelineRef = useRef<gsap.core.Timeline | null>(null);
-  const pairingLockedRef = useRef(false);
   const restoreSnapshotRef = useRef<PairSuccessRestoreSnapshot | null>(null);
   const dismissingRef = useRef(false);
   const phaseRef = useRef<PairingPhase>("idle");

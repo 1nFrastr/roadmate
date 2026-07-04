@@ -2,8 +2,49 @@ import gsap from "gsap";
 import { DEVICE_H, DEVICE_W } from "../constants";
 import { getDeviceCenter } from "../useDevicePhysics";
 import type { PlaygroundSize } from "../types";
+import {
+  DEVICE_DOCK_TRANSFORM_ORIGIN,
+  DEVICE_STAGE_TRANSFORM_ORIGIN,
+} from "./constants";
 import { launchConfetti } from "./confetti";
 import type { DeviceTransformSnapshot, PairSuccessRestoreSnapshot } from "./types";
+
+function playgroundRelativeCenter(
+  element: HTMLElement,
+  playgroundEl: HTMLElement,
+): { x: number; y: number } {
+  const playgroundRect = playgroundEl.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2 - playgroundRect.left,
+    y: rect.top + rect.height / 2 - playgroundRect.top,
+  };
+}
+
+/** Dock 用 bottom 锚点缩放；成功动画改以视觉中心为 transform-origin，避免放大时漂移 */
+function prepareDeviceForCenterStage(
+  element: HTMLDivElement,
+  playgroundEl: HTMLElement,
+) {
+  const center = playgroundRelativeCenter(element, playgroundEl);
+  element.style.transformOrigin = DEVICE_STAGE_TRANSFORM_ORIGIN;
+  gsap.set(element, {
+    x: center.x - DEVICE_W / 2,
+    y: center.y - DEVICE_H / 2,
+  });
+}
+
+function restoreDockTransformOrigin(element: HTMLDivElement) {
+  element.style.transformOrigin = DEVICE_DOCK_TRANSFORM_ORIGIN;
+}
+
+/** center-bottom 快照的 x/y 转为 center-center 下等价的 top-left */
+function snapshotToCenterStagePosition(snapshot: DeviceTransformSnapshot) {
+  return {
+    x: snapshot.x,
+    y: snapshot.y + DEVICE_H * (0.5 - snapshot.scale / 2),
+  };
+}
 
 function readDeviceSnapshot(element: HTMLDivElement): DeviceTransformSnapshot {
   return {
@@ -21,6 +62,7 @@ export function resetPlaygroundInteraction(
   headerEl: HTMLElement | null,
 ) {
   deviceElements.forEach((element) => {
+    restoreDockTransformOrigin(element);
     gsap.set(element, { clearProps: "pointerEvents,zIndex" });
     element.style.pointerEvents = "";
     element.style.zIndex = "";
@@ -32,6 +74,7 @@ export function resetPlaygroundInteraction(
 }
 
 function applyDeviceSnapshot(element: HTMLDivElement, snapshot: DeviceTransformSnapshot) {
+  restoreDockTransformOrigin(element);
   gsap.set(element, {
     x: snapshot.x,
     y: snapshot.y,
@@ -125,11 +168,12 @@ export function runPairSuccessDismissTransition({
   }
 
   if (ownerEl && ownerSnapshot) {
+    const ownerTarget = snapshotToCenterStagePosition(ownerSnapshot);
     tl.to(
       ownerEl,
       {
-        x: ownerSnapshot.x,
-        y: ownerSnapshot.y,
+        x: ownerTarget.x,
+        y: ownerTarget.y,
         rotation: ownerSnapshot.rotation,
         scale: ownerSnapshot.scale,
         duration: 0.65,
@@ -140,11 +184,12 @@ export function runPairSuccessDismissTransition({
   }
 
   if (partnerEl && partnerSnapshot) {
+    const partnerTarget = snapshotToCenterStagePosition(partnerSnapshot);
     tl.to(
       partnerEl,
       {
-        x: partnerSnapshot.x,
-        y: partnerSnapshot.y,
+        x: partnerTarget.x,
+        y: partnerTarget.y,
         rotation: partnerSnapshot.rotation,
         scale: partnerSnapshot.scale,
         duration: 0.65,
@@ -266,29 +311,132 @@ export function computeTouchGeometry(
 
 const V_TILT_DEGREES = 24;
 
+function rotatedRectBounds(
+  centerX: number,
+  centerY: number,
+  width: number,
+  height: number,
+  rotationDeg: number,
+) {
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const hw = width / 2;
+  const hh = height / 2;
+  const corners = [
+    [-hw, -hh],
+    [hw, -hh],
+    [hw, hh],
+    [-hw, hh],
+  ].map(([localX, localY]) => ({
+    x: centerX + localX * cos - localY * sin,
+    y: centerY + localX * sin + localY * cos,
+  }));
+
+  const xs = corners.map((point) => point.x);
+  const ys = corners.map((point) => point.y);
+
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+  };
+}
+
 export function computePairSuccessLayout(
   size: PlaygroundSize,
   geometry: PairTouchGeometry,
 ): Record<string, PairSuccessLayoutEntry> {
   const cx = size.width / 2;
-  const cy = size.height / 2 + 16;
+  const cy = size.height / 2;
   const spread = Math.min(size.width * 0.2, 108);
   const scale = Math.min(2.15, (size.height * 0.72) / DEVICE_H);
+  const scaledW = DEVICE_W * scale;
+  const scaledH = DEVICE_H * scale;
+
+  let leftCenterX = cx - spread;
+  let rightCenterX = cx + spread;
+  let centerY = cy;
+
+  const leftBounds = rotatedRectBounds(
+    leftCenterX,
+    centerY,
+    scaledW,
+    scaledH,
+    V_TILT_DEGREES,
+  );
+  const rightBounds = rotatedRectBounds(
+    rightCenterX,
+    centerY,
+    scaledW,
+    scaledH,
+    -V_TILT_DEGREES,
+  );
+
+  const groupCx =
+    (Math.min(leftBounds.minX, rightBounds.minX) +
+      Math.max(leftBounds.maxX, rightBounds.maxX)) /
+    2;
+  const groupCy =
+    (Math.min(leftBounds.minY, rightBounds.minY) +
+      Math.max(leftBounds.maxY, rightBounds.maxY)) /
+    2;
+
+  const offsetX = cx - groupCx;
+  const offsetY = cy - groupCy;
+  leftCenterX += offsetX;
+  rightCenterX += offsetX;
+  centerY += offsetY;
 
   return {
     [geometry.leftId]: {
-      x: cx - spread - DEVICE_W / 2,
-      y: cy - DEVICE_H / 2,
+      x: leftCenterX - DEVICE_W / 2,
+      y: centerY - DEVICE_H / 2,
       rotation: V_TILT_DEGREES,
       scale,
     },
     [geometry.rightId]: {
-      x: cx + spread - DEVICE_W / 2,
-      y: cy - DEVICE_H / 2,
+      x: rightCenterX - DEVICE_W / 2,
+      y: centerY - DEVICE_H / 2,
       rotation: -V_TILT_DEGREES,
       scale,
     },
   };
+}
+
+function applyPairStageLayout(
+  ownerEl: HTMLDivElement,
+  partnerEl: HTMLDivElement,
+  ownerLayout: PairSuccessLayoutEntry,
+  partnerLayout: PairSuccessLayoutEntry,
+) {
+  ownerEl.style.transformOrigin = DEVICE_STAGE_TRANSFORM_ORIGIN;
+  partnerEl.style.transformOrigin = DEVICE_STAGE_TRANSFORM_ORIGIN;
+  gsap.set(ownerEl, {
+    ...ownerLayout,
+    zIndex: 200,
+    pointerEvents: "auto",
+  });
+  gsap.set(partnerEl, {
+    ...partnerLayout,
+    zIndex: 200,
+    pointerEvents: "auto",
+  });
+}
+
+/** React 重渲染会写回 inline transform-origin，需在 commit 后再钉一次布局 */
+function schedulePairStageLayout(
+  ownerEl: HTMLDivElement,
+  partnerEl: HTMLDivElement,
+  ownerLayout: PairSuccessLayoutEntry,
+  partnerLayout: PairSuccessLayoutEntry,
+) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      applyPairStageLayout(ownerEl, partnerEl, ownerLayout, partnerLayout);
+    });
+  });
 }
 
 interface RunPairSuccessTransitionInput {
@@ -344,21 +492,15 @@ export function runPairSuccessTransition({
   if (reducedMotion) {
     if (headerEl) gsap.set(headerEl, { opacity: 0, pointerEvents: "none" });
     gsap.set(otherEls, { opacity: 0, pointerEvents: "none" });
-    if (ownerEl && ownerLayout) {
-      gsap.set(ownerEl, {
-        ...ownerLayout,
-        zIndex: 200,
-        pointerEvents: "auto",
-      });
-    }
-    if (partnerEl && partnerLayout) {
-      gsap.set(partnerEl, {
-        ...partnerLayout,
-        zIndex: 200,
-        pointerEvents: "auto",
-      });
+    if (ownerEl) prepareDeviceForCenterStage(ownerEl, playgroundEl);
+    if (partnerEl) prepareDeviceForCenterStage(partnerEl, playgroundEl);
+    if (ownerEl && partnerEl && ownerLayout && partnerLayout) {
+      applyPairStageLayout(ownerEl, partnerEl, ownerLayout, partnerLayout);
     }
     onRevealScreens();
+    if (ownerEl && partnerEl && ownerLayout && partnerLayout) {
+      schedulePairStageLayout(ownerEl, partnerEl, ownerLayout, partnerLayout);
+    }
     onComplete?.();
     return tl;
   }
@@ -396,6 +538,9 @@ export function runPairSuccessTransition({
   );
 
   if (ownerEl && partnerEl && ownerLayout && partnerLayout) {
+    prepareDeviceForCenterStage(ownerEl, playgroundEl);
+    prepareDeviceForCenterStage(partnerEl, playgroundEl);
+
     tl.to(
       [ownerEl, partnerEl],
       {
@@ -414,6 +559,7 @@ export function runPairSuccessTransition({
         scale: ownerLayout.scale,
         duration: 0.85,
         ease: "power3.inOut",
+        overwrite: true,
       },
       0.15,
     );
@@ -427,6 +573,7 @@ export function runPairSuccessTransition({
         scale: partnerLayout.scale,
         duration: 0.85,
         ease: "power3.inOut",
+        overwrite: true,
       },
       0.15,
     );
@@ -436,6 +583,7 @@ export function runPairSuccessTransition({
     tl.call(
       () => {
         onRevealScreens();
+        schedulePairStageLayout(ownerEl, partnerEl, ownerLayout, partnerLayout);
       },
       [],
       0.72,
