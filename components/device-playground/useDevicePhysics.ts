@@ -2,7 +2,7 @@
 
 import Matter from "matter-js";
 import { useEffect, useRef } from "react";
-import { DEVICE_H, DEVICE_W, PLAYGROUND_PADDING } from "./constants";
+import { DEVICE_COLLISION_GROUP, DEVICE_H, DEVICE_W, PLAYGROUND_PADDING } from "./constants";
 import type { DeviceState, PlaygroundSize } from "./types";
 
 export interface DevicePhysicsApi {
@@ -66,6 +66,7 @@ export function useDevicePhysics(
           friction: 0.3,
           restitution: 0.15,
           chamfer: { radius: 8 },
+          collisionFilter: { group: DEVICE_COLLISION_GROUP },
         },
       );
       Matter.Body.set(body, { label: device.id });

@@ -17,6 +17,8 @@ export const OWNER_DEVICE_INDEX = 0;
 export const DOCK_RADIUS = 180;
 export const DOCK_MAX_SCALE = 1.35;
 export const PLAYGROUND_PADDING = 24;
+/** Matter.js 同组负值：设备彼此不碰撞，可自由叠放 */
+export const DEVICE_COLLISION_GROUP = -1;
 export const LED_IDLE_OPACITY = 0.12;
 /** 匹配灯光有效距离：5 倍设备宽度，超出则熄灭 */
 export const LED_MATCH_RANGE = DEVICE_W * 5;

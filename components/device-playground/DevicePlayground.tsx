@@ -113,6 +113,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
   const draggablesRef = useRef<Draggable[]>([]);
+  const stackZIndexRef = useRef(10);
   const devicesEnterRegisteredRef = useRef(false);
   const journey = useJourneyTransitionOptional();
 
@@ -399,7 +400,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             draggingIdRef.current = device.id;
             physicsApiRef.current?.setBodyStatic(device.id, true);
             gsap.to(element, { scale: 1.05, duration: 0.2, overwrite: "auto" });
-            element.style.zIndex = "100";
+            element.style.zIndex = String(++stackZIndexRef.current);
           },
           onDrag() {
             if (pairingLockedRef.current) return;
@@ -418,7 +419,6 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             physicsApiRef.current?.setBodyPosition(device.id, x, y);
             physicsApiRef.current?.setBodyStatic(device.id, false);
             gsap.to(element, { scale: 1, duration: 0.2, overwrite: "auto" });
-            element.style.zIndex = "";
             draggingIdRef.current = null;
             resetDockScales(devices, {
               deviceElements: deviceRefs.current,
