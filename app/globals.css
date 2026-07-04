@@ -313,3 +313,98 @@ body {
 .tag-word-cloud-shape-diamond {
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
+
+.tag-word-cloud-item--custom {
+  --tag-accent: hsl(186 82% 58%);
+  --tag-accent-dim: hsl(186 58% 36%);
+}
+
+.tag-word-cloud-item--selected {
+  box-shadow:
+    inset 0 0 0 2px hsl(186 90% 72%),
+    inset 0 2px 6px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.35),
+    0 0 0 3px rgba(34, 211, 238, 0.35),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.tag-add-orb--in-screen {
+  background:
+    linear-gradient(180deg, rgba(9, 9, 11, 0.92) 0%, rgba(24, 24, 27, 0.72) 100%);
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tag-add-orb-button {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.22), transparent 45%),
+    radial-gradient(circle at 70% 75%, rgba(34, 211, 238, 0.12), transparent 50%),
+    color-mix(in srgb, #27272a 55%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.tag-add-orb-popover {
+  min-width: 9.5rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1), transparent 50%),
+    color-mix(in srgb, #18181b 72%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.custom-tag-rail--in-screen {
+  background:
+    linear-gradient(180deg, rgba(9, 9, 11, 0.92) 0%, rgba(24, 24, 27, 0.72) 100%);
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.custom-tag-rail-dot {
+  background: radial-gradient(circle at 35% 30%, #a5f3fc, #22d3ee 55%, #0891b2);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+}
+
+.custom-tag-rail-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    rgba(34, 211, 238, 0.85) 0%,
+    rgba(34, 211, 238, 0.85) var(--rail-progress, 50%),
+    rgba(63, 63, 70, 0.9) var(--rail-progress, 50%),
+    rgba(63, 63, 70, 0.9) 100%
+  );
+  outline: none;
+}
+
+.custom-tag-rail-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background:
+    radial-gradient(circle at 35% 30%, #ecfeff, #22d3ee 60%, #0e7490);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+  cursor: pointer;
+}
+
+.custom-tag-rail-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background:
+    radial-gradient(circle at 35% 30%, #ecfeff, #22d3ee 60%, #0e7490);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+  cursor: pointer;
+}

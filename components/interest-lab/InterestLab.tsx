@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition } from "@/components/journey";
-import { TagWordCloud, type TagWordCloudHandle } from "@/components/tag-word-cloud";
+import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
+import { CustomTagWeightRail } from "./CustomTagWeightRail";
 import { embedTags, extractTagsWithLlm } from "./api/openrouter";
 import { fetchUserTweets, tweetsToCorpus } from "./api/twitter";
 import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL } from "./constants";
@@ -16,12 +17,12 @@ import {
   saveProfile,
   saveSettings,
 } from "./storage";
-import { draftsToTags } from "./tagUtils";
-import type { InputMode, StoredInterestProfile } from "./types";
+import { createCustomTag, draftsToTags, interestTagsToWordCloud } from "./tagUtils";
+import type { InputMode, InterestTag, StoredInterestProfile } from "./types";
 
 type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
 
-const IPHONE_WORD_CLOUD_HEIGHT = IPHONE_FRAME.compact.contentHeight;
+const IPHONE_CONTENT_HEIGHT = IPHONE_FRAME.compact.contentHeight;
 
 export function InterestLab() {
   const headerRef = useRef<HTMLElement>(null);
@@ -45,6 +46,7 @@ export function InterestLab() {
   const [profile, setProfile] = useState<StoredInterestProfile | null>(null);
   const [savedProfiles, setSavedProfiles] = useState<StoredInterestProfile[]>([]);
   const [showJson, setShowJson] = useState(false);
+  const [selectedCustomTagId, setSelectedCustomTagId] = useState<string | null>(null);
 
   useEffect(() => {
     const profiles = loadProfiles();
@@ -60,11 +62,88 @@ export function InterestLab() {
     saveApiKeys(next);
   }, []);
 
+  const persistProfile = useCallback((next: StoredInterestProfile) => {
+    setProfile(next);
+    setSavedProfiles(saveProfile(next));
+  }, []);
+
   const persistSettings = useCallback((llm: string, embedding: string) => {
     setLlmModel(llm);
     setEmbeddingModel(embedding);
     saveSettings({ llmModel: llm, embeddingModel: embedding });
   }, []);
+
+  const wordCloudTags = useMemo(
+    () => (profile ? interestTagsToWordCloud(profile.tags) : []),
+    [profile],
+  );
+
+  const selectedCustomTag = useMemo(() => {
+    if (!profile || !selectedCustomTagId) return null;
+    return profile.tags.find((tag) => tag.custom && tag.id === selectedCustomTagId) ?? null;
+  }, [profile, selectedCustomTagId]);
+
+  const updateProfileTags = useCallback(
+    (updater: (tags: InterestTag[]) => InterestTag[]) => {
+      if (!profile) return;
+      const nextTags = updater(profile.tags);
+      persistProfile({ ...profile, tags: nextTags });
+    },
+    [persistProfile, profile],
+  );
+
+  const handleAddCustomTag = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+
+      const duplicate = profile?.tags.some(
+        (tag) => tag.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (duplicate) {
+        setError("该标签已存在");
+        return;
+      }
+
+      setError(null);
+      const newTag = createCustomTag(trimmed);
+
+      if (profile) {
+        persistProfile({ ...profile, tags: [...profile.tags, newTag] });
+      } else {
+        const nextProfile: StoredInterestProfile = {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          source: { type: "paste" },
+          tags: [newTag],
+          embeddings: [],
+        };
+        persistProfile(nextProfile);
+        setStep("done");
+      }
+
+      setSelectedCustomTagId(newTag.id ?? null);
+    },
+    [persistProfile, profile],
+  );
+
+  const handleCustomTagWeightChange = useCallback(
+    (weight: number) => {
+      if (!selectedCustomTagId) return;
+      updateProfileTags((tags) =>
+        tags.map((tag) =>
+          tag.custom && tag.id === selectedCustomTagId ? { ...tag, weight } : tag,
+        ),
+      );
+    },
+    [selectedCustomTagId, updateProfileTags],
+  );
+
+  const handleRemoveCustomTag = useCallback(() => {
+    if (!selectedCustomTagId) return;
+    updateProfileTags((tags) => tags.filter((tag) => tag.id !== selectedCustomTagId));
+    setSelectedCustomTagId(null);
+  }, [selectedCustomTagId, updateProfileTags]);
 
   const statusText = useMemo(() => {
     switch (step) {
@@ -113,11 +192,13 @@ export function InterestLab() {
 
       setStep("analyzing");
       const drafts = await extractTagsWithLlm(corpus, apiKeys.openRouterKey, llmModel);
-      const tags = draftsToTags(drafts);
+      const inferredTags = draftsToTags(drafts);
+      const customTags = profile?.tags.filter((tag) => tag.custom) ?? [];
+      const tags = [...inferredTags, ...customTags];
 
       setStep("embedding");
       const vectors = await embedTags(
-        tags.map((tag) => tag.name),
+        inferredTags.map((tag) => tag.name),
         apiKeys.openRouterKey,
         embeddingModel,
       );
@@ -127,15 +208,21 @@ export function InterestLab() {
         createdAt: new Date().toISOString(),
         source,
         tags,
-        embeddings: tags.map((tag, index) => ({
-          name: tag.name,
-          vector: vectors[index] ?? [],
-        })),
+        embeddings: [
+          ...inferredTags.map((tag, index) => ({
+            name: tag.name,
+            vector: vectors[index] ?? [],
+          })),
+          ...customTags.map((tag) => {
+            const existing = profile?.embeddings.find((item) => item.name === tag.name);
+            return { name: tag.name, vector: existing?.vector ?? [] };
+          }),
+        ],
         tweetCount,
       };
 
-      setProfile(nextProfile);
-      setSavedProfiles(saveProfile(nextProfile));
+      setSelectedCustomTagId(null);
+      persistProfile(nextProfile);
       setStep("done");
     } catch (err) {
       setStep("error");
@@ -147,6 +234,7 @@ export function InterestLab() {
     setProfile(item);
     setStep("done");
     setError(null);
+    setSelectedCustomTagId(null);
   };
 
   const handleDeleteProfile = (id: string) => {
@@ -440,15 +528,37 @@ export function InterestLab() {
             </div>
             <IphonePreviewSlot>
               <IphoneAppFrame ref={iphoneFrameRef} size="compact">
-                <TagWordCloud
-                  ref={wordCloudRef}
-                  tags={profile?.tags ?? []}
-                  height={IPHONE_WORD_CLOUD_HEIGHT}
-                  size="compact"
-                  interactive={!isTransitioning}
-                  className="h-full border-0 rounded-none"
-                  emptyMessage="完成推断后将在此显示标签词云"
-                />
+                <div className="relative h-full min-h-0 overflow-hidden">
+                  <TagWordCloud
+                    ref={wordCloudRef}
+                    tags={wordCloudTags}
+                    height={IPHONE_CONTENT_HEIGHT}
+                    size="compact"
+                    interactive={!isTransitioning}
+                    enableCustomTags
+                    selectedTagId={selectedCustomTagId}
+                    onSelectTag={setSelectedCustomTagId}
+                    className="h-full border-0 rounded-none"
+                    emptyMessage="点击顶部 + 添加自定义标签，或完成推断后显示词云"
+                  />
+                  <div className="pointer-events-auto absolute inset-x-0 top-0 z-30">
+                    {selectedCustomTag ? (
+                      <CustomTagWeightRail
+                        inScreen
+                        tagName={selectedCustomTag.name}
+                        weight={selectedCustomTag.weight}
+                        onWeightChange={handleCustomTagWeightChange}
+                        onRemove={handleRemoveCustomTag}
+                      />
+                    ) : (
+                      <TagWordCloudAddOrb
+                        inScreen
+                        disabled={isTransitioning}
+                        onSubmit={handleAddCustomTag}
+                      />
+                    )}
+                  </div>
+                </div>
               </IphoneAppFrame>
             </IphonePreviewSlot>
           </div>

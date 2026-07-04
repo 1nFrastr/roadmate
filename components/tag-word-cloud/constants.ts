@@ -37,3 +37,7 @@ export const PHYSICS = {
 
 export const CANVAS_PADDING = 24;
 export const SPAWN_GAP = 12;
+
+/** 自定义标签滑轨权重范围，与绝对尺寸映射一致 */
+export const CUSTOM_TAG_WEIGHT_MIN = 0.15;
+export const CUSTOM_TAG_WEIGHT_MAX = 1;

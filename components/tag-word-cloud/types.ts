@@ -1,6 +1,8 @@
 export interface WordCloudTag {
+  id?: string;
   name: string;
   weight: number;
+  custom?: boolean;
 }
 
 export interface CanvasSize {
@@ -39,6 +41,10 @@ export interface TagWordCloudProps {
   emptyMessage?: string;
   interactive?: boolean;
   size?: "default" | "compact";
+  /** 允许选中 / 编辑自定义标签 */
+  enableCustomTags?: boolean;
+  selectedTagId?: string | null;
+  onSelectTag?: (id: string | null) => void;
 }
 
 export interface TagWordCloudHandle {

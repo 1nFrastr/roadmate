@@ -1,9 +1,13 @@
 export interface InterestTag {
+  /** 自定义标签的稳定 id；推断标签无需持久化 id */
+  id?: string;
   name: string;
   weight: number;
   frequency: number;
   sentiment: number;
   recency: number;
+  /** 用户手动添加的标签，可编辑权重 */
+  custom?: boolean;
 }
 
 export interface TagEmbedding {
