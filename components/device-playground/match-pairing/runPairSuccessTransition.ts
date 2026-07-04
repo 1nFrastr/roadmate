@@ -6,7 +6,7 @@ import {
   DEVICE_DOCK_TRANSFORM_ORIGIN,
   DEVICE_STAGE_TRANSFORM_ORIGIN,
 } from "./constants";
-import { launchConfetti } from "./confetti";
+import { computePairConfettiOrigin, launchConfetti } from "./confetti";
 import type { DeviceTransformSnapshot, PairSuccessRestoreSnapshot } from "./types";
 
 function playgroundRelativeCenter(
@@ -591,10 +591,11 @@ export function runPairSuccessTransition({
 
     tl.call(
       () => {
-        const origin = {
-          x: playgroundSize.width / 2,
-          y: playgroundSize.height / 2 - 20,
-        };
+        const origin = computePairConfettiOrigin(
+          playgroundSize.width,
+          ownerLayout.y,
+          ownerLayout.scale,
+        );
         cleanupConfetti = launchConfetti(confettiLayer, origin);
       },
       [],

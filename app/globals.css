@@ -149,15 +149,6 @@ body {
   will-change: transform, opacity;
 }
 
-.pair-confetti-emoji {
-  position: absolute;
-  font-size: 2rem;
-  line-height: 1;
-  pointer-events: none;
-  will-change: transform, opacity;
-  translate: -50% -50%;
-}
-
 .pair-success-backdrop {
   -webkit-tap-highlight-color: transparent;
 }
