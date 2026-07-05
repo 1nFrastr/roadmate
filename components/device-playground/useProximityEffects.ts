@@ -3,8 +3,10 @@
 import gsap from "gsap";
 import { useCallback, useRef } from "react";
 import {
+  bearingBetweenCenters,
   distanceToLedIntensity,
   distanceToLedTimeScale,
+  distanceToProximity,
   DOCK_MAX_SCALE,
   DOCK_RADIUS,
   isWithinLedMatchRange,
@@ -18,6 +20,7 @@ import type { DeviceState, Point } from "./types";
 interface ProximityRefs {
   deviceElements: Map<string, HTMLDivElement | null>;
   ledElements: Map<string, HTMLDivElement | null>;
+  pointerElements: Map<string, HTMLDivElement | null>;
 }
 
 function getLedParts(ledStack: HTMLDivElement | null) {
@@ -44,21 +47,20 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
   const color = LED_CONFIG.color;
   const flashOn = 0.05;
   const flashOff = 0.17;
-  const peakShadow = `0 0 6px ${color}, 0 0 14px ${color}ee, 0 0 28px ${color}aa, 0 0 44px ${color}55`;
+  const peakShadow = `inset 0 0 0 2.5px ${color}, 0 0 10px ${color}cc, 0 0 22px ${color}66`;
 
-  gsap.set([glow, core], {
-    backgroundColor: color,
+  gsap.set(glow, { transformOrigin: "center center", opacity: 0 });
+  gsap.set(core, {
+    opacity: LED_IDLE_OPACITY,
+    boxShadow: `inset 0 0 0 2.5px ${color}`,
     transformOrigin: "center center",
   });
-  gsap.set(core, { opacity: LED_IDLE_OPACITY, scale: 0.82, boxShadow: "none" });
-  gsap.set(glow, { opacity: 0, scale: 0.75 });
 
   const tl = gsap.timeline({ repeat: -1, paused: false });
   tl.to(
     core,
     {
       opacity: 1,
-      scale: 1.42,
       boxShadow: peakShadow,
       duration: flashOn,
       ease: "power4.out",
@@ -68,8 +70,7 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
   tl.to(
     glow,
     {
-      opacity: 0.95,
-      scale: 2.15,
+      opacity: 0.88,
       duration: flashOn,
       ease: "power4.out",
     },
@@ -79,8 +80,7 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
     core,
     {
       opacity: LED_IDLE_OPACITY,
-      scale: 0.82,
-      boxShadow: "none",
+      boxShadow: `inset 0 0 0 2.5px ${color}`,
       duration: flashOff,
       ease: "power2.in",
     },
@@ -89,7 +89,6 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
     glow,
     {
       opacity: 0,
-      scale: 0.75,
       duration: flashOff,
       ease: "power2.in",
     },
@@ -101,6 +100,11 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
 
 function smoothToward(current: number, target: number, factor: number): number {
   return current + (target - current) * factor;
+}
+
+function smoothAngle(current: number, target: number, factor: number): number {
+  let diff = ((target - current + 540) % 360) - 180;
+  return current + diff * factor;
 }
 
 export function useProximityEffects(reducedMotion: boolean) {
@@ -135,17 +139,11 @@ export function useProximityEffects(reducedMotion: boolean) {
       if (core) {
         gsap.set(core, {
           opacity: LED_IDLE_OPACITY,
-          scale: 1,
-          backgroundColor: LED_CONFIG.color,
-          boxShadow: "none",
+          boxShadow: `inset 0 0 0 2.5px ${LED_CONFIG.color}`,
         });
       }
       if (glow) {
-        gsap.set(glow, {
-          opacity: 0,
-          scale: 1,
-          backgroundColor: LED_CONFIG.color,
-        });
+        gsap.set(glow, { opacity: 0 });
       }
     },
     [killLedTimeline],
@@ -185,6 +183,7 @@ export function useProximityEffects(reducedMotion: boolean) {
 
   const activePairRef = useRef<{ ownerId: string; matchableId: string } | null>(null);
   const ledsSuppressedRef = useRef(false);
+  const smoothedBearingRef = useRef<Map<string, number>>(new Map());
 
   const findNearestOwnerMatchPair = useCallback(
     (
@@ -305,6 +304,63 @@ export function useProximityEffects(reducedMotion: boolean) {
     [findNearestOwnerMatchPair, setLedFromDistance, setLedOff, syncPairTimelines],
   );
 
+  const updateMatchPointers = useCallback(
+    (devices: DeviceState[], refs: ProximityRefs, enabled = true) => {
+      const activePair = findNearestOwnerMatchPair(devices, refs);
+
+      devices.forEach((device) => {
+        const pointer = refs.pointerElements.get(device.id);
+        if (!pointer) return;
+
+        const inActivePair =
+          activePair &&
+          (device.id === activePair.ownerId || device.id === activePair.matchableId);
+
+        if (!enabled || !inActivePair) {
+          gsap.to(pointer, {
+            opacity: 0,
+            scale: 0.85,
+            duration: 0.25,
+            ease: "power2.out",
+            overwrite: "auto",
+          });
+          smoothedBearingRef.current.delete(device.id);
+          return;
+        }
+
+        const partnerId =
+          device.id === activePair.ownerId ? activePair.matchableId : activePair.ownerId;
+        const selfEl = refs.deviceElements.get(device.id);
+        const partnerEl = refs.deviceElements.get(partnerId);
+        if (!selfEl || !partnerEl) return;
+
+        const selfPos = getElementPosition(selfEl);
+        const partnerPos = getElementPosition(partnerEl);
+        const targetBearing = bearingBetweenCenters(
+          getDeviceCenter(selfPos.x, selfPos.y),
+          getDeviceCenter(partnerPos.x, partnerPos.y),
+        );
+
+        const prevBearing = smoothedBearingRef.current.get(device.id) ?? targetBearing;
+        const bearing = reducedMotion
+          ? targetBearing
+          : smoothAngle(prevBearing, targetBearing, 0.14);
+        smoothedBearingRef.current.set(device.id, bearing);
+
+        const proximity = distanceToProximity(activePair.distance);
+        gsap.set(pointer, { rotation: bearing, transformOrigin: "50% 50%" });
+        gsap.to(pointer, {
+          opacity: 0.28 + proximity * 0.72,
+          scale: 0.86 + proximity * 0.2,
+          duration: 0.18,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      });
+    },
+    [findNearestOwnerMatchPair, reducedMotion],
+  );
+
   const updateDockProximity = useCallback(
     (
       draggedId: string,
@@ -362,12 +418,14 @@ export function useProximityEffects(reducedMotion: boolean) {
     ledTimelinesRef.current.clear();
     smoothedTimeScaleRef.current.clear();
     smoothedIntensityRef.current.clear();
+    smoothedBearingRef.current.clear();
     activePairRef.current = null;
     ledsSuppressedRef.current = false;
   }, []);
 
   return {
     updateMatchLeds,
+    updateMatchPointers,
     updateDockProximity,
     resetDockScales,
     cleanup,

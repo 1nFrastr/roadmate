@@ -157,6 +157,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const headerRef = useRef<HTMLElement>(null);
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const pointerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const draggingIdRef = useRef<string | null>(null);
   const draggablesRef = useRef<Draggable[]>([]);
   const stackZIndexRef = useRef(10);
@@ -178,7 +179,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const entranceComplete = !journeyMode || (handoffDone && devicesEnterDone);
 
   const physicsApiRef = useDevicePhysics(playgroundSize, devices, initialized && entranceComplete);
-  const { updateMatchLeds, updateDockProximity, resetDockScales, cleanup } =
+  const { updateMatchLeds, updateMatchPointers, updateDockProximity, resetDockScales, cleanup } =
     useProximityEffects(reducedMotion);
   const pairingLockedRef = useRef(false);
   const wasPairingLockedRef = useRef(false);
@@ -380,21 +381,21 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     if (!initialized || devices.length === 0) return;
 
     const tick = () => {
-      updateMatchLeds(
-        devices,
-        {
-          deviceElements: deviceRefs.current,
-          ledElements: ledRefs.current,
-        },
-        !pairingLockedRef.current,
-      );
+      const refs = {
+        deviceElements: deviceRefs.current,
+        ledElements: ledRefs.current,
+        pointerElements: pointerRefs.current,
+      };
+      const enabled = !pairingLockedRef.current;
+      updateMatchLeds(devices, refs, enabled);
+      updateMatchPointers(devices, refs, enabled);
     };
 
     gsap.ticker.add(tick);
     return () => {
       gsap.ticker.remove(tick);
     };
-  }, [initialized, devices, updateMatchLeds]);
+  }, [initialized, devices, updateMatchLeds, updateMatchPointers]);
 
   useEffect(() => {
     const api = physicsApiRef.current;
@@ -466,6 +467,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             updateDockProximity(device.id, { x, y }, devices, {
               deviceElements: deviceRefs.current,
               ledElements: ledRefs.current,
+              pointerElements: pointerRefs.current,
             });
           },
           onRelease() {
@@ -479,6 +481,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             resetDockScales(devices, {
               deviceElements: deviceRefs.current,
               ledElements: ledRefs.current,
+              pointerElements: pointerRefs.current,
             });
           },
         });
@@ -586,6 +589,14 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
                 if (element) ledRefs.current.set(device.id, element);
                 else ledRefs.current.delete(device.id);
               }}
+              pointerRef={
+                device.isOwner || device.matchable
+                  ? (element) => {
+                      if (element) pointerRefs.current.set(device.id, element);
+                      else pointerRefs.current.delete(device.id);
+                    }
+                  : undefined
+              }
             />
           </div>
           );

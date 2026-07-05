@@ -37,118 +37,161 @@ body {
     linear-gradient(180deg, #0a0a0c 0%, #111116 100%);
 }
 
-.device-shell {
-  background: linear-gradient(145deg, #4a4a52 0%, #2a2a30 45%, #1a1a1f 100%);
+/* ── AirTag 形态设备 ── */
+
+.device-tag-shell {
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.62) 0%, transparent 38%),
+    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.28) 0%, transparent 42%),
+    conic-gradient(
+      from 225deg at 50% 50%,
+      #eceef2 0deg,
+      #b8bec8 72deg,
+      #dfe3ea 144deg,
+      #9aa3b0 216deg,
+      #e2e6ed 288deg,
+      #eceef2 360deg
+    );
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.55),
-    0 2px 4px rgba(255, 255, 255, 0.08) inset,
-    0 -2px 6px rgba(0, 0, 0, 0.4) inset;
+    0 10px 28px rgba(0, 0, 0, 0.48),
+    0 2px 4px rgba(255, 255, 255, 0.28) inset,
+    0 -4px 10px rgba(0, 0, 0, 0.22) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
-.device-bezel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(0, 0, 0, 0.15) 100%);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15);
-}
-
-.device-screen {
-  background: linear-gradient(180deg, #0f1419 0%, #06080c 100%);
+.device-tag-shell-owner {
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.78) 0%, transparent 40%),
+    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.18) 0%, transparent 42%),
+    conic-gradient(
+      from 210deg at 50% 50%,
+      #f4f7fa 0deg,
+      #c8d4e0 80deg,
+      #eef3f8 160deg,
+      #a8b8c8 240deg,
+      #edf2f7 320deg,
+      #f4f7fa 360deg
+    );
   box-shadow:
-    inset 0 2px 8px rgba(0, 0, 0, 0.8),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 0 0 1.5px rgba(34, 211, 238, 0.45),
+    0 12px 32px rgba(34, 211, 238, 0.18),
+    0 10px 28px rgba(0, 0, 0, 0.42),
+    0 2px 5px rgba(255, 255, 255, 0.38) inset,
+    0 -4px 10px rgba(0, 0, 0, 0.16) inset;
 }
 
-.device-wheel {
-  background: radial-gradient(circle at 35% 30%, #3f3f46 0%, #27272a 55%, #18181b 100%);
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 2px rgba(255, 255, 255, 0.12),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.device-wheel::after {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.device-shell-owner {
-  background: linear-gradient(
-    155deg,
-    #94a3b8 0%,
-    #64748b 12%,
-    #475569 38%,
-    #334155 100%
+.device-tag-gloss {
+  background: radial-gradient(
+    circle at 38% 28%,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.08) 28%,
+    transparent 52%
   );
+}
+
+.device-tag-owner {
+  filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.28));
+}
+
+.device-tag-owner-halo {
+  border: 2px solid rgba(34, 211, 238, 0.72);
   box-shadow:
-    0 0 0 1.5px rgba(34, 211, 238, 0.55),
-    0 10px 32px rgba(34, 211, 238, 0.24),
-    0 8px 24px rgba(0, 0, 0, 0.55),
-    0 2px 4px rgba(255, 255, 255, 0.14) inset,
-    0 -2px 6px rgba(0, 0, 0, 0.4) inset;
+    0 0 24px rgba(34, 211, 238, 0.45),
+    0 0 48px rgba(34, 211, 238, 0.14),
+    inset 0 0 18px rgba(34, 211, 238, 0.1);
+  animation: tag-owner-halo-pulse 2.4s ease-in-out infinite;
 }
 
-.device-card-owner {
-  filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.32));
-}
-
-.device-owner-accent {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(34, 211, 238, 0.35) 15%,
-    #22d3ee 50%,
-    rgba(34, 211, 238, 0.35) 85%,
-    transparent 100%
-  );
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
-}
-
-.device-bezel-owner {
-  box-shadow:
-    inset 0 0 0 1px rgba(34, 211, 238, 0.28),
-    inset 0 1px 2px rgba(255, 255, 255, 0.18);
-}
-
-.device-screen-owner {
-  box-shadow:
-    inset 0 2px 8px rgba(0, 0, 0, 0.8),
-    inset 0 0 0 1px rgba(34, 211, 238, 0.42),
-    0 0 10px rgba(34, 211, 238, 0.14);
-}
-
-.device-wheel-owner {
-  background: radial-gradient(circle at 35% 30%, #5eead4 0%, #475569 42%, #1e293b 100%);
-  box-shadow:
-    0 0 10px rgba(34, 211, 238, 0.35),
-    0 2px 4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 2px rgba(255, 255, 255, 0.16),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.device-owner-ring {
-  border: 2px solid rgba(34, 211, 238, 0.88);
-  box-shadow:
-    0 0 22px rgba(34, 211, 238, 0.55),
-    0 0 44px rgba(34, 211, 238, 0.18),
-    inset 0 0 16px rgba(34, 211, 238, 0.14);
-  animation: owner-ring-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes owner-ring-pulse {
+@keyframes tag-owner-halo-pulse {
   0%,
   100% {
-    opacity: 0.78;
+    opacity: 0.76;
   }
   50% {
     opacity: 1;
   }
 }
 
-.device-led-stack {
-  width: 28px;
-  height: 28px;
+.device-tag-signal-hidden {
+  pointer-events: none;
+}
+
+.device-tag-led-ring {
+  z-index: 2;
+}
+
+.device-tag-led-ring-hidden {
+  pointer-events: none;
+}
+
+/* ── 墨水屏（琥珀单色 + 像素网格） ── */
+
+.device-ink-screen {
+  background-color: #3a3832;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.055) 2px,
+      rgba(0, 0, 0, 0.055) 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.045) 2px,
+      rgba(0, 0, 0, 0.045) 3px
+    ),
+    radial-gradient(circle at 50% 40%, #4a4740 0%, #35332e 52%, #2a2824 100%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.38),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+}
+
+.device-ink-text-bright {
+  color: #e2cfa0;
+  text-shadow: 0 0 1px rgba(226, 207, 160, 0.35);
+}
+
+.device-ink-text-dim {
+  color: #9a8868;
+}
+
+.device-ink-pointer {
+  color: #d4aa62;
+  shape-rendering: geometricPrecision;
+  filter: none;
+}
+
+.device-tag-screen {
+  z-index: 3;
+}
+
+.device-tag-screen-off {
+  opacity: 0.5;
+  filter: contrast(0.82) brightness(0.88);
+}
+
+.device-tag-screen-standby {
+  opacity: 0.94;
+}
+
+.device-tag-screen-live {
+  opacity: 1;
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.38),
+    inset 0 0 0 1px rgba(180, 150, 90, 0.22);
+}
+
+.device-tag-screen-owner {
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(180, 150, 90, 0.18);
+}
+
+.device-match-pointer {
+  z-index: 2;
 }
 
 .device-led-glow,
@@ -158,7 +201,8 @@ body {
 }
 
 .device-led-glow {
-  filter: blur(3px);
+  filter: blur(4px);
+  mix-blend-mode: plus-lighter;
 }
 
 .device-led {
@@ -292,12 +336,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .device-owner-ring {
+  .device-tag-owner-halo {
     animation: none;
     opacity: 1;
   }
 
-  .device-card-owner {
+  .device-tag-owner {
     filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.4));
   }
 

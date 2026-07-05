@@ -9,8 +9,16 @@ export function isMatchParticipant(device: DeviceState): boolean {
   return device.isOwner || device.matchable;
 }
 
-export const DEVICE_W = 88;
-export const DEVICE_H = 148;
+export const DEVICE_D = 96;
+export const DEVICE_W = DEVICE_D;
+export const DEVICE_H = DEVICE_D;
+export const DEVICE_R = DEVICE_D / 2;
+/** 圆形墨水屏直径 */
+export const DEVICE_SCREEN_D = 68;
+export const DEVICE_SCREEN_R = DEVICE_SCREEN_D / 2;
+export const DEVICE_SHELL_RING = (DEVICE_D - DEVICE_SCREEN_D) / 2;
+/** 屏外 LED 环外径（扣掉 bezel） */
+export const DEVICE_RING_OUTER = DEVICE_R - 3;
 export const TOTAL_DEVICES = 10;
 export const MATCH_COUNT = 3;
 export const OWNER_DEVICE_INDEX = 0;
@@ -77,6 +85,16 @@ export function distanceToLedIntensity(distance: number): number {
 
 export function isWithinLedMatchRange(distance: number): boolean {
   return distance <= LED_MATCH_RANGE;
+}
+
+/** 设备中心 → 目标中心，屏幕坐标系方位角（0°=上，顺时针） */
+export function bearingBetweenCenters(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): number {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  return (Math.atan2(dx, -dy) * 180) / Math.PI;
 }
 
 export function randomMatchScore(): number {

@@ -8,9 +8,11 @@ gsap.registerPlugin(useGSAP);
 
 interface MatchScoreCounterProps {
   value: number;
+  compact?: boolean;
+  ink?: boolean;
 }
 
-export function MatchScoreCounter({ value }: MatchScoreCounterProps) {
+export function MatchScoreCounter({ value, compact = false, ink = false }: MatchScoreCounterProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLSpanElement>(null);
   const [reducedMotion] = useState(() => {
@@ -80,7 +82,9 @@ export function MatchScoreCounter({ value }: MatchScoreCounterProps) {
     <div ref={rootRef} className="shrink-0 text-center">
       <span
         ref={valueRef}
-        className="font-mono text-[15px] font-bold leading-none tracking-tight text-emerald-300 tabular-nums"
+        className={`font-mono font-bold leading-none tracking-tight tabular-nums ${
+          compact ? "text-[11px]" : "text-[15px]"
+        } ${ink ? "device-ink-text-bright" : "text-emerald-300"}`}
       >
         {value}%
       </span>

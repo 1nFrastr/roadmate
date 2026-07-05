@@ -2,7 +2,7 @@
 
 import Matter from "matter-js";
 import { useEffect, useRef } from "react";
-import { DEVICE_COLLISION_GROUP, DEVICE_H, DEVICE_W, PLAYGROUND_PADDING } from "./constants";
+import { DEVICE_COLLISION_GROUP, DEVICE_H, DEVICE_R, DEVICE_W, PLAYGROUND_PADDING } from "./constants";
 import type { DeviceState, PlaygroundSize } from "./types";
 
 export interface DevicePhysicsApi {
@@ -56,16 +56,14 @@ export function useDevicePhysics(
     const bodies = new Map<string, Matter.Body>();
 
     devices.forEach((device) => {
-      const body = Matter.Bodies.rectangle(
-        device.x + DEVICE_W / 2,
-        device.y + DEVICE_H / 2,
-        DEVICE_W,
-        DEVICE_H,
+      const body = Matter.Bodies.circle(
+        device.x + DEVICE_R,
+        device.y + DEVICE_R,
+        DEVICE_R,
         {
           frictionAir: 0.08,
           friction: 0.3,
           restitution: 0.15,
-          chamfer: { radius: 8 },
           collisionFilter: { group: DEVICE_COLLISION_GROUP },
         },
       );
@@ -85,8 +83,8 @@ export function useDevicePhysics(
         const body = bodies.get(id);
         if (!body) return;
         Matter.Body.setPosition(body, {
-          x: x + DEVICE_W / 2,
-          y: y + DEVICE_H / 2,
+          x: x + DEVICE_R,
+          y: y + DEVICE_R,
         });
         Matter.Body.setVelocity(body, { x: 0, y: 0 });
         Matter.Body.setAngularVelocity(body, 0);
@@ -124,14 +122,14 @@ export function clampDevicePosition(
 
 export function getDeviceCenter(x: number, y: number) {
   return {
-    x: x + DEVICE_W / 2,
-    y: y + DEVICE_H / 2,
+    x: x + DEVICE_R,
+    y: y + DEVICE_R,
   };
 }
 
 export function bodyToDevicePosition(body: Matter.Body) {
   return {
-    x: body.position.x - DEVICE_W / 2,
-    y: body.position.y - DEVICE_H / 2,
+    x: body.position.x - DEVICE_R,
+    y: body.position.y - DEVICE_R,
   };
 }

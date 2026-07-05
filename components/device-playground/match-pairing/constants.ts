@@ -1,6 +1,6 @@
 import { DEVICE_W } from "../constants";
 
-export const DEVICE_DOCK_TRANSFORM_ORIGIN = "center bottom";
+export const DEVICE_DOCK_TRANSFORM_ORIGIN = "center center";
 export const DEVICE_STAGE_TRANSFORM_ORIGIN = "center center";
 
 /** 两台设备中心距小于此值时视为「碰一碰」，显示确认匹配 */
