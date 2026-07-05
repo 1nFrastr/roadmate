@@ -8,6 +8,7 @@ import {
 } from "../constants";
 import { getDeviceCenter } from "../useDevicePhysics";
 import type { DeviceState } from "../types";
+import { computeCommonTopics } from "../matchScoring";
 import {
   MATCH_CONFIRM_HOLD_MS,
   PAIRING_TOUCH_DISTANCE,
@@ -173,7 +174,10 @@ export function useMatchPairing({
       owner: ownerDevice,
       partner,
       matchScore: partner.matchScore,
-      topics: pickMatchTopics(3),
+      topics:
+        ownerDevice.interestProfile && partner.interestProfile
+          ? computeCommonTopics(ownerDevice.interestProfile, partner.interestProfile, 3)
+          : pickMatchTopics(3),
     };
     setMatchedPair(pair);
 

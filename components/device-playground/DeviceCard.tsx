@@ -2,6 +2,7 @@
 
 import { forwardRef } from "react";
 import { DEVICE_H, DEVICE_W, LED_COLOR, LED_IDLE_OPACITY } from "./constants";
+import { MatchScoreCounter } from "./MatchScoreCounter";
 import type { DeviceState } from "./types";
 
 interface DeviceCardProps {
@@ -66,23 +67,16 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
 
           <div className="device-screen absolute left-[10px] right-[10px] top-[26px] bottom-[52px] overflow-hidden rounded-[4px]">
             {showMatchSuccess ? (
-              <div className="device-match-success-screen flex h-full flex-col justify-between p-[6px]">
-                <span className="font-mono text-[7px] uppercase tracking-widest text-emerald-400/80">
-                  matched
-                </span>
-                <div className="flex flex-col items-center gap-[3px] text-center">
-                  <span className="font-mono text-[18px] font-bold leading-none text-emerald-300">
-                    {matchScore ?? device.matchScore}%
-                  </span>
-                  <span className="font-mono text-[7px] text-zinc-500">契合度</span>
-                </div>
-                <ul className="flex flex-col gap-[2px]">
+              <div className="device-match-success-screen flex h-full min-h-0 flex-col items-center justify-center gap-[3px] px-[4px] py-[4px]">
+                <MatchScoreCounter value={matchScore ?? device.matchScore} />
+                <ul className="flex w-full min-h-0 flex-col gap-[3px] overflow-hidden">
                   {topics.map((topic) => (
                     <li
                       key={topic}
-                      className="truncate font-mono text-[7px] leading-tight text-zinc-300/90"
+                      className="truncate text-center font-mono text-[7px] leading-[9px] text-zinc-300/90"
+                      title={topic}
                     >
-                      · {topic}
+                      {topic}
                     </li>
                   ))}
                 </ul>

@@ -1,3 +1,4 @@
+import type { InterestProfileSlice } from "@/components/interest-lab/types";
 import type { TagSnapshot } from "@/components/tag-word-cloud/types";
 
 export type { TagSnapshot };
@@ -19,6 +20,7 @@ export interface JourneyLandingPayload {
   landingRect: LandingRect;
   ownerDeviceId: string;
   tagNames: string[];
+  ownerProfile?: InterestProfileSlice;
   startedAt: number;
 }
 

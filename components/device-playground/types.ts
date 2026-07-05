@@ -1,9 +1,12 @@
+import type { DeviceInterestProfile } from "./matchScoring";
+
 export interface DeviceState {
   id: string;
   label: string;
   isOwner: boolean;
   matchable: boolean;
   matchScore: number;
+  interestProfile?: DeviceInterestProfile;
   x: number;
   y: number;
 }

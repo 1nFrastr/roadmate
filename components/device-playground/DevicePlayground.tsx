@@ -32,9 +32,18 @@ import {
   randomMatchScore,
   TOTAL_DEVICES,
 } from "./constants";
-import type { DeviceState, PlaygroundSize } from "./types";
+import { loadProfiles } from "@/components/interest-lab/storage";
+import type { JourneyLandingPayload } from "@/components/journey";
+import {
+  buildSyntheticNeighborProfiles,
+  computeMatchScore,
+  hashString,
+  profileFromStored,
+  type DeviceInterestProfile,
+} from "./matchScoring";
 import { bodyToDevicePosition, useDevicePhysics } from "./useDevicePhysics";
 import { useProximityEffects } from "./useProximityEffects";
+import type { DeviceState, PlaygroundSize } from "./types";
 
 gsap.registerPlugin(useGSAP, Draggable);
 
@@ -44,20 +53,78 @@ interface DevicePlaygroundProps {
   entrance?: PlaygroundEntrance;
 }
 
-function createInitialDevices(size: PlaygroundSize): DeviceState[] {
+interface CreateDevicesOptions {
+  ownerProfile?: DeviceInterestProfile | null;
+  ownerPosition?: { x: number; y: number };
+}
+
+function resolveOwnerProfile(payload: JourneyLandingPayload | null): DeviceInterestProfile | null {
+  if (payload?.ownerProfile?.tags.length) {
+    return payload.ownerProfile;
+  }
+
+  const [latestProfile] = loadProfiles();
+  if (!latestProfile) return null;
+  return profileFromStored(latestProfile.tags, latestProfile.embeddings);
+}
+
+function buildDeviceInterestState(
+  matchableSlot: number,
+  matchable: boolean,
+  ownerProfile: DeviceInterestProfile | null,
+  neighborProfiles: DeviceInterestProfile[] | null,
+): Pick<DeviceState, "interestProfile" | "matchScore"> {
+  if (matchable && ownerProfile && neighborProfiles && matchableSlot >= 0) {
+    const neighborProfile = neighborProfiles[matchableSlot]!;
+    return {
+      interestProfile: neighborProfile,
+      matchScore: computeMatchScore(ownerProfile, neighborProfile),
+    };
+  }
+
+  return {
+    matchScore: matchable ? randomMatchScore() : 0,
+  };
+}
+
+function createDevices(size: PlaygroundSize, options: CreateDevicesOptions = {}): DeviceState[] {
   const matchableIndices = pickMatchableIndices(MATCH_COUNT, TOTAL_DEVICES);
+  const matchableList = [...matchableIndices].sort((a, b) => a - b);
   const maxX = size.width - DEVICE_W - PLAYGROUND_PADDING;
   const maxY = size.height - DEVICE_H - PLAYGROUND_PADDING;
+  const ownerProfile = options.ownerProfile ?? null;
+  const profileSeed = ownerProfile
+    ? hashString(ownerProfile.tags.map((tag) => tag.name).join("|"))
+    : 0;
+  const neighborProfiles = ownerProfile
+    ? buildSyntheticNeighborProfiles(ownerProfile, profileSeed)
+    : null;
+  const ownerPos = options.ownerPosition
+    ? clampDevicePosition(options.ownerPosition.x, options.ownerPosition.y, size)
+    : null;
 
-  return Array.from({ length: TOTAL_DEVICES }, (_, index) => ({
-    id: `device-${index}`,
-    label: DEVICE_LABELS[index],
-    isOwner: index === OWNER_DEVICE_INDEX,
-    matchable: matchableIndices.has(index),
-    matchScore: matchableIndices.has(index) ? randomMatchScore() : 0,
-    x: PLAYGROUND_PADDING + Math.random() * Math.max(maxX - PLAYGROUND_PADDING, 1),
-    y: PLAYGROUND_PADDING + Math.random() * Math.max(maxY - PLAYGROUND_PADDING, 1),
-  }));
+  return Array.from({ length: TOTAL_DEVICES }, (_, index) => {
+    const isOwner = index === OWNER_DEVICE_INDEX;
+    const matchable = matchableIndices.has(index);
+    const matchableSlot = matchableList.indexOf(index);
+    const interestState = isOwner && ownerProfile
+      ? { interestProfile: ownerProfile, matchScore: 0 }
+      : buildDeviceInterestState(matchableSlot, matchable, ownerProfile, neighborProfiles);
+
+    return {
+      id: `device-${index}`,
+      label: DEVICE_LABELS[index],
+      isOwner,
+      matchable,
+      ...interestState,
+      x: isOwner && ownerPos
+        ? ownerPos.x
+        : PLAYGROUND_PADDING + Math.random() * Math.max(maxX - PLAYGROUND_PADDING, 1),
+      y: isOwner && ownerPos
+        ? ownerPos.y
+        : PLAYGROUND_PADDING + Math.random() * Math.max(maxY - PLAYGROUND_PADDING, 1),
+    };
+  });
 }
 
 function clampDevicePosition(x: number, y: number, size: PlaygroundSize) {
@@ -82,30 +149,6 @@ function offscreenStart(index: number, size: PlaygroundSize) {
     { x: size.width + 40, y: size.height * 0.72 },
   ];
   return slots[index % slots.length];
-}
-
-function createJourneyDevices(size: PlaygroundSize, ownerX: number, ownerY: number): DeviceState[] {
-  const matchableIndices = pickMatchableIndices(MATCH_COUNT, TOTAL_DEVICES);
-  const maxX = size.width - DEVICE_W - PLAYGROUND_PADDING;
-  const maxY = size.height - DEVICE_H - PLAYGROUND_PADDING;
-  const ownerPos = clampDevicePosition(ownerX, ownerY, size);
-
-  return Array.from({ length: TOTAL_DEVICES }, (_, index) => {
-    const isOwner = index === OWNER_DEVICE_INDEX;
-    return {
-      id: `device-${index}`,
-      label: DEVICE_LABELS[index],
-      isOwner,
-      matchable: matchableIndices.has(index),
-      matchScore: matchableIndices.has(index) ? randomMatchScore() : 0,
-      x: isOwner
-        ? ownerPos.x
-        : PLAYGROUND_PADDING + Math.random() * Math.max(maxX - PLAYGROUND_PADDING, 1),
-      y: isOwner
-        ? ownerPos.y
-        : PLAYGROUND_PADDING + Math.random() * Math.max(maxY - PLAYGROUND_PADDING, 1),
-    };
-  });
 }
 
 export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps) {
@@ -231,22 +274,27 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
       return;
     }
 
-    if (entrance === "journey") {
-      const payload = loadJourneyLanding();
-      if (payload) {
-        const playgroundRect = playgroundRef.current?.getBoundingClientRect();
-        if (playgroundRect) {
-          const ownerX = payload.landingRect.x - playgroundRect.left;
-          const ownerY = payload.landingRect.y - playgroundRect.top;
-          setDevices(createJourneyDevices(playgroundSize, ownerX, ownerY));
-          setJourneyMode(true);
-          setInitialized(true);
-          return;
-        }
+    const payload = loadJourneyLanding();
+    const ownerProfile = resolveOwnerProfile(payload);
+
+    if (entrance === "journey" && payload) {
+      const playgroundRect = playgroundRef.current?.getBoundingClientRect();
+      if (playgroundRect) {
+        const ownerX = payload.landingRect.x - playgroundRect.left;
+        const ownerY = payload.landingRect.y - playgroundRect.top;
+        setDevices(
+          createDevices(playgroundSize, {
+            ownerProfile,
+            ownerPosition: { x: ownerX, y: ownerY },
+          }),
+        );
+        setJourneyMode(true);
+        setInitialized(true);
+        return;
       }
     }
 
-    setDevices(createInitialDevices(playgroundSize));
+    setDevices(createDevices(playgroundSize, { ownerProfile }));
     setJourneyMode(false);
     setHandoffDone(true);
     setDevicesEnterDone(true);

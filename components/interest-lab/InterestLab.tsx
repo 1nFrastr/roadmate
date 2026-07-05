@@ -476,6 +476,10 @@ export function InterestLab() {
       iphoneFrame: iphoneFrameRef.current,
       tagSnapshots,
       tagNames: profile.tags.map((tag) => tag.name),
+      ownerProfile: {
+        tags: profile.tags,
+        embeddings: profile.embeddings,
+      },
     });
   };
 

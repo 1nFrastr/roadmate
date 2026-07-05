@@ -15,6 +15,7 @@ import { OWNER_DEVICE_INDEX } from "@/components/device-playground/constants";
 import { runInterestsToPlaygroundTransition, fallbackInjectTarget } from "./runInterestsToPlaygroundTransition";
 import { saveJourneyLanding } from "./storage";
 import { computeLandingRect } from "./constants";
+import type { InterestProfileSlice } from "@/components/interest-lab/types";
 import type { InjectTarget, JourneyPhase, JourneyTransitionSources, TagSnapshot } from "./types";
 
 interface StartTransitionInput {
@@ -24,6 +25,7 @@ interface StartTransitionInput {
   iphoneFrame: HTMLElement;
   tagSnapshots: TagSnapshot[];
   tagNames: string[];
+  ownerProfile: InterestProfileSlice;
 }
 
 interface JourneyTransitionContextValue {
@@ -119,6 +121,7 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
           landingRect: landing,
           ownerDeviceId: `device-${OWNER_DEVICE_INDEX}`,
           tagNames: input.tagNames,
+          ownerProfile: input.ownerProfile,
           startedAt: Date.now(),
         });
         router.push("/playground");
@@ -139,6 +142,7 @@ export function JourneyTransitionProvider({ children }: JourneyTransitionProvide
               landingRect,
               ownerDeviceId: `device-${OWNER_DEVICE_INDEX}`,
               tagNames: input.tagNames,
+              ownerProfile: input.ownerProfile,
               startedAt: Date.now(),
             });
             router.push("/playground");

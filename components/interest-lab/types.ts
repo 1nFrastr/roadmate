@@ -32,6 +32,12 @@ export interface PostRecord {
   tags?: PostTagDraft[];
 }
 
+/** 设备匹配 / Journey handoff 用的标签 + 向量切片 */
+export interface InterestProfileSlice {
+  tags: InterestTag[];
+  embeddings: TagEmbedding[];
+}
+
 export interface StoredInterestProfile {
   id: string;
   createdAt: string;
