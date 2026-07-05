@@ -31,7 +31,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
         style={{ width: DEVICE_W, height: DEVICE_H }}
       >
         {device.isOwner ? (
-          <div className="device-owner-ring pointer-events-none absolute -inset-[3px] rounded-[17px]" />
+          <div className="device-owner-ring pointer-events-none absolute -inset-[4px] rounded-[18px]" />
         ) : null}
 
         <div
@@ -39,7 +39,14 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
             device.isOwner ? "device-shell-owner" : ""
           }`}
         >
-          <div className="device-bezel absolute inset-[3px] rounded-[11px]" />
+          {device.isOwner ? (
+            <div className="device-owner-accent pointer-events-none absolute inset-x-[8px] top-0 z-[1] h-[3px] rounded-b-[2px]" />
+          ) : null}
+          <div
+            className={`device-bezel absolute inset-[3px] rounded-[11px] ${
+              device.isOwner ? "device-bezel-owner" : ""
+            }`}
+          />
 
           <div
             ref={ledRef}
@@ -47,25 +54,27 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
             data-device-id={device.id}
           >
             <div
-              className="device-led-glow absolute left-1/2 top-1/2 h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              className="device-led-glow absolute left-1/2 top-1/2 h-[28px] w-[28px] -translate-x-1/2 -translate-y-1/2 rounded-full"
               style={{
                 backgroundColor: ledColor,
-                opacity: ledActive ? 0.08 : 0,
+                opacity: 0,
               }}
             />
             <div
-              className="device-led-core relative mx-auto h-[10px] w-[10px] rounded-full"
+              className="device-led-core relative mx-auto h-[11px] w-[11px] rounded-full"
               style={{
                 backgroundColor: ledColor,
-                opacity: device.matchable ? 0.35 : LED_IDLE_OPACITY,
-                boxShadow: ledActive
-                  ? `0 0 10px ${ledColor}, 0 0 20px ${ledColor}66`
-                  : "none",
+                opacity: LED_IDLE_OPACITY,
+                boxShadow: "none",
               }}
             />
           </div>
 
-          <div className="device-screen absolute left-[10px] right-[10px] top-[26px] bottom-[52px] overflow-hidden rounded-[4px]">
+          <div
+            className={`device-screen absolute left-[10px] right-[10px] top-[26px] bottom-[52px] overflow-hidden rounded-[4px] ${
+              device.isOwner ? "device-screen-owner" : ""
+            }`}
+          >
             {showMatchSuccess ? (
               <div className="device-match-success-screen flex h-full min-h-0 flex-col items-center justify-center gap-[3px] px-[4px] py-[4px]">
                 <MatchScoreCounter value={matchScore ?? device.matchScore} />
@@ -108,7 +117,11 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
             )}
           </div>
 
-          <div className="device-wheel absolute bottom-[8px] left-1/2 h-[36px] w-[36px] -translate-x-1/2 rounded-full" />
+          <div
+            className={`device-wheel absolute bottom-[8px] left-1/2 h-[36px] w-[36px] -translate-x-1/2 rounded-full ${
+              device.isOwner ? "device-wheel-owner" : ""
+            }`}
+          />
         </div>
       </div>
     );

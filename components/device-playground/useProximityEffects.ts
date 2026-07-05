@@ -3,12 +3,10 @@
 import gsap from "gsap";
 import { useCallback, useRef } from "react";
 import {
-  devicesMatch,
   distanceToLedIntensity,
   distanceToLedTimeScale,
   DOCK_MAX_SCALE,
   DOCK_RADIUS,
-  isMatchParticipant,
   isWithinLedMatchRange,
   LED_CONFIG,
   LED_IDLE_OPACITY,
@@ -43,32 +41,59 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
     return gsap.timeline({ paused: true });
   }
 
+  const color = LED_CONFIG.color;
+  const flashOn = 0.05;
+  const flashOff = 0.17;
+  const peakShadow = `0 0 6px ${color}, 0 0 14px ${color}ee, 0 0 28px ${color}aa, 0 0 44px ${color}55`;
+
   gsap.set([glow, core], {
-    backgroundColor: LED_CONFIG.color,
+    backgroundColor: color,
     transformOrigin: "center center",
   });
+  gsap.set(core, { opacity: LED_IDLE_OPACITY, scale: 0.82, boxShadow: "none" });
+  gsap.set(glow, { opacity: 0, scale: 0.75 });
 
-  const tl = gsap.timeline({ repeat: -1, yoyo: true, paused: false });
+  const tl = gsap.timeline({ repeat: -1, paused: false });
   tl.to(
     core,
     {
-      opacity: 0.88,
-      scale: 1.18,
-      boxShadow: `0 0 6px ${LED_CONFIG.color}bb, 0 0 14px ${LED_CONFIG.color}66`,
-      duration: 0.52,
-      ease: "sine.inOut",
+      opacity: 1,
+      scale: 1.42,
+      boxShadow: peakShadow,
+      duration: flashOn,
+      ease: "power4.out",
     },
     0,
   );
   tl.to(
     glow,
     {
-      opacity: 0.68,
-      scale: 1.38,
-      duration: 0.52,
-      ease: "sine.inOut",
+      opacity: 0.95,
+      scale: 2.15,
+      duration: flashOn,
+      ease: "power4.out",
     },
     0,
+  );
+  tl.to(
+    core,
+    {
+      opacity: LED_IDLE_OPACITY,
+      scale: 0.82,
+      boxShadow: "none",
+      duration: flashOff,
+      ease: "power2.in",
+    },
+  );
+  tl.to(
+    glow,
+    {
+      opacity: 0,
+      scale: 0.75,
+      duration: flashOff,
+      ease: "power2.in",
+    },
+    "<",
   );
 
   return tl;
@@ -105,6 +130,7 @@ export function useProximityEffects(reducedMotion: boolean) {
   const setLedOff = useCallback(
     (deviceId: string, ledStack: HTMLDivElement) => {
       killLedTimeline(deviceId);
+      gsap.set(ledStack, { opacity: 1 });
       const { glow, core } = getLedParts(ledStack);
       if (core) {
         gsap.set(core, {
@@ -132,7 +158,6 @@ export function useProximityEffects(reducedMotion: boolean) {
         return;
       }
 
-      const { glow, core } = getLedParts(ledStack);
       const targetTimeScale = distanceToLedTimeScale(distance);
       const targetIntensity = distanceToLedIntensity(distance);
 
@@ -147,88 +172,137 @@ export function useProximityEffects(reducedMotion: boolean) {
       const tl = ensureLedTimeline(deviceId, ledStack);
       tl.timeScale(timeScale);
 
-      const glowOpacity = 0.1 + intensity * 0.58;
-      const glowScale = 1 + intensity * 0.42;
-      const coreScale = 1 + intensity * 0.16;
-
-      if (glow) {
-        gsap.to(glow, {
-          opacity: glowOpacity,
-          scale: glowScale,
-          duration: 0.42,
-          ease: "sine.out",
-          overwrite: "auto",
-        });
-      }
-      if (core) {
-        gsap.to(core, {
-          scale: coreScale,
-          duration: 0.42,
-          ease: "sine.out",
-          overwrite: "auto",
-        });
-      }
+      // 用 stack 整体透明度做距离亮度包络，避免与 timeline 频闪属性冲突
+      gsap.to(ledStack, {
+        opacity: 0.28 + intensity * 0.72,
+        duration: 0.22,
+        ease: "power2.out",
+        overwrite: "auto",
+      });
     },
     [ensureLedTimeline, reducedMotion, setLedOff],
   );
 
-  const findNearestMatchDistance = useCallback(
+  const activePairRef = useRef<{ ownerId: string; matchableId: string } | null>(null);
+  const ledsSuppressedRef = useRef(false);
+
+  const findNearestOwnerMatchPair = useCallback(
     (
-      device: DeviceState,
       devices: DeviceState[],
       refs: ProximityRefs,
-    ): number | null => {
-      const element = refs.deviceElements.get(device.id);
-      if (!element) return null;
+    ): { ownerId: string; matchableId: string; distance: number } | null => {
+      const owner = devices.find((device) => device.isOwner);
+      if (!owner) return null;
 
-      const pos = getElementPosition(element);
-      const center = getDeviceCenter(pos.x, pos.y);
+      const ownerElement = refs.deviceElements.get(owner.id);
+      if (!ownerElement) return null;
 
-      let nearest = Infinity;
+      const ownerPos = getElementPosition(ownerElement);
+      const ownerCenter = getDeviceCenter(ownerPos.x, ownerPos.y);
 
-      devices.forEach((other) => {
-        if (other.id === device.id || !devicesMatch(device, other)) return;
+      let nearestMatchableId: string | null = null;
+      let nearestDistance = Infinity;
 
-        const otherElement = refs.deviceElements.get(other.id);
-        if (!otherElement) return;
+      devices.forEach((device) => {
+        if (!device.matchable) return;
 
-        const otherPos = getElementPosition(otherElement);
-        const otherCenter = getDeviceCenter(otherPos.x, otherPos.y);
-        const dx = center.x - otherCenter.x;
-        const dy = center.y - otherCenter.y;
+        const element = refs.deviceElements.get(device.id);
+        if (!element) return;
+
+        const pos = getElementPosition(element);
+        const center = getDeviceCenter(pos.x, pos.y);
+        const dx = ownerCenter.x - center.x;
+        const dy = ownerCenter.y - center.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        nearest = Math.min(nearest, distance);
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestMatchableId = device.id;
+        }
       });
 
-      return nearest === Infinity ? null : nearest;
+      if (
+        nearestMatchableId === null ||
+        !isWithinLedMatchRange(nearestDistance)
+      ) {
+        return null;
+      }
+
+      return {
+        ownerId: owner.id,
+        matchableId: nearestMatchableId,
+        distance: nearestDistance,
+      };
     },
     [],
   );
 
+  const syncPairTimelines = useCallback((ownerId: string, matchableId: string) => {
+    const ownerTimeline = ledTimelinesRef.current.get(ownerId);
+    const matchableTimeline = ledTimelinesRef.current.get(matchableId);
+    if (!ownerTimeline || !matchableTimeline) return;
+
+    const progress = ownerTimeline.progress();
+    matchableTimeline.progress(progress);
+    matchableTimeline.timeScale(ownerTimeline.timeScale());
+  }, []);
+
   const updateMatchLeds = useCallback(
-    (devices: DeviceState[], refs: ProximityRefs) => {
+    (devices: DeviceState[], refs: ProximityRefs, enabled = true) => {
+      if (!enabled) {
+        if (!ledsSuppressedRef.current) {
+          ledsSuppressedRef.current = true;
+          activePairRef.current = null;
+          devices.forEach((device) => {
+            const ledStack = refs.ledElements.get(device.id);
+            if (ledStack) setLedOff(device.id, ledStack);
+          });
+        }
+        return;
+      }
+
+      ledsSuppressedRef.current = false;
+
+      const activePair = findNearestOwnerMatchPair(devices, refs);
+      const previousPair = activePairRef.current;
+      const pairChanged =
+        activePair?.ownerId !== previousPair?.ownerId ||
+        activePair?.matchableId !== previousPair?.matchableId;
+
+      if (activePair) {
+        activePairRef.current = {
+          ownerId: activePair.ownerId,
+          matchableId: activePair.matchableId,
+        };
+      } else {
+        activePairRef.current = null;
+      }
+
       devices.forEach((device) => {
         const ledStack = refs.ledElements.get(device.id);
         if (!ledStack) return;
 
-        if (!isMatchParticipant(device)) {
-          setLedOff(device.id, ledStack);
-          return;
-        }
-
-        const nearestDistance = findNearestMatchDistance(device, devices, refs);
         if (
-          nearestDistance === null ||
-          !isWithinLedMatchRange(nearestDistance)
+          !activePair ||
+          (device.id !== activePair.ownerId && device.id !== activePair.matchableId)
         ) {
           setLedOff(device.id, ledStack);
           return;
         }
 
-        setLedFromDistance(device.id, ledStack, nearestDistance);
+        setLedFromDistance(device.id, ledStack, activePair.distance);
+
+        if (pairChanged) {
+          const tl = ledTimelinesRef.current.get(device.id);
+          tl?.progress(0);
+        }
       });
+
+      if (activePair && pairChanged) {
+        syncPairTimelines(activePair.ownerId, activePair.matchableId);
+      }
     },
-    [findNearestMatchDistance, setLedFromDistance, setLedOff],
+    [findNearestOwnerMatchPair, setLedFromDistance, setLedOff, syncPairTimelines],
   );
 
   const updateDockProximity = useCallback(
@@ -288,6 +362,8 @@ export function useProximityEffects(reducedMotion: boolean) {
     ledTimelinesRef.current.clear();
     smoothedTimeScaleRef.current.clear();
     smoothedIntensityRef.current.clear();
+    activePairRef.current = null;
+    ledsSuppressedRef.current = false;
   }, []);
 
   return {

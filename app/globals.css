@@ -74,26 +74,72 @@ body {
 }
 
 .device-shell-owner {
-  background: linear-gradient(145deg, #6b7280 0%, #3f4654 40%, #2a3140 100%);
+  background: linear-gradient(
+    155deg,
+    #94a3b8 0%,
+    #64748b 12%,
+    #475569 38%,
+    #334155 100%
+  );
   box-shadow:
-    0 8px 28px rgba(34, 211, 238, 0.12),
+    0 0 0 1.5px rgba(34, 211, 238, 0.55),
+    0 10px 32px rgba(34, 211, 238, 0.24),
     0 8px 24px rgba(0, 0, 0, 0.55),
-    0 2px 4px rgba(255, 255, 255, 0.12) inset,
+    0 2px 4px rgba(255, 255, 255, 0.14) inset,
     0 -2px 6px rgba(0, 0, 0, 0.4) inset;
 }
 
-.device-owner-ring {
-  border: 1.5px solid rgba(34, 211, 238, 0.55);
+.device-card-owner {
+  filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.32));
+}
+
+.device-owner-accent {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(34, 211, 238, 0.35) 15%,
+    #22d3ee 50%,
+    rgba(34, 211, 238, 0.35) 85%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+}
+
+.device-bezel-owner {
   box-shadow:
-    0 0 16px rgba(34, 211, 238, 0.25),
-    inset 0 0 12px rgba(34, 211, 238, 0.08);
-  animation: owner-ring-pulse 2.8s ease-in-out infinite;
+    inset 0 0 0 1px rgba(34, 211, 238, 0.28),
+    inset 0 1px 2px rgba(255, 255, 255, 0.18);
+}
+
+.device-screen-owner {
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(34, 211, 238, 0.42),
+    0 0 10px rgba(34, 211, 238, 0.14);
+}
+
+.device-wheel-owner {
+  background: radial-gradient(circle at 35% 30%, #5eead4 0%, #475569 42%, #1e293b 100%);
+  box-shadow:
+    0 0 10px rgba(34, 211, 238, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.16),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.device-owner-ring {
+  border: 2px solid rgba(34, 211, 238, 0.88);
+  box-shadow:
+    0 0 22px rgba(34, 211, 238, 0.55),
+    0 0 44px rgba(34, 211, 238, 0.18),
+    inset 0 0 16px rgba(34, 211, 238, 0.14);
+  animation: owner-ring-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes owner-ring-pulse {
   0%,
   100% {
-    opacity: 0.65;
+    opacity: 0.78;
   }
   50% {
     opacity: 1;
@@ -101,14 +147,18 @@ body {
 }
 
 .device-led-stack {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 .device-led-glow,
 .device-led-core {
-  will-change: opacity, transform;
+  will-change: opacity, transform, box-shadow;
   transform-origin: center center;
+}
+
+.device-led-glow {
+  filter: blur(3px);
 }
 
 .device-led {
@@ -244,6 +294,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .device-owner-ring {
     animation: none;
+    opacity: 1;
+  }
+
+  .device-card-owner {
+    filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.4));
   }
 
   .device-match-success-screen {

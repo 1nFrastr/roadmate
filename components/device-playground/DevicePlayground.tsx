@@ -380,10 +380,14 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     if (!initialized || devices.length === 0) return;
 
     const tick = () => {
-      updateMatchLeds(devices, {
-        deviceElements: deviceRefs.current,
-        ledElements: ledRefs.current,
-      });
+      updateMatchLeds(
+        devices,
+        {
+          deviceElements: deviceRefs.current,
+          ledElements: ledRefs.current,
+        },
+        !pairingLockedRef.current,
+      );
     };
 
     gsap.ticker.add(tick);

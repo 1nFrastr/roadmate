@@ -19,17 +19,20 @@ export const DOCK_MAX_SCALE = 1.35;
 export const PLAYGROUND_PADDING = 24;
 /** Matter.js 同组负值：设备彼此不碰撞，可自由叠放 */
 export const DEVICE_COLLISION_GROUP = -1;
-export const LED_IDLE_OPACITY = 0.12;
+export const LED_IDLE_OPACITY = 0.04;
 /** 匹配灯光有效距离：5 倍设备宽度，超出则熄灭 */
 export const LED_MATCH_RANGE = DEVICE_W * 5;
-export const LED_COLOR = "#6bbfa0";
-export const LED_PULSE_BASE_CYCLE = 1.04;
-export const LED_SMOOTHING = 0.055;
+/** 暖琥珀信标色：暗色外壳上对比强，区别于 UI 里的青/绿语义 */
+export const LED_COLOR = "#ffb020";
+export const LED_PULSE_BASE_CYCLE = 0.22;
+export const LED_SMOOTHING = 0.09;
 
 export const LED_CONFIG: LedConfig = {
   color: LED_COLOR,
-  minDuration: 3.8,
-  maxDuration: 0.95,
+  /** 最远有效距离：约 0.5 Hz 慢闪 */
+  minDuration: 1.6,
+  /** 紧贴时：约 6 Hz 急促频闪 */
+  maxDuration: 0.11,
 };
 
 export const DEVICE_LABELS = [
@@ -69,7 +72,7 @@ export function distanceToLedTimeScale(distance: number): number {
 /** 距离 → 亮度 / 光晕强度 [0, 1] */
 export function distanceToLedIntensity(distance: number): number {
   const proximity = distanceToProximity(distance);
-  return Math.pow(proximity, 1.15);
+  return Math.pow(proximity, 0.82);
 }
 
 export function isWithinLedMatchRange(distance: number): boolean {
