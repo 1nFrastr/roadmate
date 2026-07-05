@@ -1,6 +1,10 @@
 "use client";
 
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { useRef, useState } from "react";
 import { IphoneAppFrame } from "@/components/journey";
+import { consumeMatchRoadmatesEntrance } from "@/components/match-to-roadmates";
 import { RoadmateChatScreen } from "./RoadmateChatScreen";
 import { RoadmateListScreen } from "./RoadmateListScreen";
 import { RoadmateProfileScreen } from "./RoadmateProfileScreen";
@@ -11,10 +15,43 @@ const SCREENS = [
   { label: "路友主页", Screen: RoadmateProfileScreen },
 ] as const;
 
+gsap.registerPlugin(useGSAP);
+
 export function RoadmatesPrototype() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const frameRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [fromMatch] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return consumeMatchRoadmatesEntrance();
+  });
+
+  useGSAP(
+    () => {
+      if (!fromMatch) return;
+
+      const targets = [headerRef.current, ...frameRefs.current].filter(Boolean);
+      gsap.fromTo(
+        targets,
+        { opacity: 0, y: 28 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          stagger: 0.08,
+          ease: "power2.out",
+          clearProps: "transform",
+        },
+      );
+    },
+    { scope: containerRef, dependencies: [fromMatch] },
+  );
+
+  const hiddenStyle = fromMatch ? { opacity: 0 } : undefined;
+
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="shrink-0 border-b border-white/5 px-6 py-5">
+    <div ref={containerRef} className="flex h-full min-h-0 w-full flex-col">
+      <header ref={headerRef} className="shrink-0 border-b border-white/5 px-6 py-5" style={hiddenStyle}>
         <div className="mx-auto flex max-w-6xl flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-zinc-500">Roadmate · 轻链接</p>
@@ -28,10 +65,18 @@ export function RoadmatesPrototype() {
 
       <main className="flex min-h-0 flex-1 items-center justify-center overflow-auto px-4 py-8">
         <div className="flex flex-wrap items-start justify-center gap-6 lg:gap-8">
-          {SCREENS.map(({ label, Screen }) => (
-            <IphoneAppFrame key={label} label={label} size="compact">
-              <Screen />
-            </IphoneAppFrame>
+          {SCREENS.map(({ label, Screen }, index) => (
+            <div
+              key={label}
+              ref={(element) => {
+                frameRefs.current[index] = element;
+              }}
+              style={hiddenStyle}
+            >
+              <IphoneAppFrame label={label} size="compact">
+                <Screen />
+              </IphoneAppFrame>
+            </div>
           ))}
         </div>
       </main>

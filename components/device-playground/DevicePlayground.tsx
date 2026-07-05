@@ -5,7 +5,9 @@ import gsap from "gsap";
 import { Draggable } from "gsap/Draggable";
 import Matter from "matter-js";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { saveMatchRoadmatesEntrance } from "@/components/match-to-roadmates";
 import {
   clearJourneyLanding,
   loadJourneyLanding,
@@ -107,6 +109,7 @@ function createJourneyDevices(size: PlaygroundSize, ownerX: number, ownerY: numb
 }
 
 export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps) {
+  const router = useRouter();
   const playgroundRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -146,6 +149,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     startHold,
     endHold,
     dismissSuccess,
+    goToRoadmates,
     pairingLocked,
   } = useMatchPairing({
     devices,
@@ -461,6 +465,13 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
 
   const matchableCount = devices.filter((device) => device.matchable).length;
 
+  const handleGoToRoadmates = useCallback(() => {
+    goToRoadmates(() => {
+      saveMatchRoadmatesEntrance();
+      router.push("/roadmates");
+    });
+  }, [goToRoadmates, router]);
+
   return (
     <div className="relative flex h-full w-full flex-col">
       <header
@@ -538,16 +549,26 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         />
 
         {pairingLocked && successScreenVisible ? (
-          <button
-            type="button"
-            className="pair-success-backdrop absolute inset-0 z-[160] cursor-default border-0 bg-transparent p-0"
-            onClick={dismissSuccess}
-            aria-label="点击空白处返回"
-          >
-            <span className="pair-success-dismiss-hint pointer-events-none absolute inset-x-0 bottom-8 text-center font-mono text-xs text-zinc-500/90">
-              点击空白处返回
-            </span>
-          </button>
+          <>
+            <button
+              type="button"
+              className="pair-success-backdrop absolute inset-0 z-[160] cursor-default border-0 bg-transparent p-0"
+              onClick={dismissSuccess}
+              aria-label="点击空白处返回"
+            />
+            <div className="pair-success-actions pointer-events-none absolute inset-x-0 bottom-20 z-[170] flex justify-center px-4">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleGoToRoadmates();
+                }}
+                className="pointer-events-auto rounded-full border border-emerald-400/40 bg-emerald-500/10 px-5 py-2.5 text-sm font-medium text-emerald-200 shadow-[0_4px_24px_rgba(16,185,129,0.15)] backdrop-blur-sm transition hover:border-emerald-400/60 hover:bg-emerald-500/20 active:scale-[0.98]"
+              >
+                查看路友 App →
+              </button>
+            </div>
+          </>
         ) : null}
       </div>
     </div>

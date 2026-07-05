@@ -14,6 +14,7 @@ import {
   PAIRING_TOUCH_EXIT_DISTANCE,
   pickMatchTopics,
 } from "./constants";
+import { runMatchToRoadmatesExitTransition } from "@/components/match-to-roadmates";
 import {
   capturePairSuccessSnapshot,
   computeTouchGeometry,
@@ -77,6 +78,7 @@ export function useMatchPairing({
   const transitionTimelineRef = useRef<gsap.core.Timeline | null>(null);
   const restoreSnapshotRef = useRef<PairSuccessRestoreSnapshot | null>(null);
   const dismissingRef = useRef(false);
+  const navigatingRef = useRef(false);
   const phaseRef = useRef<PairingPhase>("idle");
   /** dismiss 后设备仍紧挨时，抑制重新进入 ready，避免 pointer-events:none 锁死画布 */
   const pairingCooldownRef = useRef(false);
@@ -240,8 +242,37 @@ export function useMatchPairing({
     setPhase("ready");
   }, [resetHold]);
 
+  const goToRoadmates = useCallback(
+    (onNavigate: () => void) => {
+      if (phase !== "success" || navigatingRef.current || dismissingRef.current || !matchedPair) {
+        return;
+      }
+
+      navigatingRef.current = true;
+      transitionTimelineRef.current?.kill();
+      setSuccessScreenVisible(false);
+
+      const playgroundEl = playgroundRef.current;
+      if (!playgroundEl) {
+        onNavigate();
+        return;
+      }
+
+      transitionTimelineRef.current = runMatchToRoadmatesExitTransition({
+        playgroundEl,
+        ownerEl: deviceRefs.current?.get(matchedPair.owner.id),
+        partnerEl: deviceRefs.current?.get(matchedPair.partner.id),
+        reducedMotion,
+        onNavigate,
+      });
+    },
+    [deviceRefs, matchedPair, phase, playgroundRef, reducedMotion],
+  );
+
   const dismissSuccess = useCallback(() => {
-    if (phase !== "success" || dismissingRef.current || !matchedPair) return;
+    if (phase !== "success" || dismissingRef.current || navigatingRef.current || !matchedPair) {
+      return;
+    }
 
     dismissingRef.current = true;
     transitionTimelineRef.current?.kill();
@@ -351,6 +382,7 @@ export function useMatchPairing({
     startHold,
     endHold,
     dismissSuccess,
+    goToRoadmates,
     pairingLocked: phase === "success",
   };
 }
