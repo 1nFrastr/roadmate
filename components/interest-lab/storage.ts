@@ -66,13 +66,25 @@ export function saveSettings(settings: LabSettings) {
   writeJson(STORAGE_KEYS.settings, settings);
 }
 
+/** 帖子列表仅会话内使用，不写入 localStorage */
+function stripPostsForStorage(profile: StoredInterestProfile): StoredInterestProfile {
+  const { posts: _posts, ...rest } = profile;
+  return rest;
+}
+
 export function loadProfiles(): StoredInterestProfile[] {
-  return readJson<StoredInterestProfile[]>(STORAGE_KEYS.profiles, []);
+  const raw = readJson<StoredInterestProfile[]>(STORAGE_KEYS.profiles, []);
+  const stripped = raw.map(stripPostsForStorage);
+  if (raw.some((item) => item.posts?.length)) {
+    writeJson(STORAGE_KEYS.profiles, stripped);
+  }
+  return stripped;
 }
 
 export function saveProfile(profile: StoredInterestProfile) {
   const profiles = loadProfiles();
-  const next = [profile, ...profiles.filter((item) => item.id !== profile.id)].slice(0, 20);
+  const stored = stripPostsForStorage(profile);
+  const next = [stored, ...profiles.filter((item) => item.id !== stored.id)].slice(0, 20);
   writeJson(STORAGE_KEYS.profiles, next);
   return next;
 }

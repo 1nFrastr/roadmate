@@ -14,7 +14,7 @@
 
 | 模式 | 帖子来源 |
 |------|----------|
-| 帖子列表 | 用户逐条添加，时间用「距今」（小时/天/周/月） |
+| 帖子列表 | 用户逐条添加，时间用「距今」（小时/天/周/月）；支持 `.txt` 批量导入/导出 |
 | X 用户名 | twitterapi.io 拉帖，自带 `createdAt` |
 
 ## 逐帖提取
@@ -74,6 +74,30 @@ weight = 0.40 × frequency + 0.20 × sentiment × recency + 0.40 × recency
 | `constants.ts` | 并发、衰减 λ、权重系数、上限等调参 |
 | `InterestLab.tsx` | UI 编排、profile 持久化 |
 | `PostListEditor.tsx` | 帖子列表与「距今」时间控件 |
+| `postImportExport.ts` | 帖子列表 `.txt` 导入/导出（`roadmate-posts/1` schema） |
+
+## 帖子 txt 格式（roadmate-posts/1）
+
+便于切换测试数据集，导入/导出均为 UTF-8 纯文本：
+
+```
+# roadmate-posts/1
+@0h
+刚看完一部 sci-fi 纪录片
+
+@3d
+周末试了新的 pour-over 豆子
+
+@2w
+Started learning Rust for embedded
+```
+
+- 每帖首行 `@<数量><单位>`：`h`/`d`/`w`/`m` 或 `@3 days`、`@2 周` 等
+- 随后为正文，可多行；下一条 `@` 开头为新帖
+- `#` 开头为注释；空行忽略
+- 导入会**清空并替换**当前列表，同时清除 profile 中的推断标签（自定义标签保留）；导出不含推断标签，仅文本 + 相对时间
+- 帖子列表**不写入 localStorage**，刷新后需重新导入或手动添加
+
 
 ## 调参入口
 

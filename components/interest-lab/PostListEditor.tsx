@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
+import { downloadPostsTxt, parsePostsFromTxt } from "./postImportExport";
 import {
   createPostRecord,
   isoToRelative,
@@ -13,6 +14,8 @@ import type { PostRecord } from "./types";
 interface PostListEditorProps {
   posts: PostRecord[];
   onChange: (posts: PostRecord[]) => void;
+  /** 批量导入：替换列表并清缓存（与 onChange 分开，便于父级重置 profile） */
+  onImport?: (posts: PostRecord[]) => void;
   disabled?: boolean;
 }
 
@@ -85,7 +88,10 @@ function RelativeTimeControl({
   );
 }
 
-export function PostListEditor({ posts, onChange, disabled }: PostListEditorProps) {
+export function PostListEditor({ posts, onChange, onImport, disabled }: PostListEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [ioMessage, setIoMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
   const updatePost = useCallback(
     (id: string, patch: Partial<Pick<PostRecord, "text" | "createdAt">>) => {
       onChange(
@@ -106,21 +112,94 @@ export function PostListEditor({ posts, onChange, disabled }: PostListEditorProp
     onChange([createPostRecord(""), ...posts]);
   }, [onChange, posts]);
 
+  const handleExport = useCallback(() => {
+    const exportable = posts.filter((post) => post.text.trim());
+    if (exportable.length === 0) {
+      setIoMessage({ kind: "err", text: "没有可导出的帖子（正文不能为空）" });
+      return;
+    }
+    downloadPostsTxt(exportable);
+    setIoMessage({ kind: "ok", text: `已导出 ${exportable.length} 条帖子` });
+  }, [posts]);
+
+  const handleImportFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+
+      try {
+        const content = await file.text();
+        const { posts: imported, errors, warnings } = parsePostsFromTxt(content);
+
+        if (errors.length > 0) {
+          setIoMessage({ kind: "err", text: errors.join("；") });
+          return;
+        }
+
+        if (onImport) {
+          onImport(imported);
+        } else {
+          onChange(imported);
+        }
+        const warningText = warnings.length > 0 ? `（${warnings[0]}）` : "";
+        setIoMessage({ kind: "ok", text: `已导入 ${imported.length} 条帖子，已清空原列表${warningText}` });
+      } catch {
+        setIoMessage({ kind: "err", text: "读取文件失败" });
+      }
+    },
+    [onChange, onImport],
+  );
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
           每条帖子单独推断（最多 3 标签/帖），时间用「距今」方便测试 recency 加权
         </p>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={addPost}
-          className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-cyan-400 transition hover:border-cyan-500/40 hover:text-cyan-300 disabled:opacity-50"
-        >
-          + 添加帖子
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
+          >
+            批量导入
+          </button>
+          <button
+            type="button"
+            disabled={disabled || posts.every((post) => !post.text.trim())}
+            onClick={handleExport}
+            className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
+          >
+            批量导出
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={addPost}
+            className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-cyan-400 transition hover:border-cyan-500/40 hover:text-cyan-300 disabled:opacity-50"
+          >
+            + 添加帖子
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,text/plain"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+        </div>
       </div>
+
+      {ioMessage ? (
+        <p
+          className={`text-xs ${ioMessage.kind === "ok" ? "text-emerald-400/90" : "text-red-400/90"}`}
+          role="status"
+        >
+          {ioMessage.text}
+        </p>
+      ) : null}
 
       {posts.length === 0 ? (
         <p className="rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-4 text-center text-sm text-zinc-500">

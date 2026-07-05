@@ -69,9 +69,7 @@ export function InterestLab() {
     setSavedProfiles(profiles);
     if (profiles[0]) {
       setProfile(profiles[0]);
-      if (profiles[0].source.type === "paste" && profiles[0].posts?.length) {
-        setPastePosts(profiles[0].posts);
-      } else if (profiles[0].source.type === "twitter") {
+      if (profiles[0].source.type === "twitter") {
         setTwitterHandle(profiles[0].source.handle ?? "");
       }
       setStep("done");
@@ -226,7 +224,12 @@ export function InterestLab() {
           profile.source.handle === handle) ||
           (source.type === "paste" && profile.source.type === "paste"));
 
-      const existingPosts = canReuseProfile ? (profile?.posts ?? []) : [];
+      const existingPosts =
+        inputMode === "paste"
+          ? pastePosts
+          : canReuseProfile
+            ? (profile?.posts ?? [])
+            : [];
       const mergedPosts = mergePosts(existingPosts, incomingPosts);
       const unprocessed = getUnprocessedPosts(mergedPosts);
 
@@ -297,13 +300,36 @@ export function InterestLab() {
     }
   };
 
+  const handleImportPosts = useCallback(
+    (posts: PostRecord[]) => {
+      setPastePosts(posts);
+      setStep("idle");
+      setError(null);
+      setSelectedCustomTagId(null);
+
+      if (!profile) return;
+
+      const customTags = profile.tags.filter((tag) => tag.custom);
+      const customNames = new Set(customTags.map((tag) => tag.name));
+      persistProfile({
+        ...profile,
+        source: { type: "paste" },
+        posts: undefined,
+        tags: customTags,
+        embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [persistProfile, profile],
+  );
+
   const loadSavedProfile = (item: StoredInterestProfile) => {
     setProfile(item);
     setStep("done");
     setError(null);
     setSelectedCustomTagId(null);
-    if (item.source.type === "paste" && item.posts?.length) {
-      setPastePosts(item.posts);
+    setPastePosts([]);
+    if (item.source.type === "paste") {
       setInputMode("paste");
     } else if (item.source.type === "twitter") {
       setTwitterHandle(item.source.handle ?? "");
@@ -508,6 +534,7 @@ export function InterestLab() {
               <PostListEditor
                 posts={pastePosts}
                 onChange={setPastePosts}
+                onImport={handleImportPosts}
                 disabled={isBusy || isTransitioning}
               />
             )}

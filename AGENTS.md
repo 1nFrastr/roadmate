@@ -55,7 +55,8 @@ components/tag-word-cloud/
 
 components/interest-lab/
   InterestLab.tsx       # 主 UI：输入、推断流程、词云预览、JSON 输出
-  PostListEditor.tsx    # 帖子列表 + 「距今」时间控件
+  PostListEditor.tsx    # 帖子列表 + 「距今」时间控件 + txt 导入导出
+  postImportExport.ts   # roadmate-posts/1 txt 序列化/解析
   INFERENCE.md          # 推断流程与权重公式说明
   api/openrouter.ts     # extractTagsFromPost(s)、embedTags
   api/twitter.ts        # fetchUserTweets、tweetsToPosts
@@ -92,7 +93,7 @@ components/interest-lab/
 2. **推断流程**：逐帖 LLM 提取（每帖最多 3 标签 + sentiment）→ 代码聚合 frequency / recency / weight → OpenRouter embedding → 存 `StoredInterestProfile`。
 3. **权重公式**：见 `INFERENCE.md`；`frequency` / `recency` 由代码按帖子时间计算，非 LLM 输出。
 4. **默认模型**（`constants.ts`）：LLM `minimax/minimax-m3`，Embedding `openai/text-embedding-3-small`；可在 UI 覆盖。
-5. **本地存储**：API Key、settings、最多 20 条 profile 均在浏览器 `localStorage`；**不要**把 Key 提交到 git 或服务端。
+5. **本地存储**：API Key、settings、最多 20 条 profile（标签 + embedding，**不含帖子列表**）均在浏览器 `localStorage`；**不要**把 Key 提交到 git 或服务端。
 6. **输出**：右侧 JSON 预览含 tags + embeddings；下方 `TagWordCloud` 实时展示推断结果。
 
 ## TagWordCloud 约定
