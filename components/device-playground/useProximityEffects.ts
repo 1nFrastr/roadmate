@@ -336,6 +336,9 @@ export function useProximityEffects(reducedMotion: boolean) {
         const element = refs.deviceElements.get(device.id);
         if (!element) return;
 
+        const opacity = gsap.getProperty(element, "opacity") as number;
+        if (opacity < 0.1) return;
+
         const pos = getElementPosition(element);
         const center = getDeviceCenter(pos.x, pos.y);
         const dx = ownerCenter.x - center.x;

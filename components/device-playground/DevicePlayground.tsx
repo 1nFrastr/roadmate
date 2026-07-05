@@ -6,14 +6,14 @@ import { Draggable } from "gsap/Draggable";
 import Matter from "matter-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { saveMatchRoadmatesEntrance } from "@/components/match-to-roadmates";
 import {
   clearJourneyLanding,
   loadJourneyLanding,
   useJourneyTransitionOptional,
 } from "@/components/journey";
-import { JOURNEY_TIMINGS } from "@/components/journey/constants";
+import { computeLandingRect, JOURNEY_TIMINGS } from "@/components/journey/constants";
 import { DeviceCard } from "./DeviceCard";
 import {
   DEVICE_DOCK_TRANSFORM_ORIGIN,
@@ -40,6 +40,7 @@ import {
   profileFromStored,
   type DeviceInterestProfile,
 } from "./matchScoring";
+import { getOwnerDefaultPosition, layoutInitialDevicePositions } from "./layoutInitialDevices";
 import { bodyToDevicePosition, useDevicePhysics } from "./useDevicePhysics";
 import { useProximityEffects } from "./useProximityEffects";
 import type { DeviceState, PlaygroundSize } from "./types";
@@ -89,8 +90,6 @@ function buildDeviceInterestState(
 function createDevices(size: PlaygroundSize, options: CreateDevicesOptions = {}): DeviceState[] {
   const matchableIndices = pickMatchableIndices(MATCH_COUNT, TOTAL_DEVICES);
   const matchableList = [...matchableIndices].sort((a, b) => a - b);
-  const maxX = size.width - DEVICE_W - PLAYGROUND_PADDING;
-  const maxY = size.height - DEVICE_H - PLAYGROUND_PADDING;
   const ownerProfile = options.ownerProfile ?? null;
   const profileSeed = ownerProfile
     ? hashString(ownerProfile.tags.map((tag) => tag.name).join("|"))
@@ -100,7 +99,12 @@ function createDevices(size: PlaygroundSize, options: CreateDevicesOptions = {})
     : null;
   const ownerPos = options.ownerPosition
     ? clampDevicePosition(options.ownerPosition.x, options.ownerPosition.y, size)
-    : null;
+    : getOwnerDefaultPosition(size);
+
+  const reservedPositions = new Map<number, { x: number; y: number }>();
+  reservedPositions.set(OWNER_DEVICE_INDEX, ownerPos);
+
+  const initialPositions = layoutInitialDevicePositions(size, TOTAL_DEVICES, reservedPositions);
 
   return Array.from({ length: TOTAL_DEVICES }, (_, index) => {
     const isOwner = index === OWNER_DEVICE_INDEX;
@@ -109,6 +113,7 @@ function createDevices(size: PlaygroundSize, options: CreateDevicesOptions = {})
     const interestState = isOwner && ownerProfile
       ? { interestProfile: ownerProfile, matchScore: 0 }
       : buildDeviceInterestState(matchableSlot, matchable, ownerProfile, neighborProfiles);
+    const position = initialPositions[index]!;
 
     return {
       id: `device-${index}`,
@@ -116,12 +121,8 @@ function createDevices(size: PlaygroundSize, options: CreateDevicesOptions = {})
       isOwner,
       matchable,
       ...interestState,
-      x: isOwner && ownerPos
-        ? ownerPos.x
-        : PLAYGROUND_PADDING + Math.random() * Math.max(maxX - PLAYGROUND_PADDING, 1),
-      y: isOwner && ownerPos
-        ? ownerPos.y
-        : PLAYGROUND_PADDING + Math.random() * Math.max(maxY - PLAYGROUND_PADDING, 1),
+      x: position.x,
+      y: position.y,
     };
   });
 }
@@ -132,6 +133,26 @@ function clampDevicePosition(x: number, y: number, size: PlaygroundSize) {
   return {
     x: Math.max(PLAYGROUND_PADDING, Math.min(x, maxX)),
     y: Math.max(PLAYGROUND_PADDING, Math.min(y, maxY)),
+  };
+}
+
+function resolveOwnerPosition(
+  playgroundRect: DOMRect | undefined,
+  landingRect?: { x: number; y: number },
+): { x: number; y: number } | undefined {
+  if (!playgroundRect) return undefined;
+
+  if (landingRect) {
+    return {
+      x: landingRect.x - playgroundRect.left,
+      y: landingRect.y - playgroundRect.top,
+    };
+  }
+
+  const landing = computeLandingRect(window.innerWidth, window.innerHeight);
+  return {
+    x: landing.x - playgroundRect.left,
+    y: landing.y - playgroundRect.top,
   };
 }
 
@@ -285,47 +306,40 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
 
     const payload = loadJourneyLanding();
     const ownerProfile = resolveOwnerProfile(payload);
+    const playgroundRect = playgroundRef.current?.getBoundingClientRect();
+    const ownerPosition = resolveOwnerPosition(playgroundRect, payload?.landingRect);
 
-    if (entrance === "journey" && payload) {
-      const playgroundRect = playgroundRef.current?.getBoundingClientRect();
-      if (playgroundRect) {
-        const ownerX = payload.landingRect.x - playgroundRect.left;
-        const ownerY = payload.landingRect.y - playgroundRect.top;
-        setDevices(
-          createDevices(playgroundSize, {
-            ownerProfile,
-            ownerPosition: { x: ownerX, y: ownerY },
-          }),
-        );
-        setJourneyMode(true);
-        setInitialized(true);
-        return;
-      }
+    const useJourneyFlow = entrance === "journey" && payload !== null && playgroundRect !== undefined;
+
+    setDevices(createDevices(playgroundSize, { ownerProfile, ownerPosition }));
+
+    if (useJourneyFlow) {
+      setJourneyMode(true);
+    } else {
+      setJourneyMode(false);
+      setHandoffDone(true);
+      setDevicesEnterDone(true);
     }
 
-    setDevices(createDevices(playgroundSize, { ownerProfile }));
-    setJourneyMode(false);
-    setHandoffDone(true);
-    setDevicesEnterDone(true);
     setInitialized(true);
   }, [entrance, initialized, playgroundSize]);
 
-  useEffect(() => {
-    if (!journeyMode || !initialized) return;
+  useLayoutEffect(() => {
+    if (!initialized || devices.length === 0) return;
 
     devices.forEach((device, index) => {
       const element = deviceRefs.current.get(device.id);
       if (!element) return;
 
-      if (device.isOwner) {
-        gsap.set(element, { x: device.x, y: device.y, opacity: 1, scale: 1 });
+      if (journeyMode && !devicesEnterDone && !device.isOwner) {
+        const start = offscreenStart(index, playgroundSize);
+        gsap.set(element, { x: start.x, y: start.y, opacity: 0, scale: 0.85 });
         return;
       }
 
-      const start = offscreenStart(index, playgroundSize);
-      gsap.set(element, { x: start.x, y: start.y, opacity: 0, scale: 0.85 });
+      gsap.set(element, { x: device.x, y: device.y, opacity: 1, scale: 1 });
     });
-  }, [devices, initialized, journeyMode, playgroundSize]);
+  }, [devices, devicesEnterDone, initialized, journeyMode, playgroundSize]);
 
   useEffect(() => {
     if (!journeyMode || !initialized || playgroundReadySent) return;
@@ -386,7 +400,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   }, [initialized, journey, journeyMode, runDevicesEnter]);
 
   useEffect(() => {
-    if (!initialized || devices.length === 0) return;
+    if (!initialized || devices.length === 0 || !entranceComplete) return;
 
     const tick = () => {
       const refs = {
@@ -421,7 +435,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     return () => {
       gsap.ticker.remove(tick);
     };
-  }, [initialized, devices, ownerId, updateMatchLeds, updateMatchPointers]);
+  }, [devices, entranceComplete, initialized, ownerId, updateMatchLeds, updateMatchPointers]);
 
   useEffect(() => {
     const api = physicsApiRef.current;

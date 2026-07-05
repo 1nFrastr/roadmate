@@ -28,6 +28,8 @@ export const OWNER_DEVICE_INDEX = 0;
 export const DOCK_RADIUS = 225;
 export const DOCK_MAX_SCALE = 1.35;
 export const PLAYGROUND_PADDING = 24;
+/** 初始化布局时设备之间的最小间距 */
+export const DEVICE_SPAWN_GAP = 16;
 /** Matter.js 同组负值：设备彼此不碰撞，可自由叠放 */
 export const DEVICE_COLLISION_GROUP = -1;
 export const LED_IDLE_OPACITY = 0.04;
