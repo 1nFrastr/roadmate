@@ -52,7 +52,7 @@ export const MOCK_SESSIONS: RoadmateSession[] = [
     isGroup: false,
     lastPreview: "语音 · 那家咖啡馆不错",
     lastType: "voice",
-    time: "周二",
+    time: "昨天",
   },
   {
     id: "u2",
@@ -61,7 +61,7 @@ export const MOCK_SESSIONS: RoadmateSession[] = [
     isGroup: false,
     lastPreview: "🎉",
     lastType: "emoji",
-    time: "3/28",
+    time: "周六",
   },
   {
     id: "g1",
@@ -76,7 +76,7 @@ export const MOCK_SESSIONS: RoadmateSession[] = [
     memberCount: 4,
     lastPreview: "语音 · 明天几点集合？",
     lastType: "voice",
-    time: "14:32",
+    time: "",
     unread: 2,
     isNew: true,
   },
@@ -88,7 +88,7 @@ export const MOCK_SESSIONS: RoadmateSession[] = [
     memberCount: 3,
     lastPreview: "😊 期待线下见",
     lastType: "emoji",
-    time: "昨天",
+    time: "6/28",
     isNew: true,
   },
 ];
@@ -99,7 +99,7 @@ export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
     sender: "them",
     voiceDuration: "0:12",
     transcript: "嗨，上次聊的独立游戏你有玩吗？",
-    reactions: ["👋"],
+    reactions: ["👋", "❤️"],
   },
   {
     id: "m3",
@@ -112,6 +112,7 @@ export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
     sender: "them",
     voiceDuration: "0:15",
     transcript: "好啊，线下聊更带感。我明天在798附近。",
+    reactions: ["🎉", "✨", "🙌"],
   },
 ];
 

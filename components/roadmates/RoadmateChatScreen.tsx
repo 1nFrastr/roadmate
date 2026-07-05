@@ -1,10 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MOCK_CHAT_MESSAGES, MOCK_ME, MOCK_PROFILE } from "./mockData";
 
 const REMAINING_MESSAGES = 2;
 const REACTION_EMOJIS = ["👋", "😊", "🎉", "✨", "🙌", "❤️"];
+
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z" />
+      <path d="M19 10v1a7 7 0 01-14 0v-1" />
+      <path d="M12 18v3" />
+      <path d="M8 21h8" />
+    </svg>
+  );
+}
 
 function VoiceWaveform({ bars = 10 }: { bars?: number }) {
   const heights = [3, 5, 8, 4, 7, 3, 6, 9, 5, 4, 7, 3];
@@ -119,9 +139,43 @@ function MessageRow({
   );
 }
 
+const QUOTA_TOAST_DURATION_MS = 4000;
+
 export function RoadmateChatScreen() {
   const [messages, setMessages] = useState(MOCK_CHAT_MESSAGES);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
+  const [showQuotaToast, setShowQuotaToast] = useState(false);
+  const [quotaToastKey, setQuotaToastKey] = useState(0);
+  const quotaToastTimerRef = useRef<number | null>(null);
+
+  const revealQuotaToast = useCallback(() => {
+    setShowQuotaToast(true);
+    setQuotaToastKey((key) => key + 1);
+
+    if (quotaToastTimerRef.current != null) {
+      window.clearTimeout(quotaToastTimerRef.current);
+    }
+
+    quotaToastTimerRef.current = window.setTimeout(() => {
+      setShowQuotaToast(false);
+      quotaToastTimerRef.current = null;
+    }, QUOTA_TOAST_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    revealQuotaToast();
+
+    return () => {
+      if (quotaToastTimerRef.current != null) {
+        window.clearTimeout(quotaToastTimerRef.current);
+      }
+    };
+  }, [revealQuotaToast]);
+
+  const handleRecordPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    revealQuotaToast();
+  };
 
   const handlePickReaction = (msgId: string, emoji: string) => {
     setMessages((prev) =>
@@ -183,21 +237,28 @@ export function RoadmateChatScreen() {
         </div>
       </div>
 
-      <div className="roadmates-chat-input shrink-0 border-t border-white/5 px-3 pb-2 pt-2.5">
+      {showQuotaToast ? (
+        <div
+          className="roadmates-toast pointer-events-none absolute inset-x-0 bottom-[3.75rem] z-30 flex justify-center px-4"
+          role="status"
+          aria-live="polite"
+        >
+          <p key={quotaToastKey} className="roadmates-toast-pill text-[10px] text-zinc-300">
+            今日还可发送{" "}
+            <span className="font-mono tabular-nums text-cyan-300/90">{REMAINING_MESSAGES}</span> 条消息
+          </p>
+        </div>
+      ) : null}
+
+      <div className="roadmates-chat-input shrink-0 border-t border-white/5 px-3 py-2">
         <button
           type="button"
-          className="roadmates-record-btn flex w-full flex-col items-center justify-center gap-0.5 rounded-full py-2.5"
+          className="roadmates-record-btn flex h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3.5"
+          aria-label="按住说话"
+          onPointerDown={handleRecordPointerDown}
         >
-          <span className="flex items-center gap-2 text-[12px] font-medium text-zinc-100">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-40" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-            </span>
-            按住说话
-          </span>
-          <span className="text-[9px] text-amber-200/80">
-            今日还可发送 {REMAINING_MESSAGES} 条消息
-          </span>
+          <MicIcon className="h-3.5 w-3.5 shrink-0 text-cyan-400/75" />
+          <span className="text-[11px] font-medium tracking-wide text-zinc-200">按住说话</span>
         </button>
       </div>
     </div>

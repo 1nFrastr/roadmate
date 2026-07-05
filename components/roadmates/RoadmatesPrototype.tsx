@@ -21,7 +21,7 @@ export function RoadmatesPrototype() {
             <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">路友原型</h1>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-zinc-500">
-            轻量无感 · 鼓励线下见真人 · 仅语音与表情 · 群组优先
+            轻量无感 · 鼓励线下见真人 · 仅语音与表情
           </p>
         </div>
       </header>
