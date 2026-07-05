@@ -138,6 +138,12 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
                   ))}
                 </ul>
               </div>
+            ) : !screenActive ? (
+              <div className="flex h-full items-center justify-center px-2">
+                <span className="device-screen-text-dim font-mono text-[9px] font-semibold uppercase tracking-[0.12em]">
+                  ROADMATE
+                </span>
+              </div>
             ) : null}
           </div>
         </div>
