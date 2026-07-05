@@ -7,10 +7,8 @@ import {
   DEVICE_SCREEN_D,
   DEVICE_SCREEN_R,
   DEVICE_SHELL_RING,
-  DEVICE_LED_STROKE,
   DEVICE_OWNER_HALO_INSET,
   LED_COLOR,
-  LED_IDLE_OPACITY,
 } from "./constants";
 import { MatchPointerArrow } from "./MatchPointerArrow";
 import { MatchScoreCounter } from "./MatchScoreCounter";
@@ -84,21 +82,20 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
               style={{
                 WebkitMaskImage: LED_RING_MASK,
                 maskImage: LED_RING_MASK,
+                ["--device-led-color" as string]: ledColor,
               }}
               data-device-id={device.id}
             >
               <div
-                className="device-led-glow absolute inset-0 rounded-full"
-                style={{ backgroundColor: ledColor, opacity: 0 }}
+                className="device-led-track pointer-events-none absolute inset-0 rounded-full"
+                aria-hidden
               />
               <div
-                className="device-led-core absolute inset-0 rounded-full"
-                style={{
-                  backgroundColor: "transparent",
-                  boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${ledColor}`,
-                  opacity: LED_IDLE_OPACITY,
-                }}
+                className="device-led-progress pointer-events-none absolute inset-0 rounded-full"
+                aria-hidden
               />
+              <div className="device-led-glow absolute inset-0 rounded-full" />
+              <div className="device-led-core absolute inset-0 rounded-full" />
             </div>
           ) : (
             <div

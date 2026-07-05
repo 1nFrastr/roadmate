@@ -117,6 +117,7 @@ body {
 }
 
 .device-tag-led-ring {
+  --device-led-color: #ffb020;
   z-index: 2;
 }
 
@@ -190,14 +191,34 @@ body {
 }
 
 .device-led-glow,
-.device-led-core {
-  will-change: opacity, transform, box-shadow;
+.device-led-core,
+.device-led-track,
+.device-led-progress {
+  will-change: opacity, transform, box-shadow, background;
   transform-origin: center center;
 }
 
+.device-led-track {
+  opacity: 0;
+  box-shadow: inset 0 0 0 3px transparent;
+}
+
+.device-led-progress {
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.35));
+}
+
 .device-led-glow {
+  background-color: var(--device-led-color);
+  opacity: 0;
   filter: blur(4px);
   mix-blend-mode: plus-lighter;
+}
+
+.device-led-core {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 3px var(--device-led-color);
+  opacity: 0.04;
 }
 
 .device-led {

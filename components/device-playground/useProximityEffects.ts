@@ -13,10 +13,19 @@ import {
   isWithinLedMatchRange,
   LED_CONFIG,
   LED_IDLE_OPACITY,
+  LED_PAIRING_HOLD_COLOR,
   LED_SMOOTHING,
 } from "./constants";
 import { getDeviceCenter } from "./useDevicePhysics";
 import type { DeviceState, Point } from "./types";
+import type { PairingPhase } from "./match-pairing/types";
+
+interface PairingLedState {
+  phase: PairingPhase;
+  ownerId: string;
+  partnerId: string;
+  holdProgress: number;
+}
 
 interface ProximityRefs {
   deviceElements: Map<string, HTMLDivElement | null>;
@@ -25,11 +34,56 @@ interface ProximityRefs {
 }
 
 function getLedParts(ledStack: HTMLDivElement | null) {
-  if (!ledStack) return { glow: null, core: null };
+  if (!ledStack) {
+    return { glow: null, core: null, track: null, progress: null };
+  }
   return {
     glow: ledStack.querySelector<HTMLDivElement>(".device-led-glow"),
     core: ledStack.querySelector<HTMLDivElement>(".device-led-core"),
+    track: ledStack.querySelector<HTMLDivElement>(".device-led-track"),
+    progress: ledStack.querySelector<HTMLDivElement>(".device-led-progress"),
   };
+}
+
+function hidePairingRingLayers(
+  track: HTMLDivElement | null,
+  progress: HTMLDivElement | null,
+) {
+  if (track) gsap.set(track, { opacity: 0 });
+  if (progress) gsap.set(progress, { opacity: 0, background: "transparent" });
+}
+
+function restoreProximityLedLayers(
+  glow: HTMLDivElement | null,
+  core: HTMLDivElement | null,
+  track: HTMLDivElement | null,
+  progress: HTMLDivElement | null,
+) {
+  hidePairingRingLayers(track, progress);
+  const color = LED_CONFIG.color;
+
+  if (glow) {
+    gsap.set(glow, {
+      background: "",
+      backgroundColor: color,
+      opacity: 0,
+      transformOrigin: "center center",
+    });
+  }
+
+  if (core) {
+    gsap.set(core, {
+      opacity: LED_IDLE_OPACITY,
+      boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}`,
+      transformOrigin: "center center",
+    });
+  }
+}
+
+function pairingArcBackground(progress: number, color: string): string {
+  const sweep = Math.min(360, Math.max(0, progress * 360));
+  if (sweep <= 0.5) return "transparent";
+  return `conic-gradient(from -90deg, ${color} 0deg, ${color} ${sweep}deg, transparent ${sweep}deg)`;
 }
 
 function getElementPosition(element: HTMLDivElement): Point {
@@ -40,17 +94,24 @@ function getElementPosition(element: HTMLDivElement): Point {
 }
 
 function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
-  const { glow, core } = getLedParts(ledStack);
+  const { glow, core, track, progress } = getLedParts(ledStack);
   if (!glow || !core) {
     return gsap.timeline({ paused: true });
   }
+
+  hidePairingRingLayers(track, progress);
 
   const color = LED_CONFIG.color;
   const flashOn = 0.05;
   const flashOff = 0.17;
   const peakShadow = `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}, 0 0 12px ${color}cc, 0 0 28px ${color}66`;
 
-  gsap.set(glow, { transformOrigin: "center center", opacity: 0 });
+  gsap.set(glow, {
+    transformOrigin: "center center",
+    opacity: 0,
+    background: "",
+    backgroundColor: color,
+  });
   gsap.set(core, {
     opacity: LED_IDLE_OPACITY,
     boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}`,
@@ -112,6 +173,7 @@ export function useProximityEffects(reducedMotion: boolean) {
   const ledTimelinesRef = useRef<Map<string, gsap.core.Timeline>>(new Map());
   const smoothedTimeScaleRef = useRef<Map<string, number>>(new Map());
   const smoothedIntensityRef = useRef<Map<string, number>>(new Map());
+  const pairingModeDevicesRef = useRef<Set<string>>(new Set());
 
   const killLedTimeline = useCallback((deviceId: string) => {
     const existing = ledTimelinesRef.current.get(deviceId);
@@ -135,19 +197,66 @@ export function useProximityEffects(reducedMotion: boolean) {
   const setLedOff = useCallback(
     (deviceId: string, ledStack: HTMLDivElement) => {
       killLedTimeline(deviceId);
+      pairingModeDevicesRef.current.delete(deviceId);
       gsap.set(ledStack, { opacity: 1 });
-      const { glow, core } = getLedParts(ledStack);
-      if (core) {
-        gsap.set(core, {
-          opacity: LED_IDLE_OPACITY,
-          boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${LED_CONFIG.color}`,
-        });
-      }
-      if (glow) {
-        gsap.set(glow, { opacity: 0 });
-      }
+      const { glow, core, track, progress } = getLedParts(ledStack);
+      restoreProximityLedLayers(glow, core, track, progress);
     },
     [killLedTimeline],
+  );
+
+  const setLedPairingProgress = useCallback(
+    (
+      deviceId: string,
+      ledStack: HTMLDivElement,
+      progress: number,
+      color = LED_PAIRING_HOLD_COLOR,
+    ) => {
+      if (reducedMotion) {
+        setLedOff(deviceId, ledStack);
+        return;
+      }
+
+      const enteringPairing = !pairingModeDevicesRef.current.has(deviceId);
+      if (enteringPairing) {
+        killLedTimeline(deviceId);
+        smoothedTimeScaleRef.current.delete(deviceId);
+        smoothedIntensityRef.current.delete(deviceId);
+        pairingModeDevicesRef.current.add(deviceId);
+      }
+
+      const clamped = Math.min(1, Math.max(0, progress));
+      const { glow, core, track, progress: progressEl } = getLedParts(ledStack);
+      const arcBackground = pairingArcBackground(clamped, color);
+
+      gsap.set(ledStack, { opacity: 1 });
+
+      if (track) {
+        gsap.set(track, {
+          opacity: 1,
+          boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}30`,
+        });
+      }
+
+      if (progressEl) {
+        gsap.set(progressEl, {
+          opacity: clamped > 0 ? 1 : 0,
+          background: arcBackground,
+        });
+      }
+
+      if (glow) {
+        gsap.set(glow, { opacity: 0, background: "", backgroundColor: "" });
+      }
+
+      if (core) {
+        gsap.set(core, {
+          opacity: 0,
+          boxShadow: "none",
+        });
+      }
+    },
+    [killLedTimeline, reducedMotion, setLedOff],
   );
 
   const setLedFromDistance = useCallback(
@@ -159,6 +268,16 @@ export function useProximityEffects(reducedMotion: boolean) {
 
       const targetTimeScale = distanceToLedTimeScale(distance);
       const targetIntensity = distanceToLedIntensity(distance);
+      const { glow, core, track, progress } = getLedParts(ledStack);
+      const leavingPairing = pairingModeDevicesRef.current.has(deviceId);
+
+      if (leavingPairing) {
+        pairingModeDevicesRef.current.delete(deviceId);
+        killLedTimeline(deviceId);
+        restoreProximityLedLayers(glow, core, track, progress);
+      } else {
+        hidePairingRingLayers(track, progress);
+      }
 
       const prevScale = smoothedTimeScaleRef.current.get(deviceId) ?? targetTimeScale;
       const prevIntensity = smoothedIntensityRef.current.get(deviceId) ?? targetIntensity;
@@ -168,7 +287,15 @@ export function useProximityEffects(reducedMotion: boolean) {
       smoothedTimeScaleRef.current.set(deviceId, timeScale);
       smoothedIntensityRef.current.set(deviceId, intensity);
 
+      const hadTimeline = ledTimelinesRef.current.has(deviceId);
+      if (!hadTimeline) {
+        restoreProximityLedLayers(glow, core, track, progress);
+      }
+
       const tl = ensureLedTimeline(deviceId, ledStack);
+      if (!tl.isActive()) {
+        tl.restart();
+      }
       tl.timeScale(timeScale);
 
       // 用 stack 整体透明度做距离亮度包络，避免与 timeline 频闪属性冲突
@@ -179,7 +306,7 @@ export function useProximityEffects(reducedMotion: boolean) {
         overwrite: "auto",
       });
     },
-    [ensureLedTimeline, reducedMotion, setLedOff],
+    [ensureLedTimeline, killLedTimeline, reducedMotion, setLedOff],
   );
 
   const activePairRef = useRef<{ ownerId: string; matchableId: string } | null>(null);
@@ -248,7 +375,12 @@ export function useProximityEffects(reducedMotion: boolean) {
   }, []);
 
   const updateMatchLeds = useCallback(
-    (devices: DeviceState[], refs: ProximityRefs, enabled = true) => {
+    (
+      devices: DeviceState[],
+      refs: ProximityRefs,
+      enabled = true,
+      pairingLedState: PairingLedState | null = null,
+    ) => {
       if (!enabled) {
         if (!ledsSuppressedRef.current) {
           ledsSuppressedRef.current = true;
@@ -262,6 +394,32 @@ export function useProximityEffects(reducedMotion: boolean) {
       }
 
       ledsSuppressedRef.current = false;
+
+      if (pairingLedState?.phase === "holding") {
+        activePairRef.current = {
+          ownerId: pairingLedState.ownerId,
+          matchableId: pairingLedState.partnerId,
+        };
+
+        devices.forEach((device) => {
+          const ledStack = refs.ledElements.get(device.id);
+          if (!ledStack) return;
+
+          if (
+            device.id === pairingLedState.ownerId ||
+            device.id === pairingLedState.partnerId
+          ) {
+            setLedPairingProgress(
+              device.id,
+              ledStack,
+              pairingLedState.holdProgress,
+            );
+          } else {
+            setLedOff(device.id, ledStack);
+          }
+        });
+        return;
+      }
 
       const activePair = findNearestOwnerMatchPair(devices, refs);
       const previousPair = activePairRef.current;
@@ -302,7 +460,7 @@ export function useProximityEffects(reducedMotion: boolean) {
         syncPairTimelines(activePair.ownerId, activePair.matchableId);
       }
     },
-    [findNearestOwnerMatchPair, setLedFromDistance, setLedOff, syncPairTimelines],
+    [findNearestOwnerMatchPair, setLedFromDistance, setLedOff, setLedPairingProgress, syncPairTimelines],
   );
 
   const updateMatchPointers = useCallback(
@@ -432,6 +590,7 @@ export function useProximityEffects(reducedMotion: boolean) {
     smoothedTimeScaleRef.current.clear();
     smoothedIntensityRef.current.clear();
     smoothedBearingRef.current.clear();
+    pairingModeDevicesRef.current.clear();
     activePairRef.current = null;
     ledsSuppressedRef.current = false;
   }, []);

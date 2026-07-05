@@ -3,13 +3,13 @@ import { DEVICE_W } from "../constants";
 export const DEVICE_DOCK_TRANSFORM_ORIGIN = "center center";
 export const DEVICE_STAGE_TRANSFORM_ORIGIN = "center center";
 
-/** 两台设备中心距小于此值时视为「碰一碰」，显示确认匹配 */
-export const PAIRING_TOUCH_DISTANCE = DEVICE_W * 1.35;
+/** 两设备圆盘重叠：中心距小于单台直径 */
+export const PAIRING_OVERLAP_DISTANCE = DEVICE_W;
 
-/** 已显示确认按钮后，需拉远到此距离才隐藏（迟滞，避免边界抖动导致按钮点不动） */
-export const PAIRING_TOUCH_EXIT_DISTANCE = DEVICE_W * 1.6;
+/** 配对倒计时中需拉远到此距离才取消（迟滞，避免边界抖动） */
+export const PAIRING_OVERLAP_EXIT_DISTANCE = DEVICE_W * 1.08;
 
-/** 长按确认时长（毫秒） */
+/** 重叠后保持接触多久触发匹配成功（毫秒） */
 export const MATCH_CONFIRM_HOLD_MS = 1000;
 
 /** Demo 用共同话题池（最多展示 3 条） */

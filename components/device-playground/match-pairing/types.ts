@@ -1,6 +1,6 @@
 import type { DeviceState } from "../types";
 
-export type PairingPhase = "idle" | "ready" | "holding" | "success";
+export type PairingPhase = "idle" | "holding" | "success";
 
 export interface MatchedPair {
   owner: DeviceState;

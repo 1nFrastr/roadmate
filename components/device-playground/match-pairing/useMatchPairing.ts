@@ -2,17 +2,14 @@
 
 import gsap from "gsap";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  devicesMatch,
-  DEVICE_H,
-} from "../constants";
+import { devicesMatch } from "../constants";
 import { getDeviceCenter } from "../useDevicePhysics";
 import type { DeviceState } from "../types";
 import { computeCommonTopics } from "../matchScoring";
 import {
   MATCH_CONFIRM_HOLD_MS,
-  PAIRING_TOUCH_DISTANCE,
-  PAIRING_TOUCH_EXIT_DISTANCE,
+  PAIRING_OVERLAP_DISTANCE,
+  PAIRING_OVERLAP_EXIT_DISTANCE,
   pickMatchTopics,
 } from "./constants";
 import { runMatchToRoadmatesExitTransition } from "@/components/match-to-roadmates";
@@ -23,7 +20,7 @@ import {
   runPairSuccessDismissTransition,
   runPairSuccessTransition,
 } from "./runPairSuccessTransition";
-import type { MatchedPair, PairingAnchor, PairingPhase, PairSuccessRestoreSnapshot } from "./types";
+import type { MatchedPair, PairingPhase, PairSuccessRestoreSnapshot } from "./types";
 
 interface UseMatchPairingOptions {
   devices: DeviceState[];
@@ -67,8 +64,7 @@ export function useMatchPairing({
   pairingLockedRef,
 }: UseMatchPairingOptions) {
   const [phase, setPhase] = useState<PairingPhase>("idle");
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [anchor, setAnchor] = useState<PairingAnchor>({ x: 0, y: 0 });
+  const holdProgressRef = useRef(0);
   const [matchedPair, setMatchedPair] = useState<MatchedPair | null>(null);
   const [successScreenVisible, setSuccessScreenVisible] = useState(false);
   const [activePartnerId, setActivePartnerId] = useState<string | null>(null);
@@ -81,7 +77,7 @@ export function useMatchPairing({
   const dismissingRef = useRef(false);
   const navigatingRef = useRef(false);
   const phaseRef = useRef<PairingPhase>("idle");
-  /** dismiss 后设备仍紧挨时，抑制重新进入 ready，避免 pointer-events:none 锁死画布 */
+  /** dismiss 后设备仍重叠时，抑制重新进入 holding，避免 pointer-events:none 锁死画布 */
   const pairingCooldownRef = useRef(false);
 
   const ownerDevice = devices.find((device) => device.isOwner);
@@ -94,13 +90,10 @@ export function useMatchPairing({
     holdTweenRef.current?.kill();
     holdTweenRef.current = null;
     progressRef.current.value = 0;
-    setHoldProgress(0);
+    holdProgressRef.current = 0;
   }, []);
 
-  const findTouchPartner = useCallback((maxDistance: number): {
-    partner: DeviceState;
-    anchor: PairingAnchor;
-  } | null => {
+  const findOverlapPartner = useCallback((maxCenterDistance: number): DeviceState | null => {
     if (!ownerDevice) return null;
 
     const ownerEl = deviceRefs.current?.get(ownerDevice.id);
@@ -115,7 +108,7 @@ export function useMatchPairing({
       if (!candidateEl) continue;
 
       const distance = distanceBetweenDevices(ownerEl, candidateEl);
-      if (distance > maxDistance) continue;
+      if (distance >= maxCenterDistance) continue;
 
       if (distance < nearestDistance) {
         nearestDevice = device;
@@ -123,23 +116,7 @@ export function useMatchPairing({
       }
     }
 
-    if (!nearestDevice) return null;
-
-    const ownerPos = getElementPosition(ownerEl);
-    const partnerEl = deviceRefs.current?.get(nearestDevice.id);
-    if (!partnerEl) return null;
-
-    const partnerPos = getElementPosition(partnerEl);
-    const ownerCenter = getDeviceCenter(ownerPos.x, ownerPos.y);
-    const partnerCenter = getDeviceCenter(partnerPos.x, partnerPos.y);
-
-    return {
-      partner: nearestDevice,
-      anchor: {
-        x: (ownerCenter.x + partnerCenter.x) / 2,
-        y: Math.min(ownerPos.y, partnerPos.y) - DEVICE_H * 0.55,
-      },
-    };
+    return nearestDevice ?? null;
   }, [deviceRefs, devices, ownerDevice]);
 
   const resetPairingState = useCallback(() => {
@@ -157,7 +134,7 @@ export function useMatchPairing({
     if (wasDismissing) {
       pairingCooldownRef.current = true;
     }
-  }, [resetHold]);
+  }, [pairingLockedRef, resetHold]);
 
   const completePairing = useCallback(() => {
     if (!ownerDevice || !partnerIdRef.current || pairingLockedRef.current) return;
@@ -221,10 +198,13 @@ export function useMatchPairing({
     playgroundSize,
     reducedMotion,
     resetHold,
+    pairingLockedRef,
   ]);
 
   const startHold = useCallback(() => {
-    if (phaseRef.current !== "ready" || pairingLockedRef.current) return;
+    if (phaseRef.current !== "idle" || pairingLockedRef.current || !partnerIdRef.current) {
+      return;
+    }
 
     phaseRef.current = "holding";
     setPhase("holding");
@@ -234,17 +214,19 @@ export function useMatchPairing({
       value: 1,
       duration: MATCH_CONFIRM_HOLD_MS / 1000,
       ease: "none",
-      onUpdate: () => setHoldProgress(progressRef.current.value),
+      onUpdate: () => {
+        holdProgressRef.current = progressRef.current.value;
+      },
       onComplete: completePairing,
     });
-  }, [completePairing, resetHold]);
+  }, [completePairing, pairingLockedRef, resetHold]);
 
   const endHold = useCallback(() => {
     if (phaseRef.current !== "holding" || pairingLockedRef.current) return;
     resetHold();
-    phaseRef.current = "ready";
-    setPhase("ready");
-  }, [resetHold]);
+    phaseRef.current = "idle";
+    setPhase("idle");
+  }, [pairingLockedRef, resetHold]);
 
   const goToRoadmates = useCallback(
     (onNavigate: () => void) => {
@@ -319,11 +301,12 @@ export function useMatchPairing({
       if (currentPhase === "success" || pairingLockedRef.current) return;
 
       if (pairingCooldownRef.current) {
-        const stillTouching = findTouchPartner(PAIRING_TOUCH_DISTANCE);
-        if (stillTouching) {
+        const stillOverlapping = findOverlapPartner(PAIRING_OVERLAP_DISTANCE);
+        if (stillOverlapping) {
           partnerIdRef.current = null;
           setActivePartnerId(null);
           if (currentPhase !== "idle") {
+            resetHold();
             phaseRef.current = "idle";
             setPhase("idle");
           }
@@ -332,35 +315,30 @@ export function useMatchPairing({
         pairingCooldownRef.current = false;
       }
 
-      const maxDistance =
+      const maxCenterDistance =
         currentPhase === "idle"
-          ? PAIRING_TOUCH_DISTANCE
-          : PAIRING_TOUCH_EXIT_DISTANCE;
+          ? PAIRING_OVERLAP_DISTANCE
+          : PAIRING_OVERLAP_EXIT_DISTANCE;
 
-      const touch = findTouchPartner(maxDistance);
-      if (!touch) {
+      const partner = findOverlapPartner(maxCenterDistance);
+      if (!partner) {
         partnerIdRef.current = null;
         setActivePartnerId(null);
         if (currentPhase === "holding") {
-          return;
-        }
-        if (currentPhase === "ready") {
-          phaseRef.current = "idle";
-          setPhase("idle");
+          endHold();
         }
         return;
       }
 
-      partnerIdRef.current = touch.partner.id;
-      setActivePartnerId(touch.partner.id);
-      // 长按期间冻结锚点，避免按钮随设备微动触发 pointerleave 误取消
-      if (currentPhase !== "holding") {
-        setAnchor(touch.anchor);
+      if (partnerIdRef.current && partnerIdRef.current !== partner.id && currentPhase === "holding") {
+        endHold();
       }
 
+      partnerIdRef.current = partner.id;
+      setActivePartnerId(partner.id);
+
       if (currentPhase === "idle") {
-        phaseRef.current = "ready";
-        setPhase("ready");
+        startHold();
       }
     };
 
@@ -368,7 +346,7 @@ export function useMatchPairing({
     return () => {
       gsap.ticker.remove(tick);
     };
-  }, [enabled, findTouchPartner]);
+  }, [enabled, endHold, findOverlapPartner, pairingLockedRef, resetHold, startHold]);
 
   useEffect(() => {
     return () => {
@@ -379,12 +357,10 @@ export function useMatchPairing({
 
   return {
     phase,
-    holdProgress,
-    anchor,
+    holdProgressRef,
     matchedPair,
     successScreenVisible,
-    startHold,
-    endHold,
+    activePartnerId,
     dismissSuccess,
     goToRoadmates,
     pairingLocked: phase === "success",

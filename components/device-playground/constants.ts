@@ -35,6 +35,8 @@ export const LED_IDLE_OPACITY = 0.04;
 export const LED_MATCH_RANGE = DEVICE_W * 3;
 /** 暖琥珀信标色：暗色外壳上对比强，区别于 UI 里的青/绿语义 */
 export const LED_COLOR = "#ffb020";
+/** 碰一碰配对倒计时：常亮翠绿色，与近场琥珀频闪区分 */
+export const LED_PAIRING_HOLD_COLOR = "#34d399";
 export const LED_PULSE_BASE_CYCLE = 0.22;
 export const LED_SMOOTHING = 0.09;
 

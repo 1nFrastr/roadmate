@@ -15,7 +15,6 @@ import {
 } from "@/components/journey";
 import { JOURNEY_TIMINGS } from "@/components/journey/constants";
 import { DeviceCard } from "./DeviceCard";
-import { MatchConfirmButton } from "./match-pairing/MatchConfirmButton";
 import {
   DEVICE_DOCK_TRANSFORM_ORIGIN,
   DEVICE_STAGE_TRANSFORM_ORIGIN,
@@ -191,12 +190,10 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
 
   const {
     phase: pairingPhase,
-    holdProgress,
-    anchor: pairingAnchor,
+    holdProgressRef: pairingHoldProgressRef,
     matchedPair,
     successScreenVisible,
-    startHold,
-    endHold,
+    activePartnerId,
     dismissSuccess,
     goToRoadmates,
     pairingLocked,
@@ -211,7 +208,13 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     pairingLockedRef,
   });
 
-  const pairingReady = pairingPhase === "ready" || pairingPhase === "holding";
+  const pairingPhaseRef = useRef(pairingPhase);
+  const activePartnerIdRef = useRef(activePartnerId);
+
+  useEffect(() => {
+    pairingPhaseRef.current = pairingPhase;
+    activePartnerIdRef.current = activePartnerId;
+  }, [activePartnerId, pairingPhase]);
 
   useEffect(() => {
     pairingLockedRef.current = pairingLocked;
@@ -392,7 +395,17 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         pointerElements: pointerRefs.current,
       };
       const enabled = !pairingLockedRef.current;
-      updateMatchLeds(devices, refs, enabled);
+      const partnerId = activePartnerIdRef.current;
+      const pairingLedState =
+        pairingPhaseRef.current === "holding" && partnerId
+          ? {
+              phase: pairingPhaseRef.current,
+              ownerId,
+              partnerId,
+              holdProgress: pairingHoldProgressRef.current,
+            }
+          : null;
+      updateMatchLeds(devices, refs, enabled, pairingLedState);
       const pair = updateMatchPointers(devices, refs, enabled);
       const prev = activePairIdsRef.current;
       if (
@@ -408,7 +421,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
     return () => {
       gsap.ticker.remove(tick);
     };
-  }, [initialized, devices, updateMatchLeds, updateMatchPointers]);
+  }, [initialized, devices, ownerId, updateMatchLeds, updateMatchPointers]);
 
   useEffect(() => {
     const api = physicsApiRef.current;
@@ -550,9 +563,9 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
           <p className="text-sm text-zinc-400">
             {pairingLocked
               ? "配对成功 · 共同兴趣已同步到设备屏幕"
-              : pairingReady
-                ? "设备已靠近 · 长按确认匹配完成配对"
-                : "匹配设备相距 3 个设备直径内 LED 亮起，越近越快越亮 · 碰一碰可确认配对"}
+              : pairingPhase === "holding"
+                ? "设备重叠 · 环带绿灯加载中，保持接触完成配对"
+                : "匹配设备相距 3 个设备直径内 LED 亮起，越近越快越亮 · 重叠碰一碰可配对"}
           </p>
           {initialized ? (
             <p className="mt-1 font-mono text-xs text-zinc-600">
@@ -620,15 +633,6 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
           </div>
           );
         })}
-
-        <MatchConfirmButton
-          visible={pairingReady}
-          progress={holdProgress}
-          x={pairingAnchor.x}
-          y={pairingAnchor.y}
-          onHoldStart={startHold}
-          onHoldEnd={endHold}
-        />
 
         {pairingLocked && successScreenVisible ? (
           <>
