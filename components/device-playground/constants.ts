@@ -108,10 +108,17 @@ export function randomMatchScore(): number {
   return Math.floor(Math.random() * 39) + 60;
 }
 
-export function pickMatchableIndices(count: number, total: number): Set<number> {
+export function pickMatchableIndices(
+  count: number,
+  total: number,
+  excludeIndex: number = OWNER_DEVICE_INDEX,
+): Set<number> {
   const indices = new Set<number>();
-  while (indices.size < count) {
-    indices.add(Math.floor(Math.random() * total));
+  const maxCount = Math.min(count, Math.max(0, total - 1));
+  while (indices.size < maxCount) {
+    const candidate = Math.floor(Math.random() * total);
+    if (candidate === excludeIndex) continue;
+    indices.add(candidate);
   }
   return indices;
 }

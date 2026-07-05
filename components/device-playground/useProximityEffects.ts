@@ -331,7 +331,7 @@ export function useProximityEffects(reducedMotion: boolean) {
       let nearestDistance = Infinity;
 
       devices.forEach((device) => {
-        if (!device.matchable) return;
+        if (!device.matchable || device.id === owner.id) return;
 
         const element = refs.deviceElements.get(device.id);
         if (!element) return;
