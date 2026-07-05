@@ -8,7 +8,7 @@ import { CustomTagWeightRail } from "./CustomTagWeightRail";
 import { PostListEditor } from "./PostListEditor";
 import { embedTags, extractTagsFromPosts } from "./api/openrouter";
 import { fetchUserTweets } from "./api/twitter";
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL } from "./constants";
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, MAX_TWEETS_FETCH } from "./constants";
 import {
   applyExtractedTags,
   clearPostInference,
@@ -34,6 +34,7 @@ import {
 import type { InputMode, InterestTag, PostRecord, StoredInterestProfile } from "./types";
 
 type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
+type FetchStatus = "idle" | "fetching" | "done" | "error";
 
 const IPHONE_CONTENT_HEIGHT = IPHONE_FRAME.compact.contentHeight;
 
@@ -53,6 +54,9 @@ export function InterestLab() {
   );
   const [inputMode, setInputMode] = useState<InputMode>("paste");
   const [twitterHandle, setTwitterHandle] = useState("");
+  const [twitterPosts, setTwitterPosts] = useState<PostRecord[]>([]);
+  const [fetchStatus, setFetchStatus] = useState<FetchStatus>("idle");
+  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const [pastePosts, setPastePosts] = useState<PostRecord[]>([]);
   const [step, setStep] = useState<Step>("idle");
   const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(
@@ -183,6 +187,58 @@ export function InterestLab() {
     }
   }, [analyzeProgress, step]);
 
+  const handleFetchTwitter = async () => {
+    setFetchMessage(null);
+    setFetchStatus("idle");
+    setError(null);
+
+    if (!apiKeys.twitterApiKey.trim()) {
+      setFetchStatus("error");
+      setFetchMessage("请填写 twitterapi.io API Key");
+      return;
+    }
+
+    const handle = twitterHandle.replace(/^@/, "").trim();
+    if (!handle) {
+      setFetchStatus("error");
+      setFetchMessage("请输入有效的 X 用户名");
+      return;
+    }
+
+    const handleChanged =
+      profile?.source.type === "twitter" && profile.source.handle !== handle;
+
+    try {
+      setFetchStatus("fetching");
+      const { tweets, truncated } = await fetchUserTweets(twitterHandle, apiKeys.twitterApiKey);
+      const incoming = tweetsToPosts(tweets);
+      const basePosts = handleChanged ? [] : twitterPosts;
+      const merged = mergePosts(basePosts, incoming);
+      setTwitterPosts(merged);
+      setFetchStatus("done");
+      const limitHint = truncated ? `（已达上限 ${MAX_TWEETS_FETCH} 条）` : "";
+      setFetchMessage(`已拉取 ${incoming.length} 条，列表共 ${merged.length} 条${limitHint}`);
+
+      if (handleChanged && profile) {
+        const customTags = profile.tags.filter((tag) => tag.custom);
+        const customNames = new Set(customTags.map((tag) => tag.name));
+        persistProfile({
+          ...profile,
+          source: { type: "twitter", handle },
+          posts: undefined,
+          tags: customTags,
+          embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
+          updatedAt: new Date().toISOString(),
+        });
+        setStep("idle");
+        setSelectedCustomTagId(null);
+      }
+    } catch (err) {
+      setFetchStatus("error");
+      setFetchMessage(err instanceof Error ? err.message : "拉取失败");
+    }
+  };
+
   const handleGenerate = async () => {
     setError(null);
     setStep("idle");
@@ -195,24 +251,22 @@ export function InterestLab() {
     }
 
     try {
-      let incomingPosts: PostRecord[] = [];
+      let sourcePosts: PostRecord[] = [];
       let source: StoredInterestProfile["source"] = { type: "paste" };
       const handle = twitterHandle.replace(/^@/, "").trim();
 
       if (inputMode === "twitter") {
-        if (!apiKeys.twitterApiKey.trim()) {
-          throw new Error("Twitter 模式需要填写 twitterapi.io API Key");
-        }
         if (!handle) {
           throw new Error("请输入有效的 X 用户名");
         }
-        setStep("fetching");
-        const tweets = await fetchUserTweets(twitterHandle, apiKeys.twitterApiKey);
-        incomingPosts = tweetsToPosts(tweets);
+        sourcePosts = twitterPosts.filter((post) => post.text.trim());
+        if (sourcePosts.length === 0) {
+          throw new Error("请先点击「拉取帖子」，或确认列表中有内容");
+        }
         source = { type: "twitter", handle };
       } else {
-        incomingPosts = pastePosts.filter((post) => post.text.trim());
-        if (incomingPosts.length === 0) {
+        sourcePosts = pastePosts.filter((post) => post.text.trim());
+        if (sourcePosts.length === 0) {
           throw new Error("请至少添加一条帖子");
         }
       }
@@ -224,16 +278,10 @@ export function InterestLab() {
           profile.source.handle === handle) ||
           (source.type === "paste" && profile.source.type === "paste"));
 
-      const existingPosts =
-        inputMode === "paste"
-          ? pastePosts
-          : canReuseProfile
-            ? (profile?.posts ?? [])
-            : [];
-      const mergedPosts = mergePosts(existingPosts, incomingPosts);
+      const mergedPosts = sourcePosts;
       const unprocessed = getUnprocessedPosts(mergedPosts);
 
-      if (unprocessed.length === 0 && existingPosts.length > 0) {
+      if (unprocessed.length === 0 && sourcePosts.length > 0) {
         throw new Error("没有新帖子需要分析，请添加或修改帖子内容");
       }
 
@@ -287,6 +335,8 @@ export function InterestLab() {
 
       if (inputMode === "paste") {
         setPastePosts(postsWithTags);
+      } else {
+        setTwitterPosts(postsWithTags);
       }
 
       setSelectedCustomTagId(null);
@@ -323,12 +373,40 @@ export function InterestLab() {
     [persistProfile, profile],
   );
 
+  const handleImportTwitterPosts = useCallback(
+    (posts: PostRecord[]) => {
+      setTwitterPosts(posts);
+      setFetchStatus("idle");
+      setFetchMessage(null);
+      setStep("idle");
+      setError(null);
+      setSelectedCustomTagId(null);
+
+      if (!profile) return;
+
+      const customTags = profile.tags.filter((tag) => tag.custom);
+      const customNames = new Set(customTags.map((tag) => tag.name));
+      persistProfile({
+        ...profile,
+        source: { type: "twitter", handle: twitterHandle.replace(/^@/, "").trim() || undefined },
+        posts: undefined,
+        tags: customTags,
+        embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [persistProfile, profile, twitterHandle],
+  );
+
   const loadSavedProfile = (item: StoredInterestProfile) => {
     setProfile(item);
     setStep("done");
     setError(null);
     setSelectedCustomTagId(null);
     setPastePosts([]);
+    setTwitterPosts([]);
+    setFetchStatus("idle");
+    setFetchMessage(null);
     if (item.source.type === "paste") {
       setInputMode("paste");
     } else if (item.source.type === "twitter") {
@@ -343,11 +421,14 @@ export function InterestLab() {
   };
 
   const handleClearTags = useCallback(() => {
-    const sourcePosts = inputMode === "paste" ? pastePosts : (profile?.posts ?? []);
+    const sourcePosts =
+      inputMode === "paste" ? pastePosts : twitterPosts.length > 0 ? twitterPosts : (profile?.posts ?? []);
     const clearedPosts = clearPostInference(sourcePosts);
 
     if (inputMode === "paste") {
       setPastePosts(clearedPosts);
+    } else {
+      setTwitterPosts(clearedPosts);
     }
 
     if (profile) {
@@ -363,14 +444,15 @@ export function InterestLab() {
     setSelectedCustomTagId(null);
     setStep("idle");
     setError(null);
-  }, [inputMode, pastePosts, persistProfile, profile]);
+  }, [inputMode, pastePosts, persistProfile, profile, twitterPosts]);
 
   const canClearTags = useMemo(() => {
-    const posts = inputMode === "paste" ? pastePosts : (profile?.posts ?? []);
+    const posts =
+      inputMode === "paste" ? pastePosts : twitterPosts.length > 0 ? twitterPosts : (profile?.posts ?? []);
     const hasInferredPosts = posts.some((post) => post.extractedAt || (post.tags?.length ?? 0) > 0);
     const hasTags = (profile?.tags.length ?? 0) > 0;
     return hasInferredPosts || hasTags;
-  }, [inputMode, pastePosts, profile]);
+  }, [inputMode, pastePosts, profile, twitterPosts]);
 
   const handleEnterPlayground = () => {
     if (
@@ -412,7 +494,8 @@ export function InterestLab() {
       )
     : "";
 
-  const isBusy = step === "fetching" || step === "analyzing" || step === "embedding";
+  const isBusy =
+    step === "fetching" || step === "analyzing" || step === "embedding" || fetchStatus === "fetching";
   const canEnterPlayground = Boolean(profile?.tags.length) && step === "done" && !isTransitioning;
 
   return (
@@ -521,15 +604,53 @@ export function InterestLab() {
             </div>
 
             {inputMode === "twitter" ? (
-              <label className="block text-xs text-zinc-500">
-                X 用户名
-                <input
-                  value={twitterHandle}
-                  onChange={(event) => setTwitterHandle(event.target.value)}
-                  placeholder="elonmusk 或 @elonmusk"
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60"
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="min-w-[200px] flex-1 text-xs text-zinc-500">
+                    X 用户名
+                    <input
+                      value={twitterHandle}
+                      onChange={(event) => setTwitterHandle(event.target.value)}
+                      placeholder="elonmusk 或 @elonmusk"
+                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isBusy || isTransitioning}
+                    onClick={handleFetchTwitter}
+                    className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {fetchStatus === "fetching" ? "拉取中…" : "拉取帖子"}
+                  </button>
+                </div>
+                {fetchMessage ? (
+                  <p
+                    className={`text-xs ${fetchStatus === "error" ? "text-red-400/90" : "text-emerald-400/90"}`}
+                    role="status"
+                  >
+                    {fetchMessage}
+                  </p>
+                ) : null}
+                <p className="text-xs text-zinc-500">
+                  通过{" "}
+                  <a
+                    href="https://twitterapi.io/dashboard"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400/80 underline-offset-2 hover:text-cyan-300 hover:underline"
+                  >
+                    twitterapi.io
+                  </a>{" "}
+                  拉取原创推文（1 次请求、最多 {MAX_TWEETS_FETCH} 条，免费 Key 自动重试限流）
+                </p>
+                <PostListEditor
+                  posts={twitterPosts}
+                  onChange={setTwitterPosts}
+                  onImport={handleImportTwitterPosts}
+                  disabled={isBusy || isTransitioning}
                 />
-              </label>
+              </div>
             ) : (
               <PostListEditor
                 posts={pastePosts}

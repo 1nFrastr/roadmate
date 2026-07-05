@@ -8,6 +8,8 @@ export const DEFAULT_LLM_MODEL = "minimax/minimax-m3";
 export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 export const TWITTER_API_BASE = "https://api.twitterapi.io";
+/** 浏览器经 Next 代理访问（twitterapi.io 无 CORS） */
+export const TWITTER_PROXY_PATH = "/api/interest-lab/twitter/last-tweets";
 export const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
 
 export const WEIGHT_FACTORS = {
@@ -16,7 +18,23 @@ export const WEIGHT_FACTORS = {
   recency: 0.4,
 } as const;
 
-export const MAX_TWEET_PAGES = 3;
+/** last_tweets 每页 API 上限（twitterapi.io 文档：每页最多 20 条） */
+export const TWITTER_TWEETS_PER_PAGE = 20;
+
+/** 单次拉取 API 请求次数（1 = 测试时只打 1 次，约 20 条） */
+export const MAX_TWEET_PAGES = 1;
+
+/** 单次拉取最多帖子数（原创，不含转推；= 页数 × 每页上限） */
+export const MAX_TWEETS_FETCH = MAX_TWEET_PAGES * TWITTER_TWEETS_PER_PAGE;
+
+/** 分页请求间隔；免费 Key 约 0.2 QPS，需 ≥5s */
+export const TWITTER_PAGE_DELAY_MS = 5_000;
+
+/** 429/503 等可重试状态的最大重试次数 */
+export const TWITTER_FETCH_MAX_RETRIES = 4;
+
+/** 指数退避上限（毫秒） */
+export const TWITTER_RETRY_MAX_DELAY_MS = 30_000;
 
 /** 每帖 LLM 最多提取标签数 */
 export const MAX_TAGS_PER_POST = 3;

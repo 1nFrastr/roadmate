@@ -59,7 +59,7 @@ components/interest-lab/
   postImportExport.ts   # roadmate-posts/1 txt 序列化/解析
   INFERENCE.md          # 推断流程与权重公式说明
   api/openrouter.ts     # extractTagsFromPost(s)、embedTags
-  api/twitter.ts        # fetchUserTweets、tweetsToPosts
+  api/twitter.ts        # fetchUserTweets → PostRecord（parseTwitterCreatedAt）
   postUtils.ts          # 帖子合并、增量、相对时间
   tagUtils.ts           # aggregateTagsFromPosts、computeTagWeight
   storage.ts            # localStorage：API Keys、profiles、settings
@@ -89,7 +89,7 @@ components/interest-lab/
 
 > 推断流程与权重公式详见 [`components/interest-lab/INFERENCE.md`](components/interest-lab/INFERENCE.md)。
 
-1. **输入模式**：`twitter`（twitterapi.io 拉帖）或帖子列表（paste）；Twitter 模式需两个 Key。
+1. **输入模式**：`twitter`（twitterapi.io 拉帖 → 与 paste 相同的 `PostRecord` / `PostListEditor`）或帖子列表（paste）；Twitter 模式需 OpenRouter + twitterapi.io 两个 Key。
 2. **推断流程**：逐帖 LLM 提取（每帖最多 3 标签 + sentiment）→ 代码聚合 frequency / recency / weight → OpenRouter embedding → 存 `StoredInterestProfile`。
 3. **权重公式**：见 `INFERENCE.md`；`frequency` / `recency` 由代码按帖子时间计算，非 LLM 输出。
 4. **默认模型**（`constants.ts`）：LLM `minimax/minimax-m3`，Embedding `openai/text-embedding-3-small`；可在 UI 覆盖。
@@ -111,7 +111,7 @@ components/interest-lab/
 - 调参集中在各模块 `constants.ts`（设备：`DOCK_RADIUS` 等；词云：`PHYSICS`、`TAG_SIZE`；Lab：`WEIGHT_FACTORS`）。
 - 保持 diff 小：不要引入通用拟物 UI 库（Tactile UI、skeu-ui 等），设备形态是自定义的。
 - 尊重 `prefers-reduced-motion`（见 `useProximityEffects`）。
-- OpenRouter / twitterapi.io 均为**浏览器端 fetch**；新增外部 API 调用时保持 Key 仅 localStorage，勿写 server env 除非明确迁移。
+- OpenRouter 为**浏览器端 fetch**（Key 存 localStorage）；twitterapi.io 经 **`/api/interest-lab/twitter/last-tweets` 服务端代理**（无 CORS，Key 仍由客户端传入、不落盘）
 
 ## 常用命令
 

@@ -1,14 +1,6 @@
 import type { FetchedTweet } from "./api/twitter";
 import type { PostRecord } from "./types";
 
-function simpleHash(text: string): string {
-  let hash = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = (hash * 31 + text.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash).toString(36);
-}
-
 export function normalizeTagKey(name: string): string {
   return name.trim().toLowerCase();
 }
@@ -64,11 +56,10 @@ export function createPostRecord(text: string, createdAt?: string): PostRecord {
 }
 
 export function tweetToPostRecord(tweet: FetchedTweet): PostRecord {
-  const createdAt = tweet.createdAt || new Date().toISOString();
   return {
-    id: `tw-${createdAt}-${simpleHash(tweet.text)}`,
+    id: `tw-${tweet.id}`,
     text: tweet.text,
-    createdAt,
+    createdAt: tweet.createdAt,
   };
 }
 

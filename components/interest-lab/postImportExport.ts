@@ -139,12 +139,20 @@ export function serializePostsToTxt(posts: PostRecord[]): string {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-export function downloadPostsTxt(posts: PostRecord[], filename = "roadmate-posts.txt"): void {
+/** 导出文件名：roadmate-posts-YYYYMMDD-HHmmss.txt（本地时间） */
+export function buildPostsExportFilename(now = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `roadmate-posts-${date}-${time}.txt`;
+}
+
+export function downloadPostsTxt(posts: PostRecord[], filename?: string): void {
   const blob = new Blob([serializePostsToTxt(posts)], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = filename;
+  anchor.download = filename ?? buildPostsExportFilename();
   anchor.click();
   URL.revokeObjectURL(url);
 }
