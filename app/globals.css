@@ -124,70 +124,65 @@ body {
   pointer-events: none;
 }
 
-/* ── 墨水屏（琥珀单色 + 像素网格） ── */
+/* ── 设备小屏（墨绿灰 e-ink 纸感，灯光仅在环带 LED） ── */
 
-.device-ink-screen {
-  background-color: #3a3832;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 0, 0, 0.055) 2px,
-      rgba(0, 0, 0, 0.055) 3px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 0, 0, 0.045) 2px,
-      rgba(0, 0, 0, 0.045) 3px
-    ),
-    radial-gradient(circle at 50% 40%, #4a4740 0%, #35332e 52%, #2a2824 100%);
+.device-tag-screen-face {
+  --epaper-paper: #c4cfbf;
+  --epaper-ink: #1a2820;
+  --epaper-ink-dim: #4a5c50;
+  background-color: var(--epaper-paper);
+  background-image: radial-gradient(
+    circle at 50% 40%,
+    #d2dccf 0%,
+    #c4cfbf 48%,
+    #b3c0b0 100%
+  );
   box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.38),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+    inset 0 2px 10px rgba(20, 40, 28, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(20, 40, 28, 0.14);
 }
 
-.device-ink-text-bright {
-  color: #e2cfa0;
-  text-shadow: 0 0 1px rgba(226, 207, 160, 0.35);
+.device-tag-screen-off {
+  background-image: radial-gradient(
+    circle at 50% 40%,
+    #b5c0b2 0%,
+    #a8b5a6 52%,
+    #98a897 100%
+  );
+  box-shadow:
+    inset 0 2px 12px rgba(20, 40, 28, 0.14),
+    inset 0 0 0 1px rgba(20, 40, 28, 0.16);
 }
 
-.device-ink-text-dim {
-  color: #9a8868;
+.device-screen-text-bright {
+  color: var(--epaper-ink, #1a2820);
 }
 
-.device-ink-pointer {
-  color: #d4aa62;
+.device-screen-text-dim {
+  color: var(--epaper-ink-dim, #4a5c50);
+}
+
+.device-screen-pointer {
+  color: var(--epaper-ink, #1a2820);
   shape-rendering: geometricPrecision;
-  filter: none;
+  opacity: 0.88;
+}
+
+.device-epaper-score {
+  font-family: var(--font-device-pixel), var(--font-geist-mono), monospace;
+  letter-spacing: 0.04em;
+  -webkit-font-smoothing: antialiased;
 }
 
 .device-tag-screen {
   z-index: 3;
 }
 
-.device-tag-screen-off {
-  opacity: 0.5;
-  filter: contrast(0.82) brightness(0.88);
-}
-
-.device-tag-screen-standby {
-  opacity: 0.94;
-}
-
-.device-tag-screen-live {
-  opacity: 1;
-  box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.38),
-    inset 0 0 0 1px rgba(180, 150, 90, 0.22);
-}
-
-.device-tag-screen-owner {
-  box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.34),
-    inset 0 0 0 1px rgba(180, 150, 90, 0.18);
+/* Web 模拟用：设备 ID / 状态标注，位于外壳下方 */
+.device-tag-sim-label {
+  width: max-content;
+  white-space: nowrap;
 }
 
 .device-match-pointer {
@@ -210,17 +205,49 @@ body {
 }
 
 .device-match-success-screen {
-  animation: match-screen-reveal 0.55s ease-out both;
+  animation: epaper-flash-in 0.36s steps(3, end) both;
 }
 
-@keyframes match-screen-reveal {
+.device-match-success-screen li {
+  opacity: 0;
+  animation: epaper-line-in 0.18s steps(2, end) forwards;
+}
+
+.device-match-success-screen li:nth-child(1) {
+  animation-delay: 0.42s;
+}
+
+.device-match-success-screen li:nth-child(2) {
+  animation-delay: 0.58s;
+}
+
+.device-match-success-screen li:nth-child(3) {
+  animation-delay: 0.74s;
+}
+
+@keyframes epaper-flash-in {
+  0% {
+    filter: brightness(1.45);
+    opacity: 0.72;
+  }
+  45% {
+    filter: brightness(1);
+    opacity: 1;
+  }
+  100% {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+@keyframes epaper-line-in {
   from {
     opacity: 0;
-    transform: scale(0.92);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -347,6 +374,14 @@ body {
 
   .device-match-success-screen {
     animation: none;
+    filter: none;
+    opacity: 1;
+  }
+
+  .device-match-success-screen li {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 
   .pair-success-dismiss-hint {

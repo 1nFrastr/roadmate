@@ -9,20 +9,23 @@ export function isMatchParticipant(device: DeviceState): boolean {
   return device.isOwner || device.matchable;
 }
 
-export const DEVICE_D = 96;
+export const DEVICE_D = 120;
 export const DEVICE_W = DEVICE_D;
 export const DEVICE_H = DEVICE_D;
 export const DEVICE_R = DEVICE_D / 2;
-/** 圆形墨水屏直径 */
-export const DEVICE_SCREEN_D = 68;
+/** 圆形小屏直径 */
+export const DEVICE_SCREEN_D = 85;
 export const DEVICE_SCREEN_R = DEVICE_SCREEN_D / 2;
 export const DEVICE_SHELL_RING = (DEVICE_D - DEVICE_SCREEN_D) / 2;
 /** 屏外 LED 环外径（扣掉 bezel） */
-export const DEVICE_RING_OUTER = DEVICE_R - 3;
+export const DEVICE_RING_BEZEL = 4;
+export const DEVICE_RING_OUTER = DEVICE_R - DEVICE_RING_BEZEL;
+export const DEVICE_LED_STROKE = 3;
+export const DEVICE_OWNER_HALO_INSET = 5;
 export const TOTAL_DEVICES = 10;
 export const MATCH_COUNT = 3;
 export const OWNER_DEVICE_INDEX = 0;
-export const DOCK_RADIUS = 180;
+export const DOCK_RADIUS = 225;
 export const DOCK_MAX_SCALE = 1.35;
 export const PLAYGROUND_PADDING = 24;
 /** Matter.js 同组负值：设备彼此不碰撞，可自由叠放 */

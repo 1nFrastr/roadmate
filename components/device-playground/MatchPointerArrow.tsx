@@ -12,7 +12,7 @@ export const MatchPointerArrow = forwardRef<HTMLDivElement>(
       >
         <svg
           viewBox="0 0 48 48"
-          className="device-ink-pointer h-[70%] w-[70%]"
+          className="device-screen-pointer h-[70%] w-[70%]"
           aria-hidden
         >
           <path d="M24 4 L42 40 L24 31 L6 40 Z" fill="currentColor" />

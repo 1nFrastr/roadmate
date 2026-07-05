@@ -9,10 +9,9 @@ gsap.registerPlugin(useGSAP);
 interface MatchScoreCounterProps {
   value: number;
   compact?: boolean;
-  ink?: boolean;
 }
 
-export function MatchScoreCounter({ value, compact = false, ink = false }: MatchScoreCounterProps) {
+export function MatchScoreCounter({ value, compact = false }: MatchScoreCounterProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLSpanElement>(null);
   const [reducedMotion] = useState(() => {
@@ -23,8 +22,7 @@ export function MatchScoreCounter({ value, compact = false, ink = false }: Match
   useGSAP(
     () => {
       const valueEl = valueRef.current;
-      const rootEl = rootRef.current;
-      if (!valueEl || !rootEl) return;
+      if (!valueEl) return;
 
       if (reducedMotion) {
         valueEl.textContent = `${value}%`;
@@ -33,22 +31,15 @@ export function MatchScoreCounter({ value, compact = false, ink = false }: Match
 
       const counter = { current: 0 };
       const spinSpan = Math.max(value + 80, 120);
-      const settleStart = spinSpan - 14;
-      const tl = gsap.timeline();
+      const settleStart = spinSpan - 10;
 
-      tl.fromTo(
-        rootEl,
-        { scale: 0.88, opacity: 0.4 },
-        { scale: 1, opacity: 1, duration: 0.35, ease: "power2.out" },
-      );
-
-      tl.fromTo(
+      gsap.fromTo(
         counter,
         { current: 0 },
         {
           current: spinSpan,
-          duration: 1.45,
-          ease: "power4.out",
+          duration: 1.15,
+          ease: "steps(18)",
           onUpdate() {
             const raw = counter.current;
             if (raw < settleStart) {
@@ -56,35 +47,27 @@ export function MatchScoreCounter({ value, compact = false, ink = false }: Match
               return;
             }
 
-            const blend = (raw - settleStart) / (spinSpan - settleStart);
+            const step = Math.floor((raw - settleStart) / 2);
             const from = Math.floor(settleStart % 100);
-            const display = Math.round(from + (value - from) * blend);
-            valueEl.textContent = `${Math.max(0, Math.min(100, display))}%`;
+            const display = Math.min(value, from + step);
+            valueEl.textContent = `${display}%`;
           },
           onComplete() {
             valueEl.textContent = `${value}%`;
           },
         },
-        0.05,
       );
-
-      tl.to(
-        rootEl,
-        { scale: 1.06, duration: 0.12, ease: "power2.out" },
-        "-=0.08",
-      );
-      tl.to(rootEl, { scale: 1, duration: 0.28, ease: "power2.inOut" });
     },
     { scope: rootRef, dependencies: [value, reducedMotion], revertOnUpdate: true },
   );
 
   return (
-    <div ref={rootRef} className="shrink-0 text-center">
+    <div ref={rootRef} className="device-epaper-score shrink-0 text-center">
       <span
         ref={valueRef}
-        className={`font-mono font-bold leading-none tracking-tight tabular-nums ${
-          compact ? "text-[11px]" : "text-[15px]"
-        } ${ink ? "device-ink-text-bright" : "text-emerald-300"}`}
+        className={`device-screen-text-bright font-bold leading-none tracking-tight tabular-nums ${
+          compact ? "text-[16px]" : "text-[20px]"
+        }`}
       >
         {value}%
       </span>

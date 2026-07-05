@@ -9,6 +9,7 @@ import {
   distanceToProximity,
   DOCK_MAX_SCALE,
   DOCK_RADIUS,
+  DEVICE_LED_STROKE,
   isWithinLedMatchRange,
   LED_CONFIG,
   LED_IDLE_OPACITY,
@@ -47,12 +48,12 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
   const color = LED_CONFIG.color;
   const flashOn = 0.05;
   const flashOff = 0.17;
-  const peakShadow = `inset 0 0 0 2.5px ${color}, 0 0 10px ${color}cc, 0 0 22px ${color}66`;
+  const peakShadow = `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}, 0 0 12px ${color}cc, 0 0 28px ${color}66`;
 
   gsap.set(glow, { transformOrigin: "center center", opacity: 0 });
   gsap.set(core, {
     opacity: LED_IDLE_OPACITY,
-    boxShadow: `inset 0 0 0 2.5px ${color}`,
+    boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}`,
     transformOrigin: "center center",
   });
 
@@ -80,7 +81,7 @@ function createLedTimeline(ledStack: HTMLDivElement): gsap.core.Timeline {
     core,
     {
       opacity: LED_IDLE_OPACITY,
-      boxShadow: `inset 0 0 0 2.5px ${color}`,
+      boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${color}`,
       duration: flashOff,
       ease: "power2.in",
     },
@@ -139,7 +140,7 @@ export function useProximityEffects(reducedMotion: boolean) {
       if (core) {
         gsap.set(core, {
           opacity: LED_IDLE_OPACITY,
-          boxShadow: `inset 0 0 0 2.5px ${LED_CONFIG.color}`,
+          boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${LED_CONFIG.color}`,
         });
       }
       if (glow) {

@@ -7,6 +7,8 @@ import {
   DEVICE_SCREEN_D,
   DEVICE_SCREEN_R,
   DEVICE_SHELL_RING,
+  DEVICE_LED_STROKE,
+  DEVICE_OWNER_HALO_INSET,
   LED_COLOR,
   LED_IDLE_OPACITY,
 } from "./constants";
@@ -62,7 +64,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
         style={{ width: DEVICE_D, height: DEVICE_D }}
       >
         {device.isOwner ? (
-          <div className="device-tag-owner-halo pointer-events-none absolute -inset-[4px] rounded-full" />
+          <div className="device-tag-owner-halo pointer-events-none absolute rounded-full" style={{ inset: -DEVICE_OWNER_HALO_INSET }} />
         ) : null}
 
         <div
@@ -90,7 +92,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
                 className="device-led-core absolute inset-0 rounded-full"
                 style={{
                   backgroundColor: "transparent",
-                  boxShadow: `inset 0 0 0 2.5px ${ledColor}`,
+                  boxShadow: `inset 0 0 0 ${DEVICE_LED_STROKE}px ${ledColor}`,
                   opacity: LED_IDLE_OPACITY,
                 }}
               />
@@ -105,7 +107,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
           )}
 
           <div
-            className={`device-tag-screen device-ink-screen absolute z-[3] overflow-hidden rounded-full ${
+            className={`device-tag-screen device-tag-screen-face absolute z-[3] overflow-hidden rounded-full ${
               showMatchSuccess
                 ? "device-tag-screen-live"
                 : screenActive
@@ -122,13 +124,13 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
             {showPointer ? <MatchPointerArrow ref={pointerRef} /> : null}
 
             {showMatchSuccess ? (
-              <div className="device-match-success-screen flex h-full min-h-0 flex-col items-center justify-center gap-[2px] px-[4px] py-[3px]">
-                <MatchScoreCounter value={matchScore ?? device.matchScore} compact ink />
-                <ul className="flex w-full min-h-0 flex-col gap-[1px] overflow-hidden">
+              <div className="device-match-success-screen flex h-full min-h-0 flex-col items-center justify-center gap-[3px] px-[5px] py-[4px]">
+                <MatchScoreCounter value={matchScore ?? device.matchScore} compact />
+                <ul className="flex w-full min-h-0 flex-col gap-[2px] overflow-hidden">
                   {topics.map((topic) => (
                     <li
                       key={topic}
-                      className="device-ink-text-dim truncate text-center font-mono text-[6px] leading-[8px]"
+                      className="device-screen-text-dim truncate text-center font-mono text-[8px] leading-[10px]"
                       title={topic}
                     >
                       {topic}
@@ -136,18 +138,23 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
                   ))}
                 </ul>
               </div>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-[2px] px-[5px] text-center">
-                <span className="device-ink-text-bright font-mono text-[8px] font-semibold leading-none">
-                  {device.label}
-                </span>
-                <span className="device-ink-text-dim font-mono text-[6px] leading-none">
-                  {idleStatusText(device)}
-                </span>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
+
+        {!showMatchSuccess ? (
+          <div
+            className="device-tag-sim-label pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 text-center"
+            aria-hidden
+          >
+            <span className="block font-mono text-[10px] font-semibold leading-none text-zinc-400">
+              {device.label}
+            </span>
+            <span className="mt-0.5 block font-mono text-[8px] leading-none text-zinc-600">
+              {idleStatusText(device)}
+            </span>
+          </div>
+        ) : null}
       </div>
     );
   },

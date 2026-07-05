@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, VT323 } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -9,6 +9,12 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const devicePixel = VT323({
+  variable: "--font-device-pixel",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -25,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${devicePixel.variable} h-dvh antialiased`}
     >
       <body className="flex h-dvh flex-col">{children}</body>
     </html>
