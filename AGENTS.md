@@ -55,12 +55,15 @@ components/tag-word-cloud/
 
 components/interest-lab/
   InterestLab.tsx       # 主 UI：输入、推断流程、词云预览、JSON 输出
-  api/openrouter.ts     # extractTagsWithLlm、embedTags
-  api/twitter.ts        # fetchUserTweets、tweetsToCorpus
-  tagUtils.ts           # draftsToTags、computeTagWeight
+  PostListEditor.tsx    # 帖子列表 + 「距今」时间控件
+  INFERENCE.md          # 推断流程与权重公式说明
+  api/openrouter.ts     # extractTagsFromPost(s)、embedTags
+  api/twitter.ts        # fetchUserTweets、tweetsToPosts
+  postUtils.ts          # 帖子合并、增量、相对时间
+  tagUtils.ts           # aggregateTagsFromPosts、computeTagWeight
   storage.ts            # localStorage：API Keys、profiles、settings
   constants.ts          # 默认模型、权重系数、API base URL
-  types.ts              # InterestTag、StoredInterestProfile 等
+  types.ts              # InterestTag、PostRecord、StoredInterestProfile 等
 ```
 
 路径别名：`@/*` → 项目根目录。
@@ -83,9 +86,11 @@ components/interest-lab/
 
 ## Interest Lab 约定
 
-1. **输入模式**：`twitter`（twitterapi.io 拉帖）或 `paste`（粘贴文本）；Twitter 模式需两个 Key。
-2. **推断流程**：拉取/读取语料 → OpenRouter LLM 提取 8~20 标签（`frequency` / `sentiment` / `recency` 各 0~1）→ 加权合成 `weight` → OpenRouter embedding → 存 `StoredInterestProfile`。
-3. **权重公式**（`tagUtils.ts`）：`weight = 0.45×frequency + 0.25×sentiment + 0.30×recency`。
+> 推断流程与权重公式详见 [`components/interest-lab/INFERENCE.md`](components/interest-lab/INFERENCE.md)。
+
+1. **输入模式**：`twitter`（twitterapi.io 拉帖）或帖子列表（paste）；Twitter 模式需两个 Key。
+2. **推断流程**：逐帖 LLM 提取（每帖最多 3 标签 + sentiment）→ 代码聚合 frequency / recency / weight → OpenRouter embedding → 存 `StoredInterestProfile`。
+3. **权重公式**：见 `INFERENCE.md`；`frequency` / `recency` 由代码按帖子时间计算，非 LLM 输出。
 4. **默认模型**（`constants.ts`）：LLM `minimax/minimax-m3`，Embedding `openai/text-embedding-3-small`；可在 UI 覆盖。
 5. **本地存储**：API Key、settings、最多 20 条 profile 均在浏览器 `localStorage`；**不要**把 Key 提交到 git 或服务端。
 6. **输出**：右侧 JSON 预览含 tags + embeddings；下方 `TagWordCloud` 实时展示推断结果。

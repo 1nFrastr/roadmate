@@ -5,9 +5,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition } from "@/components/journey";
 import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
 import { CustomTagWeightRail } from "./CustomTagWeightRail";
-import { embedTags, extractTagsWithLlm } from "./api/openrouter";
-import { fetchUserTweets, tweetsToCorpus } from "./api/twitter";
+import { PostListEditor } from "./PostListEditor";
+import { embedTags, extractTagsFromPosts } from "./api/openrouter";
+import { fetchUserTweets } from "./api/twitter";
 import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL } from "./constants";
+import {
+  applyExtractedTags,
+  clearPostInference,
+  getUnprocessedPosts,
+  mergePosts,
+  tweetsToPosts,
+} from "./postUtils";
 import {
   deleteProfile,
   loadApiKeys,
@@ -17,8 +25,13 @@ import {
   saveProfile,
   saveSettings,
 } from "./storage";
-import { createCustomTag, draftsToTags, interestTagsToWordCloud } from "./tagUtils";
-import type { InputMode, InterestTag, StoredInterestProfile } from "./types";
+import {
+  aggregateTagsFromPosts,
+  buildProfileEmbeddings,
+  createCustomTag,
+  interestTagsToWordCloud,
+} from "./tagUtils";
+import type { InputMode, InterestTag, PostRecord, StoredInterestProfile } from "./types";
 
 type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
 
@@ -40,8 +53,11 @@ export function InterestLab() {
   );
   const [inputMode, setInputMode] = useState<InputMode>("paste");
   const [twitterHandle, setTwitterHandle] = useState("");
-  const [pasteText, setPasteText] = useState("");
+  const [pastePosts, setPastePosts] = useState<PostRecord[]>([]);
   const [step, setStep] = useState<Step>("idle");
+  const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<StoredInterestProfile | null>(null);
   const [savedProfiles, setSavedProfiles] = useState<StoredInterestProfile[]>([]);
@@ -53,6 +69,11 @@ export function InterestLab() {
     setSavedProfiles(profiles);
     if (profiles[0]) {
       setProfile(profiles[0]);
+      if (profiles[0].source.type === "paste" && profiles[0].posts?.length) {
+        setPastePosts(profiles[0].posts);
+      } else if (profiles[0].source.type === "twitter") {
+        setTwitterHandle(profiles[0].source.handle ?? "");
+      }
       setStep("done");
     }
   }, []);
@@ -150,9 +171,11 @@ export function InterestLab() {
       case "fetching":
         return "正在从 twitterapi.io 拉取帖子…";
       case "analyzing":
-        return "OpenRouter LLM 正在推断兴趣标签…";
+        return analyzeProgress
+          ? `逐帖分析中 ${analyzeProgress.done}/${analyzeProgress.total}…`
+          : "OpenRouter LLM 正在逐帖推断标签…";
       case "embedding":
-        return "OpenRouter 正在生成标签向量…";
+        return "OpenRouter 正在生成新标签向量…";
       case "done":
         return "完成";
       case "error":
@@ -160,11 +183,12 @@ export function InterestLab() {
       default:
         return "就绪";
     }
-  }, [step]);
+  }, [analyzeProgress, step]);
 
   const handleGenerate = async () => {
     setError(null);
     setStep("idle");
+    setAnalyzeProgress(null);
 
     if (!apiKeys.openRouterKey.trim()) {
       setError("请先填写 OpenRouter API Key");
@@ -173,58 +197,101 @@ export function InterestLab() {
     }
 
     try {
-      let corpus = pasteText.trim();
+      let incomingPosts: PostRecord[] = [];
       let source: StoredInterestProfile["source"] = { type: "paste" };
-      let tweetCount: number | undefined;
+      const handle = twitterHandle.replace(/^@/, "").trim();
 
       if (inputMode === "twitter") {
         if (!apiKeys.twitterApiKey.trim()) {
           throw new Error("Twitter 模式需要填写 twitterapi.io API Key");
         }
+        if (!handle) {
+          throw new Error("请输入有效的 X 用户名");
+        }
         setStep("fetching");
         const tweets = await fetchUserTweets(twitterHandle, apiKeys.twitterApiKey);
-        corpus = tweetsToCorpus(tweets);
-        tweetCount = tweets.length;
-        source = { type: "twitter", handle: twitterHandle.replace(/^@/, "") };
-      } else if (!corpus) {
-        throw new Error("请粘贴测试文本");
+        incomingPosts = tweetsToPosts(tweets);
+        source = { type: "twitter", handle };
+      } else {
+        incomingPosts = pastePosts.filter((post) => post.text.trim());
+        if (incomingPosts.length === 0) {
+          throw new Error("请至少添加一条帖子");
+        }
+      }
+
+      const canReuseProfile =
+        profile &&
+        ((source.type === "twitter" &&
+          profile.source.type === "twitter" &&
+          profile.source.handle === handle) ||
+          (source.type === "paste" && profile.source.type === "paste"));
+
+      const existingPosts = canReuseProfile ? (profile?.posts ?? []) : [];
+      const mergedPosts = mergePosts(existingPosts, incomingPosts);
+      const unprocessed = getUnprocessedPosts(mergedPosts);
+
+      if (unprocessed.length === 0 && existingPosts.length > 0) {
+        throw new Error("没有新帖子需要分析，请添加或修改帖子内容");
       }
 
       setStep("analyzing");
-      const drafts = await extractTagsWithLlm(corpus, apiKeys.openRouterKey, llmModel);
-      const inferredTags = draftsToTags(drafts);
-      const customTags = profile?.tags.filter((tag) => tag.custom) ?? [];
+      setAnalyzeProgress({ done: 0, total: unprocessed.length });
+
+      const extractionResults = await extractTagsFromPosts(
+        unprocessed.map((post) => ({ id: post.id, text: post.text })),
+        apiKeys.openRouterKey,
+        llmModel,
+        {
+          onProgress: (done, total) => setAnalyzeProgress({ done, total }),
+        },
+      );
+
+      const postsWithTags = applyExtractedTags(mergedPosts, extractionResults);
+      const inferredTags = aggregateTagsFromPosts(postsWithTags);
+
+      if (inferredTags.length === 0) {
+        throw new Error("未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容");
+      }
+
+      const customTags = (canReuseProfile ? profile?.tags : [])?.filter((tag) => tag.custom) ?? [];
       const tags = [...inferredTags, ...customTags];
 
       setStep("embedding");
-      const vectors = await embedTags(
-        inferredTags.map((tag) => tag.name),
-        apiKeys.openRouterKey,
-        embeddingModel,
-      );
+      const existingEmbeddings = canReuseProfile ? (profile?.embeddings ?? []) : [];
+      const existingNames = new Set(existingEmbeddings.map((item) => item.name));
+      const namesToEmbed = inferredTags
+        .map((tag) => tag.name)
+        .filter((name) => !existingNames.has(name));
 
+      const vectors = await embedTags(namesToEmbed, apiKeys.openRouterKey, embeddingModel);
+      const newlyEmbedded = namesToEmbed.map((name, index) => ({
+        name,
+        vector: vectors[index] ?? [],
+      }));
+      const embeddings = buildProfileEmbeddings(tags, existingEmbeddings, newlyEmbedded);
+
+      const now = new Date().toISOString();
       const nextProfile: StoredInterestProfile = {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
+        id: canReuseProfile && profile ? profile.id : crypto.randomUUID(),
+        createdAt: canReuseProfile && profile ? profile.createdAt : now,
+        updatedAt: now,
         source,
+        posts: postsWithTags,
         tags,
-        embeddings: [
-          ...inferredTags.map((tag, index) => ({
-            name: tag.name,
-            vector: vectors[index] ?? [],
-          })),
-          ...customTags.map((tag) => {
-            const existing = profile?.embeddings.find((item) => item.name === tag.name);
-            return { name: tag.name, vector: existing?.vector ?? [] };
-          }),
-        ],
-        tweetCount,
+        embeddings,
+        tweetCount: source.type === "twitter" ? postsWithTags.length : undefined,
       };
+
+      if (inputMode === "paste") {
+        setPastePosts(postsWithTags);
+      }
 
       setSelectedCustomTagId(null);
       persistProfile(nextProfile);
+      setAnalyzeProgress(null);
       setStep("done");
     } catch (err) {
+      setAnalyzeProgress(null);
       setStep("error");
       setError(err instanceof Error ? err.message : "未知错误");
     }
@@ -235,12 +302,49 @@ export function InterestLab() {
     setStep("done");
     setError(null);
     setSelectedCustomTagId(null);
+    if (item.source.type === "paste" && item.posts?.length) {
+      setPastePosts(item.posts);
+      setInputMode("paste");
+    } else if (item.source.type === "twitter") {
+      setTwitterHandle(item.source.handle ?? "");
+      setInputMode("twitter");
+    }
   };
 
   const handleDeleteProfile = (id: string) => {
     setSavedProfiles(deleteProfile(id));
     if (profile?.id === id) setProfile(null);
   };
+
+  const handleClearTags = useCallback(() => {
+    const sourcePosts = inputMode === "paste" ? pastePosts : (profile?.posts ?? []);
+    const clearedPosts = clearPostInference(sourcePosts);
+
+    if (inputMode === "paste") {
+      setPastePosts(clearedPosts);
+    }
+
+    if (profile) {
+      persistProfile({
+        ...profile,
+        tags: [],
+        embeddings: [],
+        posts: clearedPosts,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    setSelectedCustomTagId(null);
+    setStep("idle");
+    setError(null);
+  }, [inputMode, pastePosts, persistProfile, profile]);
+
+  const canClearTags = useMemo(() => {
+    const posts = inputMode === "paste" ? pastePosts : (profile?.posts ?? []);
+    const hasInferredPosts = posts.some((post) => post.extractedAt || (post.tags?.length ?? 0) > 0);
+    const hasTags = (profile?.tags.length ?? 0) > 0;
+    return hasInferredPosts || hasTags;
+  }, [inputMode, pastePosts, profile]);
 
   const handleEnterPlayground = () => {
     if (
@@ -295,7 +399,7 @@ export function InterestLab() {
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            从 X 帖子或粘贴文本推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
+            逐帖推断兴趣标签并聚合权重，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
         </div>
         <div className="flex gap-2">
@@ -375,7 +479,7 @@ export function InterestLab() {
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                粘贴文本
+                帖子列表
               </button>
               <button
                 type="button"
@@ -401,16 +505,11 @@ export function InterestLab() {
                 />
               </label>
             ) : (
-              <label className="block text-xs text-zinc-500">
-                测试文本（多段帖子可直接粘贴）
-                <textarea
-                  value={pasteText}
-                  onChange={(event) => setPasteText(event.target.value)}
-                  rows={8}
-                  placeholder="粘贴用户发帖内容…"
-                  className="mt-1 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm leading-relaxed text-zinc-100 outline-none focus:border-cyan-500/60"
-                />
-              </label>
+              <PostListEditor
+                posts={pastePosts}
+                onChange={setPastePosts}
+                disabled={isBusy || isTransitioning}
+              />
             )}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -421,6 +520,15 @@ export function InterestLab() {
                 className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isBusy ? "处理中…" : "推断并保存"}
+              </button>
+              <button
+                type="button"
+                disabled={isBusy || isTransitioning || !canClearTags}
+                onClick={handleClearTags}
+                title="清除词云与逐帖推断结果，帖子内容保留在列表中"
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                清空标签
               </button>
               <span className="text-xs text-zinc-500">{statusText}</span>
             </div>
@@ -448,8 +556,9 @@ export function InterestLab() {
                       onClick={() => loadSavedProfile(item)}
                       className="text-left text-sm text-zinc-300 hover:text-white"
                     >
-                      {item.source.type === "twitter" ? `@${item.source.handle}` : "粘贴文本"} ·{" "}
-                      {item.tags.length} 标签 ·{" "}
+                      {item.source.type === "twitter" ? `@${item.source.handle}` : "帖子列表"} ·{" "}
+                      {item.tags.length} 标签
+                      {item.posts?.length ? ` · ${item.posts.length} 帖` : ""} ·{" "}
                       <span suppressHydrationWarning>
                         {new Date(item.createdAt).toLocaleString("zh-CN")}
                       </span>
@@ -486,6 +595,7 @@ export function InterestLab() {
                     <tr>
                       <th className="pb-2 pr-4">标签</th>
                       <th className="pb-2 pr-4">权重</th>
+                      <th className="pb-2 pr-4">帖数</th>
                       <th className="pb-2">频次</th>
                     </tr>
                   </thead>
@@ -495,6 +605,9 @@ export function InterestLab() {
                         <td className="py-2 pr-4 font-medium">{tag.name}</td>
                         <td className="py-2 pr-4 font-mono text-cyan-300">
                           {tag.weight.toFixed(3)}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-zinc-400">
+                          {tag.custom ? "—" : (tag.postCount ?? "—")}
                         </td>
                         <td className="py-2 font-mono">{tag.frequency.toFixed(2)}</td>
                       </tr>
@@ -522,7 +635,7 @@ export function InterestLab() {
               <h2 className="text-sm font-medium text-zinc-200">
                 App 预览
                 {profile
-                  ? ` · ${profile.tags.length} 标签${profile.tweetCount ? ` · ${profile.tweetCount} 帖` : ""}`
+                  ? ` · ${profile.tags.length} 标签${(profile.posts?.length ?? profile.tweetCount) ? ` · ${profile.posts?.length ?? profile.tweetCount} 帖` : ""}`
                   : ""}
               </h2>
             </div>

@@ -6,6 +6,10 @@ export interface InterestTag {
   frequency: number;
   sentiment: number;
   recency: number;
+  /** 出现该标签的帖子数（推断标签） */
+  postCount?: number;
+  /** 最近一次出现时间 ISO */
+  lastSeenAt?: string;
   /** 用户手动添加的标签，可编辑权重 */
   custom?: boolean;
 }
@@ -15,13 +19,28 @@ export interface TagEmbedding {
   vector: number[];
 }
 
+export interface PostTagDraft {
+  name: string;
+  sentiment: number;
+}
+
+export interface PostRecord {
+  id: string;
+  text: string;
+  createdAt: string;
+  extractedAt?: string;
+  tags?: PostTagDraft[];
+}
+
 export interface StoredInterestProfile {
   id: string;
   createdAt: string;
+  updatedAt?: string;
   source: {
     type: "twitter" | "paste";
     handle?: string;
   };
+  posts?: PostRecord[];
   tags: InterestTag[];
   embeddings: TagEmbedding[];
   tweetCount?: number;
@@ -32,6 +51,7 @@ export interface ApiKeys {
   twitterApiKey: string;
 }
 
+/** @deprecated 整段语料推断遗留类型 */
 export interface LlmTagDraft {
   name: string;
   frequency: number;
@@ -41,6 +61,10 @@ export interface LlmTagDraft {
 
 export interface LlmTagResponse {
   tags: LlmTagDraft[];
+}
+
+export interface PostTagResponse {
+  tags: PostTagDraft[];
 }
 
 export type InputMode = "twitter" | "paste";
