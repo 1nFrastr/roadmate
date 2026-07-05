@@ -552,7 +552,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
               ? "配对成功 · 共同兴趣已同步到设备屏幕"
               : pairingReady
                 ? "设备已靠近 · 长按确认匹配完成配对"
-                : "匹配设备相距 5 个设备宽度内 LED 亮起，越近越快越亮 · 碰一碰可确认配对"}
+                : "匹配设备相距 3 个设备直径内 LED 亮起，越近越快越亮 · 碰一碰可确认配对"}
           </p>
           {initialized ? (
             <p className="mt-1 font-mono text-xs text-zinc-600">

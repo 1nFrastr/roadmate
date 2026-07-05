@@ -31,8 +31,8 @@ export const PLAYGROUND_PADDING = 24;
 /** Matter.js 同组负值：设备彼此不碰撞，可自由叠放 */
 export const DEVICE_COLLISION_GROUP = -1;
 export const LED_IDLE_OPACITY = 0.04;
-/** 匹配灯光有效距离：5 倍设备宽度，超出则熄灭 */
-export const LED_MATCH_RANGE = DEVICE_W * 5;
+/** 匹配灯光有效距离：3 倍设备直径，超出则熄灭 */
+export const LED_MATCH_RANGE = DEVICE_W * 3;
 /** 暖琥珀信标色：暗色外壳上对比强，区别于 UI 里的青/绿语义 */
 export const LED_COLOR = "#ffb020";
 export const LED_PULSE_BASE_CYCLE = 0.22;
