@@ -158,6 +158,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const deviceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const ledRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const pointerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const activePairIdsRef = useRef<{ ownerId: string; matchableId: string } | null>(null);
   const draggingIdRef = useRef<string | null>(null);
   const draggablesRef = useRef<Draggable[]>([]);
   const stackZIndexRef = useRef(10);
@@ -175,6 +176,10 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
   const [handoffDone, setHandoffDone] = useState(entrance !== "journey");
   const [devicesEnterDone, setDevicesEnterDone] = useState(entrance !== "journey");
   const [playgroundReadySent, setPlaygroundReadySent] = useState(false);
+  const [activePairIds, setActivePairIds] = useState<{
+    ownerId: string;
+    matchableId: string;
+  } | null>(null);
 
   const entranceComplete = !journeyMode || (handoffDone && devicesEnterDone);
 
@@ -388,7 +393,15 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
       };
       const enabled = !pairingLockedRef.current;
       updateMatchLeds(devices, refs, enabled);
-      updateMatchPointers(devices, refs, enabled);
+      const pair = updateMatchPointers(devices, refs, enabled);
+      const prev = activePairIdsRef.current;
+      if (
+        pair?.ownerId !== prev?.ownerId ||
+        pair?.matchableId !== prev?.matchableId
+      ) {
+        activePairIdsRef.current = pair;
+        setActivePairIds(pair);
+      }
     };
 
     gsap.ticker.add(tick);
@@ -562,6 +575,11 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             matchedPair &&
             (device.id === matchedPair.owner.id || device.id === matchedPair.partner.id);
           const showMatchSuccess = Boolean(successScreenVisible && isPairParticipant);
+          const pointerVisible = Boolean(
+            activePairIds &&
+              (device.id === activePairIds.ownerId ||
+                device.id === activePairIds.matchableId),
+          );
 
           return (
           <div
@@ -583,6 +601,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
             <DeviceCard
               device={device}
               showMatchSuccess={showMatchSuccess}
+              pointerVisible={pointerVisible}
               matchScore={matchedPair?.matchScore}
               matchTopics={matchedPair?.topics}
               ledRef={(element) => {

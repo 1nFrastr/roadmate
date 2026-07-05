@@ -306,7 +306,11 @@ export function useProximityEffects(reducedMotion: boolean) {
   );
 
   const updateMatchPointers = useCallback(
-    (devices: DeviceState[], refs: ProximityRefs, enabled = true) => {
+    (
+      devices: DeviceState[],
+      refs: ProximityRefs,
+      enabled = true,
+    ): { ownerId: string; matchableId: string } | null => {
       const activePair = findNearestOwnerMatchPair(devices, refs);
 
       devices.forEach((device) => {
@@ -314,10 +318,11 @@ export function useProximityEffects(reducedMotion: boolean) {
         if (!pointer) return;
 
         const inActivePair =
+          enabled &&
           activePair &&
           (device.id === activePair.ownerId || device.id === activePair.matchableId);
 
-        if (!enabled || !inActivePair) {
+        if (!inActivePair) {
           gsap.to(pointer, {
             opacity: 0,
             scale: 0.85,
@@ -358,6 +363,13 @@ export function useProximityEffects(reducedMotion: boolean) {
           overwrite: "auto",
         });
       });
+
+      return enabled && activePair
+        ? {
+            ownerId: activePair.ownerId,
+            matchableId: activePair.matchableId,
+          }
+        : null;
     },
     [findNearestOwnerMatchPair, reducedMotion],
   );

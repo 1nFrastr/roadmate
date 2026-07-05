@@ -27,6 +27,7 @@ interface DeviceCardProps {
   ledRef?: React.Ref<HTMLDivElement>;
   pointerRef?: React.Ref<HTMLDivElement>;
   showMatchSuccess?: boolean;
+  pointerVisible?: boolean;
   matchScore?: number;
   matchTopics?: string[];
 }
@@ -44,6 +45,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
       ledRef,
       pointerRef,
       showMatchSuccess = false,
+      pointerVisible = false,
       matchScore,
       matchTopics = [],
     },
@@ -54,6 +56,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
     const topics = matchTopics.slice(0, 3);
     const screenActive = showMatchSuccess || device.isOwner || device.matchable;
     const showPointer = ledActive && !showMatchSuccess;
+    const showRoadmate = !showMatchSuccess && !(showPointer && pointerVisible);
 
     return (
       <div
@@ -138,7 +141,7 @@ export const DeviceCard = forwardRef<HTMLDivElement, DeviceCardProps>(
                   ))}
                 </ul>
               </div>
-            ) : !screenActive ? (
+            ) : showRoadmate ? (
               <div className="flex h-full items-center justify-center px-2">
                 <span className="device-screen-text-dim font-mono text-[9px] font-semibold uppercase tracking-[0.12em]">
                   ROADMATE
