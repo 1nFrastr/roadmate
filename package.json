@@ -9,6 +9,7 @@
     "lint": "eslint",
     "bench:flash": "tsx scripts/benchmark-flash-models.ts",
     "bench:corpus": "tsx scripts/benchmark-corpus-eval.ts",
+    "bench:timeline": "tsx scripts/benchmark-timeline-eval.ts",
     "bench:stability": "tsx scripts/benchmark-tag-stability.ts"
   },
   "dependencies": {

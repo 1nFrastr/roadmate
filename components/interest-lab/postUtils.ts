@@ -55,6 +55,13 @@ export function createPostRecord(text: string, createdAt?: string): PostRecord {
   };
 }
 
+/** 按发布时间降序（最新在前） */
+export function sortPostsByCreatedAtDesc(posts: PostRecord[]): PostRecord[] {
+  return [...posts].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
 export function tweetToPostRecord(tweet: FetchedTweet): PostRecord {
   return {
     id: `tw-${tweet.id}`,
@@ -83,9 +90,7 @@ export function mergePosts(existing: PostRecord[], incoming: PostRecord[]): Post
     });
   }
 
-  return [...byId.values()].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  return sortPostsByCreatedAtDesc([...byId.values()]);
 }
 
 export function getUnprocessedPosts(posts: PostRecord[]): PostRecord[] {

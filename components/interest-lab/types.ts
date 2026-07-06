@@ -50,8 +50,6 @@ export interface StoredInterestProfile {
   tags: InterestTag[];
   embeddings: TagEmbedding[];
   tweetCount?: number;
-  /** 滚动语料推断压缩上下文，供增量批次使用 */
-  inferenceContext?: CorpusInferenceState;
 }
 
 /** @deprecated 整段语料推断遗留类型 */
@@ -88,6 +86,43 @@ export interface CorpusInferenceResult {
 export interface CorpusRollingResponse {
   summary: string;
   tags: PostTagDraft[];
+}
+
+/** 方案 C — 阶段 1：单帖预处理 */
+export interface PreprocessedPost {
+  id: string;
+  createdAt: string;
+  isNoise: boolean;
+  summary: string;
+}
+
+/** 方案 C — 阶段 2：时间线合并条目 */
+export interface TimelineEntry {
+  id: string;
+  createdAt: string;
+  summary: string;
+  sourcePostIds: string[];
+}
+
+/** 方案 C — 阶段 3：带时间线条目归因的标签 */
+export interface TimelineTagDraft extends PostTagDraft {
+  entryIds: string[];
+}
+
+export interface TimelineInferenceResult {
+  preprocessed: PreprocessedPost[];
+  timeline: TimelineEntry[];
+  tags: TimelineTagDraft[];
+  extractedAt: string;
+  processedPostIds: string[];
+}
+
+export type TimelineInferenceStage = "preprocess" | "merge" | "extract";
+
+export interface TimelineInferenceProgress {
+  stage: TimelineInferenceStage;
+  done: number;
+  total: number;
 }
 
 export type InputMode = "twitter" | "paste";

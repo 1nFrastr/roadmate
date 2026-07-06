@@ -6,14 +6,14 @@ import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition }
 import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
 import { CustomTagWeightRail } from "./CustomTagWeightRail";
 import { PostListEditor } from "./PostListEditor";
-import { embedTags, inferTagsFromCorpus } from "./api/openrouter";
+import { embedTags, inferTagsFromTimeline } from "./api/openrouter";
 import { fetchUserTweets } from "./api/twitter";
 import { MAX_TWEETS_FETCH } from "./constants";
 import {
-  applyCorpusInference,
-  buildInferenceContext,
-  planCorpusInference,
-} from "./corpusUtils";
+  applyTimelineInference,
+  getEligiblePosts,
+  timelineResultToInterestTags,
+} from "./timelineUtils";
 import {
   clearPostInference,
   mergePosts,
@@ -26,16 +26,27 @@ import {
 } from "./storage";
 import {
   buildProfileEmbeddings,
-  corpusTagsToInterestTags,
   createCustomTag,
   interestTagsToWordCloud,
 } from "./tagUtils";
-import type { InputMode, InterestTag, PostRecord, StoredInterestProfile } from "./types";
+import type {
+  InputMode,
+  InterestTag,
+  PostRecord,
+  StoredInterestProfile,
+  TimelineInferenceProgress,
+} from "./types";
 
 type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
 type FetchStatus = "idle" | "fetching" | "done" | "error";
 
 const IPHONE_CONTENT_HEIGHT = IPHONE_FRAME.compact.contentHeight;
+
+const STAGE_LABELS: Record<TimelineInferenceProgress["stage"], string> = {
+  preprocess: "预处理",
+  merge: "时间线合并",
+  extract: "标签提取",
+};
 
 export function InterestLab() {
   const headerRef = useRef<HTMLElement>(null);
@@ -53,7 +64,7 @@ export function InterestLab() {
   const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const [pastePosts, setPastePosts] = useState<PostRecord[]>([]);
   const [step, setStep] = useState<Step>("idle");
-  const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(
+  const [analyzeProgress, setAnalyzeProgress] = useState<TimelineInferenceProgress | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
@@ -157,8 +168,8 @@ export function InterestLab() {
         return "正在从 twitterapi.io 拉取帖子…";
       case "analyzing":
         return analyzeProgress
-          ? `语料分批分析 ${analyzeProgress.done}/${analyzeProgress.total}…`
-          : "正在滚动推断标签…";
+          ? `${STAGE_LABELS[analyzeProgress.stage]} ${analyzeProgress.done}/${analyzeProgress.total}…`
+          : "正在时间线推断…";
       case "embedding":
         return "正在生成新标签向量…";
       case "done":
@@ -250,30 +261,25 @@ export function InterestLab() {
           (source.type === "paste" && profile.source.type === "paste"));
 
       const mergedPosts = sourcePosts;
-      const plan = planCorpusInference(
-        mergedPosts,
-        canReuseProfile ? profile?.inferenceContext : null,
-      );
+      const eligiblePosts = getEligiblePosts(mergedPosts);
 
-      if (plan.mode === "noop") {
-        throw new Error("没有新帖子需要分析，请添加或修改帖子内容");
+      if (eligiblePosts.length === 0) {
+        throw new Error("请至少添加一条有内容的帖子");
       }
 
       setStep("analyzing");
-      setAnalyzeProgress({ done: 0, total: 1 });
+      setAnalyzeProgress({ stage: "preprocess", done: 0, total: 1 });
 
-      const corpusResult = await inferTagsFromCorpus(mergedPosts, {
-        priorState: canReuseProfile ? profile?.inferenceContext : null,
-        onProgress: (done, total) => setAnalyzeProgress({ done, total }),
+      const timelineResult = await inferTagsFromTimeline(mergedPosts, {
+        onProgress: (progress) => setAnalyzeProgress(progress),
       });
 
-      const postsWithInference = applyCorpusInference(mergedPosts, corpusResult);
-      const inferredTags = corpusTagsToInterestTags(corpusResult.tags, mergedPosts);
-      const inferenceContext = buildInferenceContext(corpusResult);
+      const postsWithInference = applyTimelineInference(mergedPosts, timelineResult);
+      const inferredTags = timelineResultToInterestTags(timelineResult, mergedPosts);
 
       if (inferredTags.length === 0) {
         throw new Error(
-          corpusResult.tags.length > 0
+          timelineResult.tags.length > 0
             ? "提取到的标签经去泛化后无剩余，请点击「清空标签」后重新推断，或补充更具体的帖子"
             : "未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容",
         );
@@ -305,7 +311,6 @@ export function InterestLab() {
         posts: postsWithInference,
         tags,
         embeddings,
-        inferenceContext,
         tweetCount: source.type === "twitter" ? postsWithInference.length : undefined,
       };
 
@@ -327,7 +332,7 @@ export function InterestLab() {
   };
 
   const handleImportPosts = useCallback(
-    (posts: PostRecord[]) => {
+    (posts: PostRecord[], _filename: string) => {
       setPastePosts(posts);
       setStep("idle");
       setError(null);
@@ -350,7 +355,7 @@ export function InterestLab() {
   );
 
   const handleImportTwitterPosts = useCallback(
-    (posts: PostRecord[]) => {
+    (posts: PostRecord[], _filename: string) => {
       setTwitterPosts(posts);
       setFetchStatus("idle");
       setFetchMessage(null);
@@ -413,7 +418,6 @@ export function InterestLab() {
         tags: [],
         embeddings: [],
         posts: clearedPosts,
-        inferenceContext: undefined,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -489,7 +493,7 @@ export function InterestLab() {
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            滚动语料推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
+            三阶段时间线推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
         </div>
         <div className="flex gap-2">
@@ -669,30 +673,47 @@ export function InterestLab() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-left text-xs">
+                <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="text-zinc-500">
                     <tr>
-                      <th className="pb-2 pr-4">标签</th>
-                      <th className="pb-2 pr-4">权重</th>
-                      <th className="pb-2 pr-4">帖数</th>
-                      <th className="pb-2">频次</th>
+                      <th className="pb-2 pr-3">标签</th>
+                      <th className="pb-2 pr-3 font-mono">frequency</th>
+                      <th className="pb-2 pr-3 font-mono">sentiment</th>
+                      <th className="pb-2 pr-3 font-mono">recency</th>
+                      <th className="pb-2 pr-3 font-mono">weight</th>
+                      <th className="pb-2 font-mono">entries</th>
                     </tr>
                   </thead>
                   <tbody className="text-zinc-300">
-                    {profile.tags.slice(0, 8).map((tag) => (
-                      <tr key={tag.name} className="border-t border-zinc-800/80">
-                        <td className="py-2 pr-4 font-medium">{tag.name}</td>
-                        <td className="py-2 pr-4 font-mono text-cyan-300">
-                          {tag.weight.toFixed(3)}
-                        </td>
-                        <td className="py-2 pr-4 font-mono text-zinc-400">
-                          {tag.custom ? "—" : (tag.postCount ?? "—")}
-                        </td>
-                        <td className="py-2 font-mono">{tag.frequency.toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {profile.tags
+                      .filter((tag) => !tag.custom)
+                      .map((tag) => (
+                        <tr key={tag.name} className="border-t border-zinc-800/80">
+                          <td className="py-2 pr-3 font-medium">{tag.name}</td>
+                          <td className="py-2 pr-3 font-mono">{tag.frequency.toFixed(3)}</td>
+                          <td className="py-2 pr-3 font-mono">{tag.sentiment.toFixed(3)}</td>
+                          <td className="py-2 pr-3 font-mono">{tag.recency.toFixed(3)}</td>
+                          <td className="py-2 pr-3 font-mono text-cyan-300">{tag.weight.toFixed(3)}</td>
+                          <td className="py-2 font-mono text-zinc-400">{tag.postCount ?? 0}</td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
+                {profile.tags.some((tag) => tag.custom) ? (
+                  <div className="mt-4 border-t border-zinc-800/80 pt-3">
+                    <p className="mb-2 text-[11px] text-zinc-500">自定义标签（仅 weight 可调）</p>
+                    <ul className="space-y-1 text-xs text-zinc-400">
+                      {profile.tags
+                        .filter((tag) => tag.custom)
+                        .map((tag) => (
+                          <li key={tag.id ?? tag.name} className="flex justify-between gap-4">
+                            <span>{tag.name}</span>
+                            <span className="font-mono text-cyan-300">{tag.weight.toFixed(3)}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
 
               {showJson ? (

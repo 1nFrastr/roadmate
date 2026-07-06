@@ -1,4 +1,10 @@
-import { createPostRecord, isoToRelative, relativeToIso, type RelativeTimeUnit } from "./postUtils";
+import {
+  createPostRecord,
+  isoToRelative,
+  relativeToIso,
+  sortPostsByCreatedAtDesc,
+  type RelativeTimeUnit,
+} from "./postUtils";
 import type { PostRecord } from "./types";
 
 /** roadmate-posts txt schema 版本 */
@@ -115,7 +121,7 @@ export function parsePostsFromTxt(content: string): ParsePostsTxtResult {
     errors.push("未解析到任何帖子，请检查格式是否符合 roadmate-posts/1");
   }
 
-  return { posts, errors, warnings };
+  return { posts: sortPostsByCreatedAtDesc(posts), errors, warnings };
 }
 
 /** 将帖子列表序列化为 roadmate-posts/1 txt */

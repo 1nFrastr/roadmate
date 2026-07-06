@@ -58,6 +58,24 @@ export const LLM_REASONING_EFFORT = "none" as const;
 /** 语料滚动推断 max_tokens（关闭 reasoning 后 800 足够） */
 export const LLM_CORPUS_MAX_TOKENS = 800;
 
+/** 方案 C — 阶段 1 单帖预处理 max_tokens */
+export const LLM_PREPROCESS_MAX_TOKENS = 200;
+
+/** 方案 C — 阶段 2 时间线合并 max_tokens */
+export const LLM_TIMELINE_MERGE_MAX_TOKENS = 1200;
+
+/** 方案 C — 阶段 3 最终标签提取 max_tokens */
+export const LLM_TIMELINE_EXTRACT_MAX_TOKENS = 800;
+
+/** 方案 C — 相邻帖子合并窗口（天） */
+export const TIMELINE_MERGE_WINDOW_DAYS = 7;
+
+/** 方案 C — 单帖压缩摘要最大字数 */
+export const TIMELINE_PREPROCESS_SUMMARY_MAX_CHARS = 120;
+
+/** 方案 C — 最终标签上限 */
+export const MAX_TIMELINE_TAGS = 12;
+
 /** 标签精炼 max_tokens */
 export const LLM_REFINE_MAX_TOKENS = 400;
 

@@ -15,7 +15,7 @@ interface PostListEditorProps {
   posts: PostRecord[];
   onChange: (posts: PostRecord[]) => void;
   /** 批量导入：替换列表并清缓存（与 onChange 分开，便于父级重置 profile） */
-  onImport?: (posts: PostRecord[]) => void;
+  onImport?: (posts: PostRecord[], filename: string) => void;
   disabled?: boolean;
 }
 
@@ -91,6 +91,7 @@ function RelativeTimeControl({
 export function PostListEditor({ posts, onChange, onImport, disabled }: PostListEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [ioMessage, setIoMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [importFilename, setImportFilename] = useState<string | null>(null);
 
   const updatePost = useCallback(
     (id: string, patch: Partial<Pick<PostRecord, "text" | "createdAt">>) => {
@@ -103,12 +104,17 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
 
   const removePost = useCallback(
     (id: string) => {
-      onChange(posts.filter((post) => post.id !== id));
+      const next = posts.filter((post) => post.id !== id);
+      onChange(next);
+      if (next.length === 0) {
+        setImportFilename(null);
+      }
     },
     [onChange, posts],
   );
 
   const addPost = useCallback(() => {
+    setImportFilename(null);
     onChange([createPostRecord(""), ...posts]);
   }, [onChange, posts]);
 
@@ -138,12 +144,13 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
         }
 
         if (onImport) {
-          onImport(imported);
+          onImport(imported, file.name);
         } else {
           onChange(imported);
         }
+        setImportFilename(file.name);
         const warningText = warnings.length > 0 ? `（${warnings[0]}）` : "";
-        setIoMessage({ kind: "ok", text: `已导入 ${imported.length} 条帖子，已清空原列表${warningText}` });
+        setIoMessage({ kind: "ok", text: `已导入 ${imported.length} 条帖子${warningText}` });
       } catch {
         setIoMessage({ kind: "err", text: "读取文件失败" });
       }
@@ -155,7 +162,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
-          多帖滚动语料推断（分批压缩上下文），时间用「距今」方便测试 recency 加权
+          三阶段时间线推断（预处理 → 合并 → 标签），时间用「距今」方便测试 recency 加权
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -191,6 +198,14 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
           />
         </div>
       </div>
+
+      {importFilename ? (
+        <p className="text-xs text-zinc-400">
+          导入文件：
+          <span className="font-mono text-zinc-300">{importFilename}</span>
+          {posts.length > 0 ? ` · ${posts.length} 条帖子` : null}
+        </p>
+      ) : null}
 
       {ioMessage ? (
         <p

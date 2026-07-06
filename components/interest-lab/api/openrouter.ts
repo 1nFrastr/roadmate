@@ -1,5 +1,12 @@
-import type { CorpusInferenceResult, CorpusInferenceState, PostRecord } from "../types";
+import type {
+  CorpusInferenceResult,
+  CorpusInferenceState,
+  PostRecord,
+  TimelineInferenceProgress,
+  TimelineInferenceResult,
+} from "../types";
 
+const INFER_TIMELINE_PATH = "/api/interest-lab/openrouter/infer-timeline";
 const EXTRACT_POSTS_PATH = "/api/interest-lab/openrouter/extract-posts";
 const REFINE_TAGS_PATH = "/api/interest-lab/openrouter/refine-tags";
 const EMBED_PATH = "/api/interest-lab/openrouter/embed";
@@ -51,7 +58,63 @@ async function consumeNdjsonStream<T>(
   }
 }
 
-/** 滚动语料推断（分批 + 压缩上下文） */
+type TimelineInferStreamEvent =
+  | { type: "progress"; stage: TimelineInferenceProgress["stage"]; done: number; total: number }
+  | { type: "complete"; result: TimelineInferenceResult }
+  | { type: "error"; message: string };
+
+/** 方案 C — 三阶段时间线推断（每次全量重跑） */
+export async function inferTagsFromTimeline(
+  posts: PostRecord[],
+  options?: {
+    onProgress?: (progress: TimelineInferenceProgress) => void;
+  },
+): Promise<TimelineInferenceResult> {
+  options?.onProgress?.({ stage: "preprocess", done: 0, total: 1 });
+
+  const response = await fetch(INFER_TIMELINE_PATH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ posts }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "时间线推断失败"));
+  }
+
+  let completeResult: TimelineInferenceResult | null = null;
+  let streamError: string | null = null;
+
+  await consumeNdjsonStream<TimelineInferStreamEvent>(response, (event) => {
+    if (event.type === "progress") {
+      options?.onProgress?.({
+        stage: event.stage,
+        done: event.done,
+        total: event.total,
+      });
+      return;
+    }
+    if (event.type === "error") {
+      streamError = event.message;
+      return;
+    }
+    if (event.type === "complete") {
+      completeResult = event.result;
+    }
+  });
+
+  if (streamError) {
+    throw new Error(streamError);
+  }
+
+  if (!completeResult) {
+    throw new Error("时间线推断未完成");
+  }
+
+  return completeResult;
+}
+
+/** @deprecated 方案 B — 滚动语料推断（分批 + 压缩上下文） */
 export async function inferTagsFromCorpus(
   posts: PostRecord[],
   options?: {

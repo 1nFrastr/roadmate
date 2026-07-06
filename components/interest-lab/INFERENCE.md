@@ -1,13 +1,17 @@
 # Interest Lab — 推断与权重
 
-## 流程概览
+## 流程概览（方案 C）
 
 ```
-帖子输入 → 逐帖 LLM 提取 → 代码聚合 → Embedding → 词云展示
+帖子输入 → 阶段1 并行预处理 → 阶段2 时间线合并 → 阶段3 标签提取 → 代码聚合 → Embedding → 词云展示
 ```
 
-- **LLM 只做**：读懂单条帖子，输出标签名 + sentiment
-- **代码做**：频次、新近度、最终 weight、淘汰、排序
+| 阶段 | LLM 职责 | 代码职责 |
+|------|----------|----------|
+| **1 预处理** | 并行读单帖：判水贴 + 压缩摘要（1~2 句） | 并发调度、过滤 noise |
+| **2 时间线合并** | 看完整时间线，相邻 7 天内语义相近帖合并为一条 | 合并时间取最新帖 `createdAt` |
+| **3 标签提取** | 从合并时间线输出破冰标签 + sentiment + entryId 归因 | 频次/新近度/weight、淘汰、排序 |
+
 - **Embedding**：仅对聚合后的标签名生成向量（新标签惰性 embed）
 
 输入模式：
@@ -17,18 +21,28 @@
 | 帖子列表 | 用户逐条添加，时间用「距今」（小时/天/周/月）；支持 `.txt` 批量导入/导出 |
 | X 用户名 | [twitterapi.io](https://twitterapi.io/dashboard) 拉取原创推文 → 与帖子列表相同的 `PostRecord` schema；可编辑、txt 导入/导出 |
 
-## 逐帖提取
+## 阶段 1 — 单帖预处理
 
 - 每条帖子单独调用 OpenRouter LLM（并发上限 6）
-- 每帖最多 **3** 个标签，格式：`{ name, sentiment }`
-- `sentiment` 0~1，由 LLM 判断情感强度；无明确兴趣点可返回空数组
-- 结果写入 `PostRecord.extractedAt` + `PostRecord.tags`
+- 输出：`{ isNoise, summary }`；水贴 `isNoise: true` 跳过后续阶段
+- 长文压缩为核心要点（见 `PREPROCESS_SUMMARY_MAX_CHARS`）
 
-## 增量更新
+## 阶段 2 — 时间线合并
 
-- 已有 `extractedAt` 的帖子跳过 LLM，除非用户修改帖子文本或时间（会清除推断状态）
-- 同一 profile 下再次「推断并保存」时，合并帖子列表，只处理新帖/改过的帖
-- 「清空标签」：清除聚合标签与各帖 LLM 结果，帖子文本和时间保留
+- 单次 LLM 调用，输入按时间排序的全部有效摘要
+- 相邻 **7 天**内语义高度相似的条目可合并（`TIMELINE_MERGE_WINDOW_DAYS`）
+- 合并后 `createdAt` = 源帖中最新的时间；`sourcePostIds` 保留归因
+
+## 阶段 3 — 标签提取
+
+- 单次 LLM 调用，输入合并后的时间线
+- 输出标签：`{ name, sentiment, entryIds }`；sentiment 0~1
+- 产品向 prompt 集中在此阶段（`TIMELINE_TAG_EXTRACTION_PROMPT`）
+
+## 推断触发
+
+- 每次点击「推断并保存」均**全量重跑**三阶段流水线（不做增量跳过）
+- 「清空标签」：清除聚合标签与各帖推断状态，帖子文本和时间保留
 
 ## 聚合
 
@@ -36,11 +50,11 @@
 
 | 维度 | 算法 |
 |------|------|
-| **frequency** | 每条出现按 `exp(-λ × 天数)` 衰减后求和，再除以总帖数 |
-| **sentiment** | 各帖 sentiment 算术平均 |
+| **frequency** | 纯频次：`sourcePostIds 展开计数 / 总帖数`（不与时间耦合） |
+| **sentiment** | 各 entry 归因 sentiment 算术平均 |
 | **recency** | 以**最后一次出现**为准：`exp(-λ × 距今天数)` |
 
-时间衰减系数 **λ = 0.08**（约 30 天 → 0.09，90 天 → 0.001）。
+时间衰减系数 **λ = 0.08**（约 30 天 → 0.09，90 天 → 0.001），**仅用于 recency**（及 weight 中的 `sentiment × recency`）。
 
 ### 最终 weight
 
@@ -49,6 +63,7 @@ weight = 0.40 × frequency + 0.20 × sentiment × recency + 0.40 × recency
 ```
 
 - sentiment 乘以 recency：旧兴趣的情感贡献也随时间减弱
+- 合并条目：frequency 按 `sourcePostIds` 展开计数；recency 取归因条目中最新的 `createdAt`
 - 系数见 `constants.ts` 的 `WEIGHT_FACTORS`
 
 ### 过滤与输出
@@ -64,17 +79,29 @@ weight = 0.40 × frequency + 0.20 × sentiment × recency + 0.40 × recency
 
 自定义标签由滑轨权重（0.15~1.0）绝对映射尺寸。
 
+## CLI 评测
+
+```bash
+npm run bench:timeline                              # 跑 manifest 全部 case
+npm run bench:timeline -- --case multi-theme-user   # 单个 case
+npm run bench:timeline -- --verbose                 # 输出三阶段中间结果
+```
+
+用例目录：`scripts/fixtures/corpus-cases/`（`manifest.json` + `*.posts.txt`）
+
 ## 关键文件
 
 | 文件 | 职责 |
 |------|------|
-| `api/openrouter.ts` | `extractTagsFromPost`、`extractTagsFromPosts`、`embedTags` |
-| `postUtils.ts` | 帖子 CRUD、合并、增量判断、相对时间换算 |
-| `tagUtils.ts` | `aggregateTagsFromPosts`、`computeTagWeight` |
-| `constants.ts` | 并发、衰减 λ、权重系数、上限等调参 |
+| `server/timelineInference.ts` | 三阶段 LLM 编排 |
+| `server/timelineFormat.ts` | 阶段 2/3 prompt 格式化 |
+| `prompts.ts` | 三阶段 system prompt |
+| `timelineUtils.ts` | 推断计划、结果应用、InterestTag 转换 |
+| `tagUtils.ts` | `aggregateTagsFromTimeline`、`computeTagWeight` |
+| `api/openrouter.ts` | `inferTagsFromTimeline`、`embedTags` |
+| `constants.ts` | 并发、衰减 λ、权重系数、合并窗口等 |
 | `InterestLab.tsx` | UI 编排、profile 持久化 |
-| `PostListEditor.tsx` | 帖子列表与「距今」时间控件 |
-| `postImportExport.ts` | 帖子列表 `.txt` 导入/导出（`roadmate-posts/1` schema） |
+| `scripts/benchmark-timeline-eval.ts` | CLI benchmark |
 
 ## 帖子 txt 格式（roadmate-posts/1）
 
@@ -107,4 +134,5 @@ Started learning Rust for embedded
 
 - `WEIGHT_FACTORS` — 三维权重比例
 - `RECENCY_DECAY_LAMBDA` — 时间衰减陡峭程度
+- `TIMELINE_MERGE_WINDOW_DAYS` — 时间线合并窗口
 - `MAX_INFERRED_TAGS` / `STALE_TAG_DAYS` / `LLM_CONCURRENCY` 等

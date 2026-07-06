@@ -1,12 +1,11 @@
 {
-  "schema": "roadmate-corpus-eval/2",
+  "schema": "roadmate-timeline-eval/1",
   "cases": [
     {
       "id": "multi-theme-user",
-      "description": "真实用户帖 + 跨主题混帖（16 帖，3 批滚动），应保留多主题具体标签、过滤职场噪音",
+      "description": "真实用户帖 + 跨主题混帖（16 帖），应保留多主题具体标签、过滤职场噪音",
       "postsFile": "multi-theme-user.posts.txt",
       "expect": {
-        "minBatches": 3,
         "anyOf": [
           ["厦门", "青旅", "自由行"],
           ["手冲", "耶加", "咖啡"],
@@ -19,15 +18,15 @@
         ],
         "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "求职"],
         "minTags": 5,
-        "maxTags": 12
+        "maxTags": 12,
+        "minSignalPosts": 6
       }
     },
     {
       "id": "hobby-dense",
-      "description": "四主题高密度（咖啡/攀岩/游戏/胶片各 4 帖，16 帖），测试多批滚动后四线并存",
+      "description": "四主题高密度（咖啡/攀岩/游戏/胶片各 4 帖，16 帖），测试四线并存",
       "postsFile": "hobby-dense.posts.txt",
       "expect": {
-        "minBatches": 3,
         "anyOf": [
           ["手冲", "咖啡", "潮汕", "拿铁"],
           ["攀岩", "岩馆", "指力板", "白河"],
@@ -36,15 +35,15 @@
         ],
         "forbidden": ["美食", "运动", "游戏", "摄影"],
         "minTags": 6,
-        "maxTags": 12
+        "maxTags": 12,
+        "minSignalPosts": 12
       }
     },
     {
       "id": "noise-mixed",
-      "description": "职场/心态噪音为主（16 帖），少量兴趣信号应 survive 滚动压缩",
+      "description": "职场/心态噪音为主（16 帖），少量兴趣信号应 survive 去噪",
       "postsFile": "noise-mixed.posts.txt",
       "expect": {
-        "minBatches": 3,
         "anyOf": [
           ["厦门", "青旅"],
           ["手冲", "咖啡"],
@@ -56,7 +55,8 @@
         ],
         "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "PUA", "躺平"],
         "minTags": 3,
-        "maxTags": 10
+        "maxTags": 10,
+        "minSignalPosts": 4
       }
     },
     {
@@ -64,10 +64,117 @@
       "description": "无明确兴趣信号（8 帖），应少标签或空",
       "postsFile": "sparse-noise.posts.txt",
       "expect": {
-        "minBatches": 2,
         "forbidden": ["天气", "加班", "地铁"],
         "minTags": 0,
-        "maxTags": 2
+        "maxTags": 2,
+        "minSignalPosts": 0
+      }
+    },
+    {
+      "id": "burst-merge-coffee",
+      "description": "4 帖纯咖啡均在 5 天内 — 测试窗口内合并后 frequency entries≥3",
+      "postsFile": "burst-merge-coffee.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["手冲", "耶加", "咖啡"],
+          ["意式", "磨豆机", "浓缩"],
+          ["拿铁", "dirty"]
+        ],
+        "forbidden": ["美食", "饮品"],
+        "minTags": 1,
+        "maxTags": 5,
+        "minSignalPosts": 4
+      }
+    },
+    {
+      "id": "cross-period-coffee",
+      "description": "咖啡跨 @1d/@1m/@3m 三波，中间夹职场噪音 — 测试不跨周期合并、跨期频次累加",
+      "postsFile": "cross-period-coffee.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["手冲", "耶加", "咖啡"],
+          ["拉花", "拿铁"],
+          ["咖啡馆", "探店"]
+        ],
+        "forbidden": ["薪资", "年薪", "PUA", "面试", "心态"],
+        "minTags": 1,
+        "maxTags": 6,
+        "minSignalPosts": 4
+      }
+    },
+    {
+      "id": "climbing-dominant",
+      "description": "攀岩 10 帖 + 2 噪音 — 测试单主题高频应主导标签列表",
+      "postsFile": "climbing-dominant.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["攀岩", "岩馆", "V4"],
+          ["指力板", "悬垂"],
+          ["白河", "老岩场", "先锋"],
+          ["抱石", "磕线"]
+        ],
+        "forbidden": ["天气", "地铁", "运动"],
+        "minTags": 3,
+        "maxTags": 8,
+        "minSignalPosts": 8
+      }
+    },
+    {
+      "id": "two-theme-recency",
+      "description": "近期咖啡 3 帖 vs 远期骑行 1 帖 — 测试咖啡 weight 应高于骑行",
+      "postsFile": "two-theme-recency.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["手冲", "耶加", "咖啡", "拿铁", "磨豆机"],
+          ["川西", "骑行", "环线"]
+        ],
+        "forbidden": ["美食", "旅行", "运动"],
+        "minTags": 2,
+        "maxTags": 5,
+        "minSignalPosts": 4
+      }
+    },
+    {
+      "id": "long-scattered",
+      "description": "20 帖长列表稀疏多主题 — 测试去噪 + 多主题并存不丢信号",
+      "postsFile": "long-scattered.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["厦门", "青旅"],
+          ["手冲", "咖啡", "耶加"],
+          ["芙莉莲"],
+          ["攀岩", "V4", "岩馆"],
+          ["空洞骑士", "Switch"],
+          ["考研", "自习室", "政治"],
+          ["川西", "骑行"],
+          ["胶片", "Kodak"],
+          ["潮汕", "火锅"],
+          ["托福", "TPO"],
+          ["Helldivers"]
+        ],
+        "forbidden": ["薪资", "年薪", "配得感", "心态", "面试", "天气", "加班"],
+        "minTags": 5,
+        "maxTags": 12,
+        "minSignalPosts": 8
+      }
+    },
+    {
+      "id": "four-month-multi-theme",
+      "description": "50 帖跨 4 个月多主题详略混杂 — 测试长时线去噪、跨期合并与多兴趣并存",
+      "postsFile": "four-month-multi-theme.posts.txt",
+      "expect": {
+        "anyOf": [
+          ["手冲", "耶加", "咖啡", "意式", "拉花"],
+          ["攀岩", "岩馆", "V4", "抱石", "指力板"],
+          ["芙莉莲", "空洞骑士", "Helldivers", "Balatro"],
+          ["胶片", "Kodak", "Portra", "中画幅", "扫街"],
+          ["厦门", "青旅", "川西", "骑行", "潮汕"],
+          ["考研", "政治", "自习室", "托福", "TPO"]
+        ],
+        "forbidden": ["薪资", "年薪", "配得感", "心态", "面试", "PUA", "躺平", "天气", "加班"],
+        "minTags": 6,
+        "maxTags": 15,
+        "minSignalPosts": 25
       }
     }
   ]

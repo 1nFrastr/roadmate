@@ -8,7 +8,7 @@ import {
   WEIGHT_FACTORS,
 } from "./constants";
 import { normalizeTagKey } from "./postUtils";
-import type { InterestTag, LlmTagDraft, PostRecord, PostTagDraft } from "./types";
+import type { InterestTag, LlmTagDraft, PostRecord, PostTagDraft, TimelineEntry, TimelineTagDraft } from "./types";
 import type { WordCloudTag } from "@/components/tag-word-cloud";
 
 const CUSTOM_TAG_DEFAULT_WEIGHT = 0.55;
@@ -38,17 +38,21 @@ function decayForDays(days: number): number {
   return Math.exp(-RECENCY_DECAY_LAMBDA * days);
 }
 
-/** 每条帖按时间衰减后累加，旧帖对频次的贡献接近 0 */
-function computeDecayedFrequency(postDates: string[], totalPosts: number, now: number): number {
-  if (postDates.length === 0 || totalPosts <= 0) return 0;
-
-  const decaySum = postDates.reduce((sum, date) => sum + decayForDays(daysSince(date, now)), 0);
-  return Math.round((decaySum / totalPosts) * 1000) / 1000;
+/** 纯频次：出现次数 / 总帖数（不与 recency 耦合，时间衰减仅由 recency 维度承担） */
+function computeRawFrequency(occurrenceCount: number, totalPosts: number): number {
+  if (occurrenceCount <= 0 || totalPosts <= 0) return 0;
+  return Math.round((occurrenceCount / totalPosts) * 1000) / 1000;
 }
 
 /** 以最后一次出现时间为准，几个月前 ≈ 0 */
 function computeRecencyFromLastSeen(lastSeenAt: string, now: number): number {
   return Math.round(decayForDays(daysSince(lastSeenAt, now)) * 1000) / 1000;
+}
+
+function isStaleTag(lastSeenAt: string, postCount: number, now = Date.now()): boolean {
+  if (postCount > 1) return false;
+  const days = (now - new Date(lastSeenAt).getTime()) / MS_PER_DAY;
+  return days > STALE_TAG_DAYS;
 }
 
 /** 语料级推断结果 → InterestTag（按 LLM 排序映射 weight） */
@@ -85,10 +89,97 @@ export function corpusTagsToInterestTags(
   });
 }
 
-function isStaleTag(lastSeenAt: string, postCount: number, now = Date.now()): boolean {
-  if (postCount > 1) return false;
-  const days = (now - new Date(lastSeenAt).getTime()) / MS_PER_DAY;
-  return days > STALE_TAG_DAYS;
+interface TimelineTagAccumulator {
+  displayName: string;
+  sourcePostIds: Set<string>;
+  sentiments: number[];
+  lastSeenAt: string;
+}
+
+/** 方案 C — 时间线条目归因 → 按 INFERENCE.md 公式聚合 */
+export function aggregateTagsFromTimeline(
+  timeline: TimelineEntry[],
+  tagDrafts: TimelineTagDraft[],
+  options?: { totalPosts?: number },
+): InterestTag[] {
+  if (timeline.length === 0 || tagDrafts.length === 0) return [];
+
+  const entryById = new Map(timeline.map((entry) => [entry.id, entry]));
+  const totalPosts =
+    options?.totalPosts ??
+    (new Set(timeline.flatMap((entry) => entry.sourcePostIds)).size || 1);
+
+  const accumulators = new Map<string, TimelineTagAccumulator>();
+
+  for (const draft of tagDrafts) {
+    const name = draft.name.trim();
+    const key = normalizeTagKey(name);
+    if (!key) continue;
+
+    let acc = accumulators.get(key);
+    if (!acc) {
+      acc = {
+        displayName: name,
+        sourcePostIds: new Set(),
+        sentiments: [],
+        lastSeenAt: "",
+      };
+      accumulators.set(key, acc);
+    }
+
+    for (const entryId of draft.entryIds) {
+      const entry = entryById.get(entryId);
+      if (!entry) continue;
+
+      for (const postId of entry.sourcePostIds) {
+        acc.sourcePostIds.add(postId);
+      }
+
+      if (
+        !acc.lastSeenAt ||
+        new Date(entry.createdAt).getTime() > new Date(acc.lastSeenAt).getTime()
+      ) {
+        acc.lastSeenAt = entry.createdAt;
+      }
+
+      acc.sentiments.push(draft.sentiment);
+    }
+  }
+
+  const now = Date.now();
+  const tags: InterestTag[] = [];
+
+  for (const acc of accumulators.values()) {
+    const postCount = acc.sourcePostIds.size;
+    if (postCount < MIN_TAG_POST_COUNT || !acc.lastSeenAt) continue;
+
+    const frequency = computeRawFrequency(postCount, totalPosts);
+    const sentiment =
+      Math.round(
+        (acc.sentiments.reduce((sum, value) => sum + value, 0) / acc.sentiments.length) * 1000,
+      ) / 1000;
+    const recency = computeRecencyFromLastSeen(acc.lastSeenAt, now);
+
+    if (postCount === 1 && sentiment < MIN_SINGLE_POST_SENTIMENT) continue;
+    if (isStaleTag(acc.lastSeenAt, postCount, now)) continue;
+
+    tags.push({
+      name: acc.displayName,
+      frequency,
+      sentiment,
+      recency,
+      postCount,
+      lastSeenAt: acc.lastSeenAt,
+      weight: computeTagWeight(frequency, sentiment, recency),
+    });
+  }
+
+  return tags
+    .sort((a, b) => {
+      if (b.weight !== a.weight) return b.weight - a.weight;
+      return a.name.localeCompare(b.name, "zh-CN");
+    })
+    .slice(0, MAX_INFERRED_TAGS);
 }
 
 export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
@@ -132,7 +223,7 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
       new Date(date).getTime() > new Date(latest).getTime() ? date : latest,
     );
 
-    const frequency = computeDecayedFrequency(acc.postDates, totalPosts, now);
+    const frequency = computeRawFrequency(postCount, totalPosts);
     const sentiment =
       Math.round(
         (acc.sentiments.reduce((sum, value) => sum + value, 0) / acc.sentiments.length) * 1000,
