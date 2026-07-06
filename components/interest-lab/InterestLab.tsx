@@ -8,6 +8,7 @@ import { PostListEditor } from "./PostListEditor";
 import { embedTags, inferTagsFromTimeline } from "./api/openrouter";
 import { fetchUserTweets } from "./api/twitter";
 import { MAX_TWEETS_FETCH } from "./constants";
+import { LLM_MODEL_OPTIONS, isAllowedLlmModel, type LlmModelId } from "./llmModels";
 import {
   applyTimelineInference,
   getEligiblePosts,
@@ -20,7 +21,9 @@ import {
 } from "./postUtils";
 import {
   deleteProfile,
+  loadLlmModel,
   loadProfiles,
+  saveLlmModel,
   saveProfile,
 } from "./storage";
 import {
@@ -47,11 +50,7 @@ const STAGE_LABELS: Record<TimelineInferenceProgress["stage"], string> = {
   extract: "标签提取",
 };
 
-type InterestLabProps = {
-  llmModel?: string;
-};
-
-export function InterestLab({ llmModel }: InterestLabProps = {}) {
+export function InterestLab() {
   const headerRef = useRef<HTMLElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const previewAsideRef = useRef<HTMLElement>(null);
@@ -75,6 +74,7 @@ export function InterestLab({ llmModel }: InterestLabProps = {}) {
   const [savedProfiles, setSavedProfiles] = useState<StoredInterestProfile[]>([]);
   const [showJson, setShowJson] = useState(false);
   const [selectedCustomTagId, setSelectedCustomTagId] = useState<string | null>(null);
+  const [llmModel, setLlmModel] = useState<LlmModelId>(() => loadLlmModel());
 
   useEffect(() => {
     const profiles = loadProfiles();
@@ -274,6 +274,7 @@ export function InterestLab({ llmModel }: InterestLabProps = {}) {
       setAnalyzeProgress({ stage: "preprocess", done: 0, total: 1 });
 
       const timelineResult = await inferTagsFromTimeline(mergedPosts, {
+        model: llmModel,
         onProgress: (progress) => setAnalyzeProgress(progress),
       });
 
@@ -498,9 +499,30 @@ export function InterestLab({ llmModel }: InterestLabProps = {}) {
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
             三阶段时间线推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
-          {llmModel ? (
-            <p className="mt-1.5 font-mono text-[11px] text-zinc-500">LLM · {llmModel}</p>
-          ) : null}
+          <label className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+            <span>LLM</span>
+            <select
+              value={llmModel}
+              disabled={
+                step === "analyzing" ||
+                step === "embedding" ||
+                fetchStatus === "fetching"
+              }
+              onChange={(event) => {
+                const next = event.target.value;
+                if (!isAllowedLlmModel(next)) return;
+                setLlmModel(next);
+                saveLlmModel(next);
+              }}
+              className="max-w-full rounded border border-zinc-700 bg-zinc-900/60 px-1.5 py-0.5 font-mono text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {LLM_MODEL_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </header>
 

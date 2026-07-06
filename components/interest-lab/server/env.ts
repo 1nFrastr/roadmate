@@ -1,4 +1,5 @@
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL } from "../constants";
+import { DEFAULT_EMBEDDING_MODEL } from "../constants";
+import { resolveLlmModel } from "../llmModels";
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -21,7 +22,7 @@ export function getTwitterApiKey(): string {
 }
 
 export function getLlmModel(): string {
-  return optionalEnv("OPENROUTER_LLM_MODEL", DEFAULT_LLM_MODEL);
+  return resolveLlmModel(process.env.OPENROUTER_LLM_MODEL?.trim());
 }
 
 export function getEmbeddingModel(): string {

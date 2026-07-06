@@ -67,6 +67,7 @@ type TimelineInferStreamEvent =
 export async function inferTagsFromTimeline(
   posts: PostRecord[],
   options?: {
+    model?: string;
     onProgress?: (progress: TimelineInferenceProgress) => void;
   },
 ): Promise<TimelineInferenceResult> {
@@ -75,7 +76,7 @@ export async function inferTagsFromTimeline(
   const response = await fetch(INFER_TIMELINE_PATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ posts }),
+    body: JSON.stringify({ posts, model: options?.model }),
   });
 
   if (!response.ok) {

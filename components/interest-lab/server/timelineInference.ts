@@ -25,6 +25,7 @@ import type {
 } from "../types";
 import type { CorpusBatchPost } from "./corpusBatch";
 import { collectAllEligiblePostIds } from "./corpusBatch";
+import { resolveLlmModel } from "../llmModels";
 import { getLlmModel, getOpenRouterApiKey } from "./env";
 import { logInferenceTiming } from "./timing";
 import {
@@ -38,6 +39,7 @@ interface LlmContext {
 }
 
 export interface InferTimelineOptions {
+  model?: string;
   onProgress?: (progress: TimelineInferenceProgress) => void;
 }
 
@@ -48,8 +50,11 @@ const UNIT_SHORT: Record<string, string> = {
   months: "m",
 };
 
-function createLlmContext(): LlmContext {
-  return { apiKey: getOpenRouterApiKey(), model: getLlmModel() };
+function createLlmContext(model?: string): LlmContext {
+  return {
+    apiKey: getOpenRouterApiKey(),
+    model: resolveLlmModel(model, getLlmModel()),
+  };
 }
 
 function openRouterHeaders(apiKey: string): HeadersInit {
@@ -328,7 +333,7 @@ export async function inferTagsFromTimeline(
   posts: CorpusBatchPost[],
   options?: InferTimelineOptions,
 ): Promise<TimelineInferenceResult> {
-  const ctx = createLlmContext();
+  const ctx = createLlmContext(options?.model);
   const started = Date.now();
   const allPostIds = collectAllEligiblePostIds(posts);
 

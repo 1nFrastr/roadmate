@@ -1,8 +1,9 @@
 export const STORAGE_KEYS = {
   profiles: "roadmate:interest-lab:profiles",
+  llmModel: "roadmate:interest-lab:llm-model",
 } as const;
 
-export const DEFAULT_LLM_MODEL = "deepseek/deepseek-v4-flash";
+export { DEFAULT_LLM_MODEL } from "./llmModels";
 export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 export const TWITTER_API_BASE = "https://api.twitterapi.io";

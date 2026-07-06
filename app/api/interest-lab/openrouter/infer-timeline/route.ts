@@ -13,10 +13,12 @@ type InferStreamEvent =
 
 export async function POST(request: Request) {
   let posts: PostRecord[];
+  let model: string | undefined;
 
   try {
-    const body = (await request.json()) as { posts?: PostRecord[] };
+    const body = (await request.json()) as { posts?: PostRecord[]; model?: string };
     posts = body.posts ?? [];
+    model = body.model;
   } catch {
     return Response.json({ error: "请求体无效" }, { status: 400 });
   }
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
         const result = await inferTagsFromTimeline(
           eligible.map((post) => ({ id: post.id, text: post.text, createdAt: post.createdAt })),
           {
+            model,
             onProgress: (progress) =>
               send({
                 type: "progress",
