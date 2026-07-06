@@ -22,7 +22,7 @@ export const TWITTER_TWEETS_PER_PAGE = 20;
 /** 单次拉取 API 请求次数（1 = 测试时只打 1 次，约 20 条） */
 export const MAX_TWEET_PAGES = 1;
 
-/** 单次拉取最多帖子数（原创，不含转推；= 页数 × 每页上限） */
+/** 单次拉取最多帖子数（含 RT/引用，不含回复；= 页数 × 每页上限） */
 export const MAX_TWEETS_FETCH = MAX_TWEET_PAGES * TWITTER_TWEETS_PER_PAGE;
 
 /** 分页请求间隔；免费 Key 约 0.2 QPS，需 ≥5s */

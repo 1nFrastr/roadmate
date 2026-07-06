@@ -1,6 +1,7 @@
 import {
   MAX_TWEET_PAGES,
   MAX_TWEETS_FETCH,
+  TWITTER_API_BASE,
   TWITTER_FETCH_MAX_RETRIES,
   TWITTER_PAGE_DELAY_MS,
   TWITTER_PROXY_PATH,
@@ -23,7 +24,28 @@ interface TwitterTweetRaw {
   id?: string;
   text?: string;
   createdAt?: string;
-  retweeted_tweet?: unknown;
+  quoted_tweet?: TwitterTweetRaw | null;
+  retweeted_tweet?: TwitterTweetRaw | null;
+}
+
+/** 单次响应内嵌套引用链最大深度（不额外调 API） */
+const MAX_NESTED_QUOTE_DEPTH = 5;
+const QUOTE_SEPARATOR = "\n\n[引用]\n";
+
+/** 从 last_tweets 单条 Tweet 对象展开 RT / 引用链正文 */
+export function extractTweetText(tweet: TwitterTweetRaw): string {
+  const body = tweet.retweeted_tweet ?? tweet;
+  const parts: string[] = [];
+
+  function appendChain(node: TwitterTweetRaw | null | undefined, depth: number): void {
+    if (!node || depth >= MAX_NESTED_QUOTE_DEPTH) return;
+    const own = node.text?.trim();
+    if (own) parts.push(own);
+    if (node.quoted_tweet) appendChain(node.quoted_tweet, depth + 1);
+  }
+
+  appendChain(body, 0);
+  return parts.join(QUOTE_SEPARATOR);
 }
 
 interface TwitterLastTweetsResponse {
@@ -107,9 +129,10 @@ function isRateLimitMessage(message: string | undefined): boolean {
 
 async function fetchTwitterJson(
   url: string,
+  init?: RequestInit,
   attempt = 0,
 ): Promise<{ response: Response; data: TwitterLastTweetsResponse }> {
-  const response = await fetch(url);
+  const response = await fetch(url, init);
 
   let data: TwitterLastTweetsResponse;
   try {
@@ -117,7 +140,7 @@ async function fetchTwitterJson(
   } catch {
     if (RETRYABLE_STATUSES.has(response.status) && attempt < TWITTER_FETCH_MAX_RETRIES) {
       await sleep(retryDelayMs(response, attempt));
-      return fetchTwitterJson(url, attempt + 1);
+      return fetchTwitterJson(url, init, attempt + 1);
     }
     throw new Error(`Twitter API 响应解析失败 (${response.status})`);
   }
@@ -129,7 +152,7 @@ async function fetchTwitterJson(
 
   if (shouldRetry) {
     await sleep(retryDelayMs(response, attempt));
-    return fetchTwitterJson(url, attempt + 1);
+    return fetchTwitterJson(url, init, attempt + 1);
   }
 
   return { response, data };
@@ -144,9 +167,8 @@ function appendTweetsFromPage(
   for (const tweet of getPageTweets(data)) {
     if (tweets.length >= cap) return;
 
-    const text = tweet.text?.trim();
+    const text = extractTweetText(tweet);
     if (!text) continue;
-    if (tweet.retweeted_tweet) continue;
 
     const id = tweet.id?.trim() || `hash-${text.slice(0, 32)}`;
     if (seenIds.has(id)) continue;
@@ -160,30 +182,24 @@ function appendTweetsFromPage(
   }
 }
 
-export async function fetchUserTweets(
-  userName: string,
-  maxTweets = MAX_TWEETS_FETCH,
+async function fetchUserTweetsPaged(
+  handle: string,
+  cap: number,
+  maxPages: number,
+  requestPage: (cursor: string) => Promise<{ response: Response; data: TwitterLastTweetsResponse }>,
 ): Promise<FetchUserTweetsResult> {
-  const handle = userName.replace(/^@/, "").trim();
-  if (!handle) throw new Error("请输入有效的 X 用户名");
-
-  const cap = Math.max(1, Math.min(maxTweets, MAX_TWEETS_FETCH));
   const tweets: FetchedTweet[] = [];
   const seenIds = new Set<string>();
   let cursor = "";
   let page = 0;
   let lastHasNext = false;
 
-  while (page < MAX_TWEET_PAGES && tweets.length < cap) {
+  while (page < maxPages && tweets.length < cap) {
     if (page > 0) {
       await sleep(TWITTER_PAGE_DELAY_MS);
     }
 
-    const params = new URLSearchParams({ userName: handle });
-    if (cursor) params.set("cursor", cursor);
-
-    const url = `${TWITTER_PROXY_PATH}?${params}`;
-    const { response, data } = await fetchTwitterJson(url);
+    const { response, data } = await requestPage(cursor);
 
     if (!response.ok) {
       throw new Error(getApiErrorMessage(data) || `Twitter API 请求失败 (${response.status})`);
@@ -207,4 +223,42 @@ export async function fetchUserTweets(
   }
 
   return { tweets, truncated: tweets.length >= cap || lastHasNext };
+}
+
+/** 脚本 / 服务端直连 twitterapi.io（不经 Next 代理） */
+export async function fetchUserTweetsDirect(
+  userName: string,
+  apiKey: string,
+  options?: { maxTweets?: number; maxPages?: number },
+): Promise<FetchUserTweetsResult> {
+  const handle = userName.replace(/^@/, "").trim();
+  if (!handle) throw new Error("请输入有效的 X 用户名");
+  if (!apiKey.trim()) throw new Error("缺少 TWITTER_API_KEY");
+
+  const cap = Math.max(1, Math.min(options?.maxTweets ?? MAX_TWEETS_FETCH, MAX_TWEETS_FETCH));
+  const maxPages = Math.max(1, options?.maxPages ?? MAX_TWEET_PAGES);
+
+  return fetchUserTweetsPaged(handle, cap, maxPages, (cursor) => {
+    const params = new URLSearchParams({ userName: handle });
+    if (cursor) params.set("cursor", cursor);
+    const url = `${TWITTER_API_BASE}/twitter/user/last_tweets?${params}`;
+    return fetchTwitterJson(url, { headers: { "X-API-Key": apiKey.trim() } });
+  });
+}
+
+export async function fetchUserTweets(
+  userName: string,
+  maxTweets = MAX_TWEETS_FETCH,
+): Promise<FetchUserTweetsResult> {
+  const handle = userName.replace(/^@/, "").trim();
+  if (!handle) throw new Error("请输入有效的 X 用户名");
+
+  const cap = Math.max(1, Math.min(maxTweets, MAX_TWEETS_FETCH));
+
+  return fetchUserTweetsPaged(handle, cap, MAX_TWEET_PAGES, (cursor) => {
+    const params = new URLSearchParams({ userName: handle });
+    if (cursor) params.set("cursor", cursor);
+    const url = `${TWITTER_PROXY_PATH}?${params}`;
+    return fetchTwitterJson(url);
+  });
 }
