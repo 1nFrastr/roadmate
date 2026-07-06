@@ -1,4 +1,6 @@
 import {
+  LLM_REASONING_EFFORT,
+  LLM_REFINE_MAX_TOKENS,
   LLM_REFINE_TEMPERATURE,
   LLM_SEED,
   OPENROUTER_API_BASE,
@@ -37,8 +39,9 @@ export async function refineAggregatedTags(
       model,
       temperature: LLM_REFINE_TEMPERATURE,
       seed: LLM_SEED,
-      max_tokens: 300,
+      max_tokens: LLM_REFINE_MAX_TOKENS,
       response_format: { type: "json_object" },
+      reasoning: { effort: LLM_REASONING_EFFORT },
       messages: [
         { role: "system", content: TAG_REFINEMENT_PROMPT },
         {

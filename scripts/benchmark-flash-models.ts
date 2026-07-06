@@ -19,7 +19,6 @@ import {
 import { parsePostsFromTxt } from "../components/interest-lab/postImportExport";
 import { POST_TAG_EXTRACTION_PROMPT } from "../components/interest-lab/prompts";
 import { filterPostTagDrafts } from "../components/interest-lab/tagFilter";
-import { canonicalTagName } from "../components/interest-lab/tagCanonical";
 import { shouldSkipTagExtraction } from "../components/interest-lab/server/postExtractionSkip";
 import type { PostTagDraft, PostTagResponse } from "../components/interest-lab/types";
 
@@ -156,7 +155,7 @@ async function extractTagsFromPost(
       .filter((tag) => tag.name?.trim())
       .slice(0, MAX_TAGS_PER_POST)
       .map((tag) => ({
-        name: canonicalTagName(tag.name.trim()),
+        name: tag.name.trim(),
         sentiment: clamp01(tag.sentiment),
       })),
   );

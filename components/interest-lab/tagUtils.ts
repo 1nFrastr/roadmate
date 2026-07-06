@@ -8,8 +8,6 @@ import {
   WEIGHT_FACTORS,
 } from "./constants";
 import { normalizeTagKey } from "./postUtils";
-import { canonicalTagName } from "./tagCanonical";
-import { isGenericTag } from "./tagFilter";
 import type { InterestTag, LlmTagDraft, PostRecord, PostTagDraft } from "./types";
 import type { WordCloudTag } from "@/components/tag-word-cloud";
 
@@ -100,9 +98,7 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
 
   for (const post of processed) {
     for (const tag of post.tags ?? []) {
-      const name = canonicalTagName(tag.name);
-      if (isGenericTag(name)) continue;
-
+      const name = tag.name.trim();
       const key = normalizeTagKey(name);
       if (!key) continue;
 

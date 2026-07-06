@@ -2,8 +2,6 @@ import { MAX_REFINED_TAGS } from "@/components/interest-lab/constants";
 import { isTagRefinementEnabled } from "@/components/interest-lab/server/env";
 import { refineAggregatedTags } from "@/components/interest-lab/server/openrouter";
 import { logInferenceTiming } from "@/components/interest-lab/server/timing";
-import { isGenericTag } from "@/components/interest-lab/tagFilter";
-import { canonicalTagName } from "@/components/interest-lab/tagCanonical";
 import { normalizeTagKey } from "@/components/interest-lab/postUtils";
 
 function deterministicKeep(tags: { name: string; postCount: number }[]): string[] {
@@ -11,8 +9,8 @@ function deterministicKeep(tags: { name: string; postCount: number }[]): string[
   const keep: string[] = [];
 
   for (const tag of tags) {
-    const name = canonicalTagName(tag.name);
-    if (!name || isGenericTag(name)) continue;
+    const name = tag.name.trim();
+    if (!name) continue;
 
     const key = normalizeTagKey(name);
     if (seen.has(key)) continue;

@@ -1,11 +1,12 @@
 import {
+  LLM_CORPUS_MAX_TOKENS,
   LLM_EXTRACT_TEMPERATURE,
+  LLM_REASONING_EFFORT,
   LLM_SEED,
   MAX_CORPUS_TAGS,
   OPENROUTER_API_BASE,
 } from "../constants";
 import { CORPUS_ROLLING_INFERENCE_PROMPT } from "../prompts";
-import { canonicalTagName } from "../tagCanonical";
 import { filterPostTagDrafts } from "../tagFilter";
 import type {
   CorpusInferenceResult,
@@ -74,8 +75,9 @@ async function inferRollingBatch(
       model: ctx.model,
       temperature: LLM_EXTRACT_TEMPERATURE,
       seed: LLM_SEED,
-      max_tokens: 800,
+      max_tokens: LLM_CORPUS_MAX_TOKENS,
       response_format: { type: "json_object" },
+      reasoning: { effort: LLM_REASONING_EFFORT },
       messages: [
         { role: "system", content: CORPUS_ROLLING_INFERENCE_PROMPT },
         {
@@ -106,7 +108,7 @@ async function inferRollingBatch(
       .filter((tag) => tag.name?.trim())
       .slice(0, MAX_CORPUS_TAGS)
       .map((tag) => ({
-        name: canonicalTagName(tag.name.trim()),
+        name: tag.name.trim(),
         sentiment: clamp01(tag.sentiment),
       })),
   );

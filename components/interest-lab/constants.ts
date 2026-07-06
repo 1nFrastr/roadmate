@@ -49,6 +49,18 @@ export const LLM_REFINE_TEMPERATURE = 0;
 /** OpenRouter seed（部分模型支持，不支持时忽略） */
 export const LLM_SEED = 42;
 
+/**
+ * 结构化 JSON 提取不需要 thinking；DeepSeek V4 Flash 默认开 reasoning 会显著变慢，
+ * 且 max_tokens 会先被思考占满导致 content 为空。OpenRouter: reasoning.effort = "none"
+ */
+export const LLM_REASONING_EFFORT = "none" as const;
+
+/** 语料滚动推断 max_tokens（关闭 reasoning 后 800 足够） */
+export const LLM_CORPUS_MAX_TOKENS = 800;
+
+/** 标签精炼 max_tokens */
+export const LLM_REFINE_MAX_TOKENS = 400;
+
 /** 语料分批：每批最多帖数 */
 export const CORPUS_BATCH_MAX_POSTS = 5;
 
