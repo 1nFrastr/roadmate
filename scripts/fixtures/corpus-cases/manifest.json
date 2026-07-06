@@ -1,0 +1,74 @@
+{
+  "schema": "roadmate-corpus-eval/2",
+  "cases": [
+    {
+      "id": "multi-theme-user",
+      "description": "真实用户帖 + 跨主题混帖（16 帖，3 批滚动），应保留多主题具体标签、过滤职场噪音",
+      "postsFile": "multi-theme-user.posts.txt",
+      "expect": {
+        "minBatches": 3,
+        "anyOf": [
+          ["厦门", "青旅", "自由行"],
+          ["手冲", "耶加", "咖啡"],
+          ["芙莉莲", "空洞骑士"],
+          ["攀岩", "岩馆", "V4"],
+          ["托福", "考研", "自习室"],
+          ["潮汕", "火锅"],
+          ["川西", "骑行"],
+          ["胶片", "Kodak"]
+        ],
+        "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "求职"],
+        "minTags": 5,
+        "maxTags": 12
+      }
+    },
+    {
+      "id": "hobby-dense",
+      "description": "四主题高密度（咖啡/攀岩/游戏/胶片各 4 帖，16 帖），测试多批滚动后四线并存",
+      "postsFile": "hobby-dense.posts.txt",
+      "expect": {
+        "minBatches": 3,
+        "anyOf": [
+          ["手冲", "咖啡", "潮汕", "拿铁"],
+          ["攀岩", "岩馆", "指力板", "白河"],
+          ["芙莉莲", "空洞骑士", "Helldivers", "indie"],
+          ["胶片", "Kodak", "扫街", "中画幅"]
+        ],
+        "forbidden": ["美食", "运动", "游戏", "摄影"],
+        "minTags": 6,
+        "maxTags": 12
+      }
+    },
+    {
+      "id": "noise-mixed",
+      "description": "职场/心态噪音为主（16 帖），少量兴趣信号应 survive 滚动压缩",
+      "postsFile": "noise-mixed.posts.txt",
+      "expect": {
+        "minBatches": 3,
+        "anyOf": [
+          ["厦门", "青旅"],
+          ["手冲", "咖啡"],
+          ["空洞骑士", "Switch"],
+          ["芙莉莲"],
+          ["攀岩", "岩馆"],
+          ["川西", "骑行"],
+          ["托福", "考研", "自习室"]
+        ],
+        "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "PUA", "躺平"],
+        "minTags": 3,
+        "maxTags": 10
+      }
+    },
+    {
+      "id": "sparse-noise",
+      "description": "无明确兴趣信号（8 帖），应少标签或空",
+      "postsFile": "sparse-noise.posts.txt",
+      "expect": {
+        "minBatches": 2,
+        "forbidden": ["天气", "加班", "地铁"],
+        "minTags": 0,
+        "maxTags": 2
+      }
+    }
+  ]
+}

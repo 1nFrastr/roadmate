@@ -9,8 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parsePostsFromTxt } from "../components/interest-lab/postImportExport";
-import { corpusTagsToInterestTags } from "../components/interest-lab/tagUtils";
-import { inferTagsFromCorpus } from "../components/interest-lab/server/corpusInference";
+import { runHomepageInference } from "./lib/homepageInferencePipeline";
 import type { PostRecord } from "../components/interest-lab/types";
 
 const DEFAULT_POSTS_PATH = resolve(process.cwd(), "scripts/fixtures/roadmate-posts.txt");
@@ -30,12 +29,8 @@ function loadEnvFromLocal() {
 }
 
 async function runOnce(posts: PostRecord[]) {
-  const result = await inferTagsFromCorpus(
-    posts.map((p) => ({ id: p.id, text: p.text, createdAt: p.createdAt })),
-    { mode: "full" },
-  );
-  const tags = corpusTagsToInterestTags(result.tags, posts);
-  return tags.map((tag) => tag.name);
+  const result = await runHomepageInference(posts, { priorState: null });
+  return result.inferredTags.map((tag) => tag.name);
 }
 
 async function main() {
