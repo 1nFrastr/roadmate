@@ -1,5 +1,6 @@
 import {
   MAX_INFERRED_TAGS,
+  MAX_REFINED_TAGS,
   MIN_SINGLE_POST_SENTIMENT,
   MIN_TAG_POST_COUNT,
   RECENCY_DECAY_LAMBDA,
@@ -7,8 +8,9 @@ import {
   WEIGHT_FACTORS,
 } from "./constants";
 import { normalizeTagKey } from "./postUtils";
+import { canonicalTagName } from "./tagCanonical";
 import { isGenericTag } from "./tagFilter";
-import type { InterestTag, LlmTagDraft, PostRecord } from "./types";
+import type { InterestTag, LlmTagDraft, PostRecord, PostTagDraft } from "./types";
 import type { WordCloudTag } from "@/components/tag-word-cloud";
 
 const CUSTOM_TAG_DEFAULT_WEIGHT = 0.55;
@@ -51,6 +53,40 @@ function computeRecencyFromLastSeen(lastSeenAt: string, now: number): number {
   return Math.round(decayForDays(daysSince(lastSeenAt, now)) * 1000) / 1000;
 }
 
+/** 语料级推断结果 → InterestTag（按 LLM 排序映射 weight） */
+export function corpusTagsToInterestTags(
+  drafts: PostTagDraft[],
+  posts: PostRecord[],
+): InterestTag[] {
+  const trimmedPosts = posts.filter((post) => post.text.trim());
+  const totalPosts = trimmedPosts.length || 1;
+  const newestAt =
+    trimmedPosts.reduce(
+      (latest, post) =>
+        new Date(post.createdAt).getTime() > new Date(latest).getTime() ? post.createdAt : latest,
+      trimmedPosts[0]?.createdAt ?? new Date().toISOString(),
+    ) ?? new Date().toISOString();
+
+  const now = Date.now();
+  const recency = computeRecencyFromLastSeen(newestAt, now);
+
+  return drafts.slice(0, MAX_REFINED_TAGS).map((draft, index) => {
+    const sentiment = draft.sentiment;
+    const rankWeight = 1 - index * (0.75 / Math.max(MAX_REFINED_TAGS, 1));
+    const frequency = Math.round((rankWeight / totalPosts) * 1000) / 1000;
+
+    return {
+      name: draft.name,
+      frequency,
+      sentiment,
+      recency,
+      postCount: totalPosts,
+      lastSeenAt: newestAt,
+      weight: computeTagWeight(frequency, sentiment, recency),
+    };
+  });
+}
+
 function isStaleTag(lastSeenAt: string, postCount: number, now = Date.now()): boolean {
   if (postCount > 1) return false;
   const days = (now - new Date(lastSeenAt).getTime()) / MS_PER_DAY;
@@ -64,15 +100,16 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
 
   for (const post of processed) {
     for (const tag of post.tags ?? []) {
-      if (isGenericTag(tag.name)) continue;
+      const name = canonicalTagName(tag.name);
+      if (isGenericTag(name)) continue;
 
-      const key = normalizeTagKey(tag.name);
+      const key = normalizeTagKey(name);
       if (!key) continue;
 
       let acc = accumulators.get(key);
       if (!acc) {
         acc = {
-          displayName: tag.name.trim(),
+          displayName: name,
           postIds: new Set(),
           sentiments: [],
           postDates: [],
@@ -84,9 +121,6 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
         acc.postIds.add(post.id);
         acc.sentiments.push(tag.sentiment);
         acc.postDates.push(post.createdAt);
-        if (tag.name.trim().length >= acc.displayName.length) {
-          acc.displayName = tag.name.trim();
-        }
       }
     }
   }
@@ -123,7 +157,12 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
     });
   }
 
-  return tags.sort((a, b) => b.weight - a.weight).slice(0, MAX_INFERRED_TAGS);
+  return tags
+    .sort((a, b) => {
+      if (b.weight !== a.weight) return b.weight - a.weight;
+      return a.name.localeCompare(b.name, "zh-CN");
+    })
+    .slice(0, MAX_INFERRED_TAGS);
 }
 
 /** 按 profile 精炼结果保留标签，顺序与 keepNames 一致 */

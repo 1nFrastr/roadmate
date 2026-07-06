@@ -155,7 +155,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
-          每条帖子单独推断（最多 3 标签/帖），时间用「距今」方便测试 recency 加权
+          多帖滚动语料推断（分批压缩上下文），时间用「距今」方便测试 recency 加权
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -216,9 +216,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
                 <span className="text-xs font-medium text-zinc-500">帖子 {posts.length - index}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   {post.extractedAt ? (
-                    <span className="text-[10px] text-emerald-400/80">
-                      已分析 · {post.tags?.length ?? 0} 标签
-                    </span>
+                    <span className="text-[10px] text-emerald-400/80">已纳入推断</span>
                   ) : null}
                   <button
                     type="button"
@@ -243,19 +241,6 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
                 placeholder="输入单条发帖内容…"
                 className="mt-2 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm leading-relaxed text-zinc-100 outline-none focus:border-cyan-500/60 disabled:opacity-50"
               />
-              {post.tags && post.tags.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {post.tags.map((tag) => (
-                    <span
-                      key={`${post.id}-${tag.name}`}
-                      className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400"
-                    >
-                      {tag.name}
-                      <span className="ml-1 font-mono text-zinc-500">{tag.sentiment.toFixed(2)}</span>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
             </li>
           ))}
         </ul>

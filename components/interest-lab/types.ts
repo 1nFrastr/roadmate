@@ -50,6 +50,8 @@ export interface StoredInterestProfile {
   tags: InterestTag[];
   embeddings: TagEmbedding[];
   tweetCount?: number;
+  /** 滚动语料推断压缩上下文，供增量批次使用 */
+  inferenceContext?: CorpusInferenceState;
 }
 
 /** @deprecated 整段语料推断遗留类型 */
@@ -65,6 +67,26 @@ export interface LlmTagResponse {
 }
 
 export interface PostTagResponse {
+  tags: PostTagDraft[];
+}
+
+/** 滚动语料推断的中间/最终状态 */
+export interface CorpusInferenceState {
+  summary: string;
+  tags: PostTagDraft[];
+  processedPostIds: string[];
+  inferredAt: string;
+}
+
+export interface CorpusInferenceResult {
+  tags: PostTagDraft[];
+  summary: string;
+  extractedAt: string;
+  processedPostIds: string[];
+}
+
+export interface CorpusRollingResponse {
+  summary: string;
   tags: PostTagDraft[];
 }
 

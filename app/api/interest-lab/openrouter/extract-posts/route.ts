@@ -1,22 +1,23 @@
-import { extractTagsFromPosts } from "@/components/interest-lab/server/openrouter";
-import type { PostTagDraft } from "@/components/interest-lab/types";
+import { planCorpusInference } from "@/components/interest-lab/corpusUtils";
+import { inferTagsFromCorpus } from "@/components/interest-lab/server/corpusInference";
+import type { CorpusInferenceResult, CorpusInferenceState, PostRecord } from "@/components/interest-lab/types";
 
-type ExtractStreamEvent =
+type InferStreamEvent =
   | { type: "progress"; done: number; total: number }
-  | {
-      type: "complete";
-      results: { id: string; tags: PostTagDraft[]; extractedAt: string }[];
-    }
+  | { type: "complete"; result: CorpusInferenceResult }
   | { type: "error"; message: string };
 
 export async function POST(request: Request) {
-  let posts: { id: string; text: string }[];
+  let posts: PostRecord[];
+  let priorState: CorpusInferenceState | null = null;
 
   try {
     const body = (await request.json()) as {
-      posts?: { id: string; text: string }[];
+      posts?: PostRecord[];
+      priorState?: CorpusInferenceState | null;
     };
     posts = body.posts ?? [];
+    priorState = body.priorState ?? null;
   } catch {
     return Response.json({ error: "请求体无效" }, { status: 400 });
   }
@@ -25,25 +26,45 @@ export async function POST(request: Request) {
     return Response.json({ error: "缺少 posts" }, { status: 400 });
   }
 
+  const plan = planCorpusInference(posts, priorState);
+
+  if (plan.mode === "noop") {
+    return Response.json({ error: "没有新帖子需要分析" }, { status: 400 });
+  }
+
+  if (plan.posts.length === 0) {
+    return Response.json({ error: "没有可分析的帖子内容" }, { status: 400 });
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
 
-      const send = (event: ExtractStreamEvent) => {
+      const send = (event: InferStreamEvent) => {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
 
       try {
-        const results = await extractTagsFromPosts(posts, {
-          onProgress: (done, total) => send({ type: "progress", done, total }),
-        });
+        const result = await inferTagsFromCorpus(
+          plan.posts.map((post) => ({ id: post.id, text: post.text, createdAt: post.createdAt })),
+          {
+            priorState: plan.mode === "incremental" ? plan.priorState : null,
+            mode: plan.mode,
+            onProgress: (done, total) => send({ type: "progress", done, total }),
+          },
+        );
 
-        send({
-          type: "complete",
-          results: [...results.entries()].map(([id, value]) => ({ id, ...value })),
-        });
+        // 增量模式：合并 processedPostIds
+        if (plan.mode === "incremental") {
+          const mergedIds = [
+            ...new Set([...plan.priorState.processedPostIds, ...result.processedPostIds]),
+          ];
+          result.processedPostIds = mergedIds;
+        }
+
+        send({ type: "complete", result });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "逐帖提取失败";
+        const message = err instanceof Error ? err.message : "语料推断失败";
         send({ type: "error", message });
       } finally {
         controller.close();

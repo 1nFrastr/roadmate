@@ -6,13 +6,16 @@ import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition }
 import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
 import { CustomTagWeightRail } from "./CustomTagWeightRail";
 import { PostListEditor } from "./PostListEditor";
-import { embedTags, extractTagsFromPosts, refineAggregatedTags } from "./api/openrouter";
+import { embedTags, inferTagsFromCorpus } from "./api/openrouter";
 import { fetchUserTweets } from "./api/twitter";
 import { MAX_TWEETS_FETCH } from "./constants";
 import {
-  applyExtractedTags,
+  applyCorpusInference,
+  buildInferenceContext,
+  planCorpusInference,
+} from "./corpusUtils";
+import {
   clearPostInference,
-  getUnprocessedPosts,
   mergePosts,
   tweetsToPosts,
 } from "./postUtils";
@@ -22,9 +25,8 @@ import {
   saveProfile,
 } from "./storage";
 import {
-  aggregateTagsFromPosts,
-  applyTagRefinement,
   buildProfileEmbeddings,
+  corpusTagsToInterestTags,
   createCustomTag,
   interestTagsToWordCloud,
 } from "./tagUtils";
@@ -155,8 +157,8 @@ export function InterestLab() {
         return "正在从 twitterapi.io 拉取帖子…";
       case "analyzing":
         return analyzeProgress
-          ? `逐帖分析中 ${analyzeProgress.done}/${analyzeProgress.total}…`
-          : "正在逐帖推断标签…";
+          ? `语料分批分析 ${analyzeProgress.done}/${analyzeProgress.total}…`
+          : "正在滚动推断标签…";
       case "embedding":
         return "正在生成新标签向量…";
       case "done":
@@ -248,40 +250,30 @@ export function InterestLab() {
           (source.type === "paste" && profile.source.type === "paste"));
 
       const mergedPosts = sourcePosts;
-      const unprocessed = getUnprocessedPosts(mergedPosts);
+      const plan = planCorpusInference(
+        mergedPosts,
+        canReuseProfile ? profile?.inferenceContext : null,
+      );
 
-      if (unprocessed.length === 0 && sourcePosts.length > 0) {
+      if (plan.mode === "noop") {
         throw new Error("没有新帖子需要分析，请添加或修改帖子内容");
       }
 
       setStep("analyzing");
-      setAnalyzeProgress({ done: 0, total: unprocessed.length });
+      setAnalyzeProgress({ done: 0, total: 1 });
 
-      const extractionResults = await extractTagsFromPosts(
-        unprocessed.map((post) => ({ id: post.id, text: post.text })),
-        {
-          onProgress: (done, total) => setAnalyzeProgress({ done, total }),
-        },
-      );
+      const corpusResult = await inferTagsFromCorpus(mergedPosts, {
+        priorState: canReuseProfile ? profile?.inferenceContext : null,
+        onProgress: (done, total) => setAnalyzeProgress({ done, total }),
+      });
 
-      const postsWithTags = applyExtractedTags(mergedPosts, extractionResults);
-      const aggregatedTags = aggregateTagsFromPosts(postsWithTags);
-
-      let inferredTags = aggregatedTags;
-      if (aggregatedTags.length >= 2) {
-        const keepNames = await refineAggregatedTags(
-          aggregatedTags.map((tag) => ({ name: tag.name, postCount: tag.postCount ?? 1 })),
-        );
-        if (keepNames && keepNames.length > 0) {
-          const refined = applyTagRefinement(aggregatedTags, keepNames);
-          if (refined.length > 0) inferredTags = refined;
-        }
-      }
+      const postsWithInference = applyCorpusInference(mergedPosts, corpusResult);
+      const inferredTags = corpusTagsToInterestTags(corpusResult.tags, mergedPosts);
+      const inferenceContext = buildInferenceContext(corpusResult);
 
       if (inferredTags.length === 0) {
-        const hadExtractions = postsWithTags.some((post) => (post.tags?.length ?? 0) > 0);
         throw new Error(
-          hadExtractions
+          corpusResult.tags.length > 0
             ? "提取到的标签经去泛化后无剩余，请点击「清空标签」后重新推断，或补充更具体的帖子"
             : "未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容",
         );
@@ -310,16 +302,17 @@ export function InterestLab() {
         createdAt: canReuseProfile && profile ? profile.createdAt : now,
         updatedAt: now,
         source,
-        posts: postsWithTags,
+        posts: postsWithInference,
         tags,
         embeddings,
-        tweetCount: source.type === "twitter" ? postsWithTags.length : undefined,
+        inferenceContext,
+        tweetCount: source.type === "twitter" ? postsWithInference.length : undefined,
       };
 
       if (inputMode === "paste") {
-        setPastePosts(postsWithTags);
+        setPastePosts(postsWithInference);
       } else {
-        setTwitterPosts(postsWithTags);
+        setTwitterPosts(postsWithInference);
       }
 
       setSelectedCustomTagId(null);
@@ -420,6 +413,7 @@ export function InterestLab() {
         tags: [],
         embeddings: [],
         posts: clearedPosts,
+        inferenceContext: undefined,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -495,7 +489,7 @@ export function InterestLab() {
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            逐帖推断兴趣标签并聚合权重，右侧 App 预览词云；完成后进入近场设备雷达。
+            滚动语料推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
         </div>
         <div className="flex gap-2">
@@ -610,7 +604,7 @@ export function InterestLab() {
                 type="button"
                 disabled={isBusy || isTransitioning || !canClearTags}
                 onClick={handleClearTags}
-                title="清除词云与逐帖推断结果，帖子内容保留在列表中"
+                title="清除词云与语料推断结果，帖子内容保留在列表中"
                 className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 清空标签

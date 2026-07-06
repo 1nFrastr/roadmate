@@ -1,15 +1,12 @@
-import type { PostTagDraft } from "../types";
+import type { CorpusInferenceResult, CorpusInferenceState, PostRecord } from "../types";
 
 const EXTRACT_POSTS_PATH = "/api/interest-lab/openrouter/extract-posts";
 const REFINE_TAGS_PATH = "/api/interest-lab/openrouter/refine-tags";
 const EMBED_PATH = "/api/interest-lab/openrouter/embed";
 
-type ExtractStreamEvent =
+type InferStreamEvent =
   | { type: "progress"; done: number; total: number }
-  | {
-      type: "complete";
-      results: { id: string; tags: PostTagDraft[]; extractedAt: string }[];
-    }
+  | { type: "complete"; result: CorpusInferenceResult }
   | { type: "error"; message: string };
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
@@ -54,29 +51,33 @@ async function consumeNdjsonStream<T>(
   }
 }
 
-export async function extractTagsFromPosts(
-  posts: { id: string; text: string }[],
+/** 滚动语料推断（分批 + 压缩上下文） */
+export async function inferTagsFromCorpus(
+  posts: PostRecord[],
   options?: {
+    priorState?: CorpusInferenceState | null;
     onProgress?: (done: number, total: number) => void;
   },
-): Promise<Map<string, { tags: PostTagDraft[]; extractedAt: string }>> {
-  const total = posts.length;
-  options?.onProgress?.(0, total);
+): Promise<CorpusInferenceResult> {
+  options?.onProgress?.(0, 1);
 
   const response = await fetch(EXTRACT_POSTS_PATH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ posts }),
+    body: JSON.stringify({
+      posts,
+      priorState: options?.priorState ?? null,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "逐帖提取失败"));
+    throw new Error(await readApiError(response, "语料推断失败"));
   }
 
-  let completeResults: { id: string; tags: PostTagDraft[]; extractedAt: string }[] | null = null;
+  let completeResult: CorpusInferenceResult | null = null;
   let streamError: string | null = null;
 
-  await consumeNdjsonStream<ExtractStreamEvent>(response, (event) => {
+  await consumeNdjsonStream<InferStreamEvent>(response, (event) => {
     if (event.type === "progress") {
       options?.onProgress?.(event.done, event.total);
       return;
@@ -86,7 +87,7 @@ export async function extractTagsFromPosts(
       return;
     }
     if (event.type === "complete") {
-      completeResults = event.results;
+      completeResult = event.result;
     }
   });
 
@@ -94,17 +95,29 @@ export async function extractTagsFromPosts(
     throw new Error(streamError);
   }
 
-  if (!completeResults) {
-    throw new Error("逐帖提取未完成");
+  if (!completeResult) {
+    throw new Error("语料推断未完成");
   }
 
-  const items: { id: string; tags: PostTagDraft[]; extractedAt: string }[] = completeResults;
-  const results = new Map<string, { tags: PostTagDraft[]; extractedAt: string }>();
-  for (const item of items) {
-    results.set(item.id, { tags: item.tags, extractedAt: item.extractedAt });
-  }
+  return completeResult;
+}
 
-  return results;
+/** @deprecated 使用 inferTagsFromCorpus */
+export async function extractTagsFromPosts(
+  posts: { id: string; text: string }[],
+  options?: {
+    onProgress?: (done: number, total: number) => void;
+  },
+): Promise<Map<string, { tags: never[]; extractedAt: string }>> {
+  const result = await inferTagsFromCorpus(
+    posts.map((post) => ({ ...post, createdAt: new Date().toISOString() })),
+    { onProgress: options?.onProgress },
+  );
+  const map = new Map<string, { tags: never[]; extractedAt: string }>();
+  for (const id of result.processedPostIds) {
+    map.set(id, { tags: [], extractedAt: result.extractedAt });
+  }
+  return map;
 }
 
 /** profile 级标签精炼；失败时 return null，调用方应回退到聚合结果 */

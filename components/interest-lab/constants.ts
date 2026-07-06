@@ -37,6 +37,30 @@ export const TWITTER_RETRY_MAX_DELAY_MS = 30_000;
 /** 每帖 LLM 最多提取标签数 */
 export const MAX_TAGS_PER_POST = 3;
 
+/** 标签名最大字数（词云 chip + 破冰话题宜短） */
+export const MAX_TAG_NAME_LENGTH = 6;
+
+/** 逐帖提取 temperature（0 = 最大稳定性） */
+export const LLM_EXTRACT_TEMPERATURE = 0;
+
+/** 标签精炼 temperature */
+export const LLM_REFINE_TEMPERATURE = 0;
+
+/** OpenRouter seed（部分模型支持，不支持时忽略） */
+export const LLM_SEED = 42;
+
+/** 语料分批：每批最多帖数 */
+export const CORPUS_BATCH_MAX_POSTS = 5;
+
+/** 语料分批：每批帖子正文总字符上限 */
+export const CORPUS_BATCH_MAX_CHARS = 8000;
+
+/** 滚动压缩 summary 最大字数 */
+export const CORPUS_SUMMARY_MAX_CHARS = 220;
+
+/** 语料推断最终标签上限（滚动累积输出） */
+export const MAX_CORPUS_TAGS = 12;
+
 /** 并发 LLM 请求上限（单次最多约 20 帖，12 并发 ≈ 两轮跑完） */
 export const LLM_CONCURRENCY = 12;
 

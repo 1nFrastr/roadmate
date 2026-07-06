@@ -9,10 +9,18 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { LLM_CONCURRENCY, MAX_TAGS_PER_POST, OPENROUTER_API_BASE } from "../components/interest-lab/constants";
+import {
+  LLM_CONCURRENCY,
+  LLM_EXTRACT_TEMPERATURE,
+  LLM_SEED,
+  MAX_TAGS_PER_POST,
+  OPENROUTER_API_BASE,
+} from "../components/interest-lab/constants";
 import { parsePostsFromTxt } from "../components/interest-lab/postImportExport";
 import { POST_TAG_EXTRACTION_PROMPT } from "../components/interest-lab/prompts";
 import { filterPostTagDrafts } from "../components/interest-lab/tagFilter";
+import { canonicalTagName } from "../components/interest-lab/tagCanonical";
+import { shouldSkipTagExtraction } from "../components/interest-lab/server/postExtractionSkip";
 import type { PostTagDraft, PostTagResponse } from "../components/interest-lab/types";
 
 const DEFAULT_POSTS_PATH = resolve(process.cwd(), "scripts/fixtures/roadmate-posts.txt");
@@ -100,19 +108,22 @@ async function extractTagsFromPost(
   model: string,
   text: string,
 ): Promise<{ tags: PostTagDraft[]; reasoningTokens?: number; completionTokens?: number }> {
+  if (shouldSkipTagExtraction(text)) return { tags: [] };
+
   const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
     method: "POST",
     headers: openRouterHeaders(apiKey),
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      temperature: LLM_EXTRACT_TEMPERATURE,
+      seed: LLM_SEED,
       max_tokens: 200,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: POST_TAG_EXTRACTION_PROMPT },
         {
           role: "user",
-          content: `请分析以下单条发帖并提取可匹配话题标签：\n\n${text.slice(0, 2000)}`,
+          content: `请分析以下发帖，提取能体现公共上下文的搭子标签（≤6 字）：\n\n${text.slice(0, 2000)}`,
         },
       ],
     }),
@@ -145,7 +156,7 @@ async function extractTagsFromPost(
       .filter((tag) => tag.name?.trim())
       .slice(0, MAX_TAGS_PER_POST)
       .map((tag) => ({
-        name: tag.name.trim(),
+        name: canonicalTagName(tag.name.trim()),
         sentiment: clamp01(tag.sentiment),
       })),
   );

@@ -1,6 +1,28 @@
+import { MAX_REFINED_TAGS } from "@/components/interest-lab/constants";
 import { isTagRefinementEnabled } from "@/components/interest-lab/server/env";
 import { refineAggregatedTags } from "@/components/interest-lab/server/openrouter";
 import { logInferenceTiming } from "@/components/interest-lab/server/timing";
+import { isGenericTag } from "@/components/interest-lab/tagFilter";
+import { canonicalTagName } from "@/components/interest-lab/tagCanonical";
+import { normalizeTagKey } from "@/components/interest-lab/postUtils";
+
+function deterministicKeep(tags: { name: string; postCount: number }[]): string[] {
+  const seen = new Set<string>();
+  const keep: string[] = [];
+
+  for (const tag of tags) {
+    const name = canonicalTagName(tag.name);
+    if (!name || isGenericTag(name)) continue;
+
+    const key = normalizeTagKey(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keep.push(name);
+    if (keep.length >= MAX_REFINED_TAGS) break;
+  }
+
+  return keep;
+}
 
 export async function POST(request: Request) {
   const started = Date.now();
@@ -13,15 +35,16 @@ export async function POST(request: Request) {
     const tags = body.tags ?? [];
 
     if (!isTagRefinementEnabled()) {
-      logInferenceTiming("refine-tags", Date.now() - started, { skipped: true, tagCount: tags.length });
+      const keep = deterministicKeep(tags);
+      logInferenceTiming("refine-tags", Date.now() - started, { skipped: true, tagCount: tags.length, kept: keep.length });
       return Response.json({
-        keep: tags.map((tag) => tag.name),
+        keep,
         skipped: true,
       });
     }
 
     const keep = await refineAggregatedTags(tags);
-    return Response.json({ keep, skipped: false });
+    return Response.json({ keep: keep ?? deterministicKeep(tags), skipped: false });
   } catch (err) {
     const message = err instanceof Error ? err.message : "标签精炼失败";
     const status = message.includes("未配置") ? 503 : 502;
