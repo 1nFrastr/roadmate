@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono, VT323 } from "next/font/google";
 import "./globals.css";
 
@@ -33,7 +35,11 @@ export default function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} ${devicePixel.variable} h-dvh antialiased`}
     >
-      <body className="flex h-dvh flex-col">{children}</body>
+      <body className="flex h-dvh flex-col">
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
