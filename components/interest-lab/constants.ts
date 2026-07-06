@@ -1,6 +1,5 @@
 export const STORAGE_KEYS = {
   profiles: "roadmate:interest-lab:profiles",
-  llmModel: "roadmate:interest-lab:llm-model",
 } as const;
 
 export { DEFAULT_LLM_MODEL } from "./llmModels";

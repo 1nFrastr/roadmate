@@ -1,5 +1,4 @@
 import { STORAGE_KEYS } from "./constants";
-import { resolveLlmModel, type LlmModelId } from "./llmModels";
 import type { StoredInterestProfile } from "./types";
 
 function readJson<T>(key: string, fallback: T): T {
@@ -44,14 +43,4 @@ export function deleteProfile(id: string) {
   const next = loadProfiles().filter((item) => item.id !== id);
   writeJson(STORAGE_KEYS.profiles, next);
   return next;
-}
-
-export function loadLlmModel(fallback?: string): LlmModelId {
-  if (typeof window === "undefined") return resolveLlmModel(fallback);
-  const stored = localStorage.getItem(STORAGE_KEYS.llmModel);
-  return resolveLlmModel(stored ?? undefined, fallback);
-}
-
-export function saveLlmModel(model: LlmModelId) {
-  localStorage.setItem(STORAGE_KEYS.llmModel, model);
 }
