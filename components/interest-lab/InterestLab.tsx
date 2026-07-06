@@ -47,7 +47,11 @@ const STAGE_LABELS: Record<TimelineInferenceProgress["stage"], string> = {
   extract: "标签提取",
 };
 
-export function InterestLab() {
+type InterestLabProps = {
+  llmModel?: string;
+};
+
+export function InterestLab({ llmModel }: InterestLabProps = {}) {
   const headerRef = useRef<HTMLElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const previewAsideRef = useRef<HTMLElement>(null);
@@ -494,6 +498,9 @@ export function InterestLab() {
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
             三阶段时间线推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
+          {llmModel ? (
+            <p className="mt-1.5 font-mono text-[11px] text-zinc-500">LLM · {llmModel}</p>
+          ) : null}
         </div>
       </header>
 
