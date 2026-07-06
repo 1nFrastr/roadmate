@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition } from "@/components/journey";
 import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
@@ -495,14 +494,6 @@ export function InterestLab() {
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
             三阶段时间线推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/tag-cloud"
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-          >
-            词云测试 →
-          </Link>
         </div>
       </header>
 
