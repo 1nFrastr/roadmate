@@ -107,12 +107,9 @@ function isRateLimitMessage(message: string | undefined): boolean {
 
 async function fetchTwitterJson(
   url: string,
-  apiKey: string,
   attempt = 0,
 ): Promise<{ response: Response; data: TwitterLastTweetsResponse }> {
-  const response = await fetch(url, {
-    headers: { "X-API-Key": apiKey.trim() },
-  });
+  const response = await fetch(url);
 
   let data: TwitterLastTweetsResponse;
   try {
@@ -120,7 +117,7 @@ async function fetchTwitterJson(
   } catch {
     if (RETRYABLE_STATUSES.has(response.status) && attempt < TWITTER_FETCH_MAX_RETRIES) {
       await sleep(retryDelayMs(response, attempt));
-      return fetchTwitterJson(url, apiKey, attempt + 1);
+      return fetchTwitterJson(url, attempt + 1);
     }
     throw new Error(`Twitter API 响应解析失败 (${response.status})`);
   }
@@ -132,7 +129,7 @@ async function fetchTwitterJson(
 
   if (shouldRetry) {
     await sleep(retryDelayMs(response, attempt));
-    return fetchTwitterJson(url, apiKey, attempt + 1);
+    return fetchTwitterJson(url, attempt + 1);
   }
 
   return { response, data };
@@ -165,12 +162,10 @@ function appendTweetsFromPage(
 
 export async function fetchUserTweets(
   userName: string,
-  apiKey: string,
   maxTweets = MAX_TWEETS_FETCH,
 ): Promise<FetchUserTweetsResult> {
   const handle = userName.replace(/^@/, "").trim();
   if (!handle) throw new Error("请输入有效的 X 用户名");
-  if (!apiKey.trim()) throw new Error("请填写 twitterapi.io API Key");
 
   const cap = Math.max(1, Math.min(maxTweets, MAX_TWEETS_FETCH));
   const tweets: FetchedTweet[] = [];
@@ -188,7 +183,7 @@ export async function fetchUserTweets(
     if (cursor) params.set("cursor", cursor);
 
     const url = `${TWITTER_PROXY_PATH}?${params}`;
-    const { response, data } = await fetchTwitterJson(url, apiKey);
+    const { response, data } = await fetchTwitterJson(url);
 
     if (!response.ok) {
       throw new Error(getApiErrorMessage(data) || `Twitter API 请求失败 (${response.status})`);
@@ -208,7 +203,7 @@ export async function fetchUserTweets(
   }
 
   if (tweets.length === 0) {
-    throw new Error("未获取到任何帖子，请检查用户名、API Key 或账号是否有公开推文");
+    throw new Error("未获取到任何帖子，请检查用户名或账号是否有公开推文");
   }
 
   return { tweets, truncated: tweets.length >= cap || lastHasNext };

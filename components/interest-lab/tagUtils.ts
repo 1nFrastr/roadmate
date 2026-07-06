@@ -1,11 +1,13 @@
 import {
   MAX_INFERRED_TAGS,
+  MIN_SINGLE_POST_SENTIMENT,
   MIN_TAG_POST_COUNT,
   RECENCY_DECAY_LAMBDA,
   STALE_TAG_DAYS,
   WEIGHT_FACTORS,
 } from "./constants";
 import { normalizeTagKey } from "./postUtils";
+import { isGenericTag } from "./tagFilter";
 import type { InterestTag, LlmTagDraft, PostRecord } from "./types";
 import type { WordCloudTag } from "@/components/tag-word-cloud";
 
@@ -62,6 +64,8 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
 
   for (const post of processed) {
     for (const tag of post.tags ?? []) {
+      if (isGenericTag(tag.name)) continue;
+
       const key = normalizeTagKey(tag.name);
       if (!key) continue;
 
@@ -105,6 +109,7 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
       ) / 1000;
     const recency = computeRecencyFromLastSeen(lastSeenAt, now);
 
+    if (postCount === 1 && sentiment < MIN_SINGLE_POST_SENTIMENT) continue;
     if (isStaleTag(lastSeenAt, postCount, now)) continue;
 
     tags.push({
@@ -119,6 +124,19 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
   }
 
   return tags.sort((a, b) => b.weight - a.weight).slice(0, MAX_INFERRED_TAGS);
+}
+
+/** 按 profile 精炼结果保留标签，顺序与 keepNames 一致 */
+export function applyTagRefinement(tags: InterestTag[], keepNames: string[]): InterestTag[] {
+  const byKey = new Map(tags.map((tag) => [normalizeTagKey(tag.name), tag]));
+  const kept: InterestTag[] = [];
+
+  for (const name of keepNames) {
+    const tag = byKey.get(normalizeTagKey(name));
+    if (tag) kept.push(tag);
+  }
+
+  return kept;
 }
 
 /** @deprecated 整段语料 LLM 分数直接转标签 */

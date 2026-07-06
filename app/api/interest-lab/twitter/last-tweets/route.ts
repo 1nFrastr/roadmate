@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TWITTER_API_BASE } from "@/components/interest-lab/constants";
+import { getTwitterApiKey } from "@/components/interest-lab/server/env";
 
-/** 浏览器无法直连 twitterapi.io（无 CORS），由服务端转发；Key 仍由客户端传入，不落盘 */
+/** 浏览器无法直连 twitterapi.io（无 CORS），由服务端转发；Key 从环境变量读取 */
 export async function GET(request: NextRequest) {
   const userName = request.nextUrl.searchParams.get("userName")?.trim();
   const cursor = request.nextUrl.searchParams.get("cursor")?.trim();
-  const apiKey = request.headers.get("x-api-key")?.trim();
 
   if (!userName) {
     return NextResponse.json({ status: "error", message: "缺少 userName" }, { status: 400 });
   }
-  if (!apiKey) {
-    return NextResponse.json({ status: "error", message: "缺少 X-API-Key" }, { status: 401 });
+
+  let apiKey: string;
+  try {
+    apiKey = getTwitterApiKey();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "服务端未配置 TWITTER_API_KEY";
+    return NextResponse.json({ status: "error", message }, { status: 503 });
   }
 
   const params = new URLSearchParams({ userName });

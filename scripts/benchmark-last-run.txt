@@ -1,0 +1,58 @@
+
+> roadmate@0.1.0 bench:flash
+> tsx scripts/benchmark-flash-models.ts
+
+帖子文件: /Users/xb/roadmate/scripts/fixtures/roadmate-posts.txt
+帖子数: 7，并发: 12
+待测模型: google/gemini-2.5-flash, qwen/qwen3.6-flash, deepseek/deepseek-v4-flash, qwen/qwen3.5-flash-02-23, z-ai/glm-4.7-flash, minimax/minimax-m3
+
+[1/6] google/gemini-2.5-flash … 墙钟 1172ms，标签 0，错误 7
+[2/6] qwen/qwen3.6-flash … 墙钟 22244ms，标签 10，错误 0
+[3/6] deepseek/deepseek-v4-flash … 墙钟 11098ms，标签 2，错误 0
+[4/6] qwen/qwen3.5-flash-02-23 … 墙钟 68031ms，标签 1，错误 0
+[5/6] z-ai/glm-4.7-flash … 墙钟 10794ms，标签 0，错误 0
+[6/6] minimax/minimax-m3 … 墙钟 16707ms，标签 2，错误 0
+
+=== Flash 模型逐帖提取基准（与 Interest Lab 相同 prompt / 并发）===
+
+排名	模型	墙钟(ms)	最慢帖(ms)	中位(ms)	均耗(ms)	标签数	错误
+1	google/gemini-2.5-flash 🏆	1172	1151	955	985	0	7
+2	z-ai/glm-4.7-flash	10794	10794	3661	4445	0	0
+3	deepseek/deepseek-v4-flash	11098	11098	4250	5142	2	0
+4	minimax/minimax-m3	16707	16706	10077	9780	2	0
+5	qwen/qwen3.6-flash	22244	22241	18569	15511	10	0
+6	qwen/qwen3.5-flash-02-23	68031	68030	47300	41497	1	0
+
+最快: google/gemini-2.5-flash（墙钟 1172ms，7 帖，并发 12）
+
+--- 各模型最慢 3 帖 ---
+
+google/gemini-2.5-flash
+  1151ms  tags=0 ERR 403: {"error":{"message":"This model is not available in your region.","code":403}}
+  986ms  tags=0 ERR 403: {"error":{"message":"This model is not available in your region.","code":403}}
+  967ms  tags=0 ERR 403: {"error":{"message":"This model is not available in your region.","code":403}}
+
+z-ai/glm-4.7-flash
+  10794ms  tags=0
+  6826ms  tags=0
+  3896ms  tags=0
+
+deepseek/deepseek-v4-flash
+  11098ms  tags=2
+  6258ms  tags=0
+  5062ms  tags=0
+
+minimax/minimax-m3
+  16706ms  tags=0
+  16002ms  tags=0
+  15912ms  tags=0
+
+qwen/qwen3.6-flash
+  22241ms  tags=2
+  21640ms  tags=3
+  20438ms  tags=1
+
+qwen/qwen3.5-flash-02-23
+  68030ms  tags=0
+  55813ms  tags=0
+  54803ms  tags=0

@@ -6,9 +6,9 @@ import { IphoneAppFrame, IPHONE_FRAME, IphonePreviewSlot, useJourneyTransition }
 import { TagWordCloud, TagWordCloudAddOrb, type TagWordCloudHandle } from "@/components/tag-word-cloud";
 import { CustomTagWeightRail } from "./CustomTagWeightRail";
 import { PostListEditor } from "./PostListEditor";
-import { embedTags, extractTagsFromPosts } from "./api/openrouter";
+import { embedTags, extractTagsFromPosts, refineAggregatedTags } from "./api/openrouter";
 import { fetchUserTweets } from "./api/twitter";
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, MAX_TWEETS_FETCH } from "./constants";
+import { MAX_TWEETS_FETCH } from "./constants";
 import {
   applyExtractedTags,
   clearPostInference,
@@ -18,15 +18,12 @@ import {
 } from "./postUtils";
 import {
   deleteProfile,
-  loadApiKeys,
   loadProfiles,
-  loadSettings,
-  saveApiKeys,
   saveProfile,
-  saveSettings,
 } from "./storage";
 import {
   aggregateTagsFromPosts,
+  applyTagRefinement,
   buildProfileEmbeddings,
   createCustomTag,
   interestTagsToWordCloud,
@@ -47,11 +44,6 @@ export function InterestLab() {
 
   const { startTransition, isTransitioning } = useJourneyTransition();
 
-  const [apiKeys, setApiKeys] = useState(() => loadApiKeys());
-  const [llmModel, setLlmModel] = useState(() => loadSettings().llmModel || DEFAULT_LLM_MODEL);
-  const [embeddingModel, setEmbeddingModel] = useState(
-    () => loadSettings().embeddingModel || DEFAULT_EMBEDDING_MODEL,
-  );
   const [inputMode, setInputMode] = useState<InputMode>("paste");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [twitterPosts, setTwitterPosts] = useState<PostRecord[]>([]);
@@ -80,20 +72,9 @@ export function InterestLab() {
     }
   }, []);
 
-  const persistKeys = useCallback((next: typeof apiKeys) => {
-    setApiKeys(next);
-    saveApiKeys(next);
-  }, []);
-
   const persistProfile = useCallback((next: StoredInterestProfile) => {
     setProfile(next);
     setSavedProfiles(saveProfile(next));
-  }, []);
-
-  const persistSettings = useCallback((llm: string, embedding: string) => {
-    setLlmModel(llm);
-    setEmbeddingModel(embedding);
-    saveSettings({ llmModel: llm, embeddingModel: embedding });
   }, []);
 
   const wordCloudTags = useMemo(
@@ -175,9 +156,9 @@ export function InterestLab() {
       case "analyzing":
         return analyzeProgress
           ? `逐帖分析中 ${analyzeProgress.done}/${analyzeProgress.total}…`
-          : "OpenRouter LLM 正在逐帖推断标签…";
+          : "正在逐帖推断标签…";
       case "embedding":
-        return "OpenRouter 正在生成新标签向量…";
+        return "正在生成新标签向量…";
       case "done":
         return "完成";
       case "error":
@@ -192,12 +173,6 @@ export function InterestLab() {
     setFetchStatus("idle");
     setError(null);
 
-    if (!apiKeys.twitterApiKey.trim()) {
-      setFetchStatus("error");
-      setFetchMessage("请填写 twitterapi.io API Key");
-      return;
-    }
-
     const handle = twitterHandle.replace(/^@/, "").trim();
     if (!handle) {
       setFetchStatus("error");
@@ -210,7 +185,7 @@ export function InterestLab() {
 
     try {
       setFetchStatus("fetching");
-      const { tweets, truncated } = await fetchUserTweets(twitterHandle, apiKeys.twitterApiKey);
+      const { tweets, truncated } = await fetchUserTweets(twitterHandle);
       const incoming = tweetsToPosts(tweets);
       const basePosts = handleChanged ? [] : twitterPosts;
       const merged = mergePosts(basePosts, incoming);
@@ -243,12 +218,6 @@ export function InterestLab() {
     setError(null);
     setStep("idle");
     setAnalyzeProgress(null);
-
-    if (!apiKeys.openRouterKey.trim()) {
-      setError("请先填写 OpenRouter API Key");
-      setStep("error");
-      return;
-    }
 
     try {
       let sourcePosts: PostRecord[] = [];
@@ -290,18 +259,32 @@ export function InterestLab() {
 
       const extractionResults = await extractTagsFromPosts(
         unprocessed.map((post) => ({ id: post.id, text: post.text })),
-        apiKeys.openRouterKey,
-        llmModel,
         {
           onProgress: (done, total) => setAnalyzeProgress({ done, total }),
         },
       );
 
       const postsWithTags = applyExtractedTags(mergedPosts, extractionResults);
-      const inferredTags = aggregateTagsFromPosts(postsWithTags);
+      const aggregatedTags = aggregateTagsFromPosts(postsWithTags);
+
+      let inferredTags = aggregatedTags;
+      if (aggregatedTags.length >= 2) {
+        const keepNames = await refineAggregatedTags(
+          aggregatedTags.map((tag) => ({ name: tag.name, postCount: tag.postCount ?? 1 })),
+        );
+        if (keepNames && keepNames.length > 0) {
+          const refined = applyTagRefinement(aggregatedTags, keepNames);
+          if (refined.length > 0) inferredTags = refined;
+        }
+      }
 
       if (inferredTags.length === 0) {
-        throw new Error("未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容");
+        const hadExtractions = postsWithTags.some((post) => (post.tags?.length ?? 0) > 0);
+        throw new Error(
+          hadExtractions
+            ? "提取到的标签经去泛化后无剩余，请点击「清空标签」后重新推断，或补充更具体的帖子"
+            : "未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容",
+        );
       }
 
       const customTags = (canReuseProfile ? profile?.tags : [])?.filter((tag) => tag.custom) ?? [];
@@ -314,7 +297,7 @@ export function InterestLab() {
         .map((tag) => tag.name)
         .filter((name) => !existingNames.has(name));
 
-      const vectors = await embedTags(namesToEmbed, apiKeys.openRouterKey, embeddingModel);
+      const vectors = await embedTags(namesToEmbed);
       const newlyEmbedded = namesToEmbed.map((name, index) => ({
         name,
         vector: vectors[index] ?? [],
@@ -531,56 +514,6 @@ export function InterestLab() {
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:min-h-0"
         >
           <div className="flex flex-col gap-4 pb-1">
-          <section className="grid gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 lg:grid-cols-2">
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-zinc-200">API Keys（仅存本地）</h2>
-              <label className="block text-xs text-zinc-500">
-                OpenRouter Key
-                <input
-                  type="password"
-                  value={apiKeys.openRouterKey}
-                  onChange={(event) =>
-                    persistKeys({ ...apiKeys, openRouterKey: event.target.value })
-                  }
-                  placeholder="sk-or-..."
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60"
-                />
-              </label>
-              <label className="block text-xs text-zinc-500">
-                twitterapi.io Key（仅 X 模式）
-                <input
-                  type="password"
-                  value={apiKeys.twitterApiKey}
-                  onChange={(event) =>
-                    persistKeys({ ...apiKeys, twitterApiKey: event.target.value })
-                  }
-                  placeholder="X-API-Key"
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60"
-                />
-              </label>
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-zinc-200">模型</h2>
-              <label className="block text-xs text-zinc-500">
-                LLM 模型
-                <input
-                  value={llmModel}
-                  onChange={(event) => persistSettings(event.target.value, embeddingModel)}
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 outline-none focus:border-cyan-500/60"
-                />
-              </label>
-              <label className="block text-xs text-zinc-500">
-                Embedding 模型
-                <input
-                  value={embeddingModel}
-                  onChange={(event) => persistSettings(llmModel, event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 outline-none focus:border-cyan-500/60"
-                />
-              </label>
-            </div>
-          </section>
-
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <div className="mb-4 flex flex-wrap gap-2">
               <button

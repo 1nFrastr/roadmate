@@ -52,11 +52,6 @@ export interface StoredInterestProfile {
   tweetCount?: number;
 }
 
-export interface ApiKeys {
-  openRouterKey: string;
-  twitterApiKey: string;
-}
-
 /** @deprecated 整段语料推断遗留类型 */
 export interface LlmTagDraft {
   name: string;

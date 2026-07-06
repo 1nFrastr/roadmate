@@ -1,10 +1,8 @@
 export const STORAGE_KEYS = {
-  apiKeys: "roadmate:interest-lab:api-keys",
   profiles: "roadmate:interest-lab:profiles",
-  settings: "roadmate:interest-lab:settings",
 } as const;
 
-export const DEFAULT_LLM_MODEL = "minimax/minimax-m3";
+export const DEFAULT_LLM_MODEL = "deepseek/deepseek-v4-flash";
 export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 export const TWITTER_API_BASE = "https://api.twitterapi.io";
@@ -39,14 +37,20 @@ export const TWITTER_RETRY_MAX_DELAY_MS = 30_000;
 /** 每帖 LLM 最多提取标签数 */
 export const MAX_TAGS_PER_POST = 3;
 
-/** 并发 LLM 请求上限 */
-export const LLM_CONCURRENCY = 6;
+/** 并发 LLM 请求上限（单次最多约 20 帖，12 并发 ≈ 两轮跑完） */
+export const LLM_CONCURRENCY = 12;
 
 /** 最终保留的推断标签上限 */
 export const MAX_INFERRED_TAGS = 20;
 
-/** 至少出现在多少帖才保留（custom 不受限） */
+/** 至少出现在多少帖才保留（custom 不受限）；逐帖提取下标签重复率低，保持 1 */
 export const MIN_TAG_POST_COUNT = 1;
+
+/** 仅出现 1 帖时，sentiment 低于此值的标签丢弃（过滤顺带提及） */
+export const MIN_SINGLE_POST_SENTIMENT = 0.45;
+
+/** profile 级精炼后最多保留的推断标签数 */
+export const MAX_REFINED_TAGS = 12;
 
 /** recency 指数衰减 λ（每天）；0.08 → 约 30 天降至 0.09，90 天降至 0.001 */
 export const RECENCY_DECAY_LAMBDA = 0.08;
