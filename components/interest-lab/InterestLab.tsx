@@ -202,17 +202,12 @@ export function InterestLab() {
       setFetchMessage(`已获取 ${incoming.length} 条动态${limitHint}`);
 
       if (profile) {
-        const customTags = profile.tags.filter((tag) => tag.custom);
-        const customNames = new Set(customTags.map((tag) => tag.name));
         persistProfile({
           ...profile,
           source: { type: "twitter", handle },
           posts: incoming,
-          tags: customTags,
-          embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
           updatedAt: new Date().toISOString(),
         });
-        setSelectedCustomTagId(null);
       }
     } catch (err) {
       setStep("error");
@@ -235,15 +230,7 @@ export function InterestLab() {
         ? { type: "twitter", handle }
         : { type: "paste" };
 
-      const canReuseProfile =
-        profile &&
-        ((source.type === "twitter" &&
-          profile.source.type === "twitter" &&
-          profile.source.handle === handle) ||
-          (source.type === "paste" && profile.source.type === "paste"));
-
-      const mergedPosts = sourcePosts;
-      const eligiblePosts = getEligiblePosts(mergedPosts);
+      const eligiblePosts = getEligiblePosts(sourcePosts);
 
       if (eligiblePosts.length === 0) {
         throw new Error("请至少添加一条有内容的帖子");
@@ -252,12 +239,12 @@ export function InterestLab() {
       setStep("analyzing");
       setAnalyzeProgress({ stage: "preprocess", done: 0, total: 1 });
 
-      const timelineResult = await inferTagsFromTimeline(mergedPosts, {
+      const timelineResult = await inferTagsFromTimeline(sourcePosts, {
         onProgress: (progress) => setAnalyzeProgress(progress),
       });
 
-      const postsWithInference = applyTimelineInference(mergedPosts, timelineResult);
-      const inferredTags = timelineResultToInterestTags(timelineResult, mergedPosts);
+      const postsWithInference = applyTimelineInference(sourcePosts, timelineResult);
+      const inferredTags = timelineResultToInterestTags(timelineResult, sourcePosts);
 
       if (inferredTags.length === 0) {
         throw new Error(
@@ -267,27 +254,21 @@ export function InterestLab() {
         );
       }
 
-      const customTags = (canReuseProfile ? profile?.tags : [])?.filter((tag) => tag.custom) ?? [];
-      const tags = [...inferredTags, ...customTags];
+      const tags = inferredTags;
 
       setStep("embedding");
-      const existingEmbeddings = canReuseProfile ? (profile?.embeddings ?? []) : [];
-      const existingNames = new Set(existingEmbeddings.map((item) => item.name));
-      const namesToEmbed = inferredTags
-        .map((tag) => tag.name)
-        .filter((name) => !existingNames.has(name));
-
+      const namesToEmbed = inferredTags.map((tag) => tag.name);
       const vectors = await embedTags(namesToEmbed);
       const newlyEmbedded = namesToEmbed.map((name, index) => ({
         name,
         vector: vectors[index] ?? [],
       }));
-      const embeddings = buildProfileEmbeddings(tags, existingEmbeddings, newlyEmbedded);
+      const embeddings = buildProfileEmbeddings(tags, [], newlyEmbedded);
 
       const now = new Date().toISOString();
       const nextProfile: StoredInterestProfile = {
-        id: canReuseProfile && profile ? profile.id : crypto.randomUUID(),
-        createdAt: canReuseProfile && profile ? profile.createdAt : now,
+        id: profile?.id ?? crypto.randomUUID(),
+        createdAt: profile?.createdAt ?? now,
         updatedAt: now,
         source,
         posts: postsWithInference,
@@ -313,20 +294,8 @@ export function InterestLab() {
       setPosts(imported);
       setStep("idle");
       setError(null);
-      setSelectedCustomTagId(null);
-
-      if (!profile) return;
-
-      persistProfile({
-        ...profile,
-        source: { type: "paste" },
-        posts: imported,
-        tags: [],
-        embeddings: [],
-        updatedAt: new Date().toISOString(),
-      });
     },
-    [persistProfile, profile],
+    [],
   );
 
   const handleClearTags = useCallback(() => {
