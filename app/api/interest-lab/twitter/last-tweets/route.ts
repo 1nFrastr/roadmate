@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TWITTER_API_BASE } from "@/components/interest-lab/constants";
+import { TWITTER_API_BASE, TWITTER_CACHE_REVALIDATE_SEC } from "@/components/interest-lab/constants";
 import { getTwitterApiKey } from "@/components/interest-lab/server/env";
-import {
-  delayTwitterCacheHit,
-  getTwitterCached,
-  isTwitterResponseCacheable,
-  setTwitterCached,
-  twitterCacheKey,
-} from "@/components/interest-lab/server/twitterCache";
+
+function twitterCacheTag(userName: string, cursor?: string): string {
+  const handle = userName.replace(/^@/, "").trim().toLowerCase();
+  const page = cursor?.trim();
+  return page ? `twitter:${handle}:${page}` : `twitter:${handle}`;
+}
 
 /** 浏览器无法直连 twitterapi.io（无 CORS），由服务端转发；Key 从环境变量读取 */
 export async function GET(request: NextRequest) {
@@ -16,16 +15,6 @@ export async function GET(request: NextRequest) {
 
   if (!userName) {
     return NextResponse.json({ status: "error", message: "缺少 userName" }, { status: 400 });
-  }
-
-  const cacheKey = twitterCacheKey(userName, cursor);
-  const cached = getTwitterCached(cacheKey);
-  if (cached) {
-    await delayTwitterCacheHit();
-    return NextResponse.json(cached.body, {
-      status: cached.status,
-      headers: { "X-Cache": "HIT" },
-    });
   }
 
   let apiKey: string;
@@ -42,17 +31,15 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(`${TWITTER_API_BASE}/twitter/user/last_tweets?${params}`, {
       headers: { "X-API-Key": apiKey },
+      cache: "force-cache",
+      next: {
+        revalidate: TWITTER_CACHE_REVALIDATE_SEC,
+        tags: [twitterCacheTag(userName, cursor)],
+      },
     });
 
     const data = (await response.json()) as Record<string, unknown>;
-    if (isTwitterResponseCacheable(response.status, data)) {
-      setTwitterCached(cacheKey, response.status, data);
-    }
-
-    return NextResponse.json(data, {
-      status: response.status,
-      headers: { "X-Cache": "MISS" },
-    });
+    return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
       { status: "error", message: "Twitter API 代理请求失败" },
