@@ -317,14 +317,12 @@ export function InterestLab() {
 
       if (!profile) return;
 
-      const customTags = profile.tags.filter((tag) => tag.custom);
-      const customNames = new Set(customTags.map((tag) => tag.name));
       persistProfile({
         ...profile,
         source: { type: "paste" },
         posts: imported,
-        tags: customTags,
-        embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
+        tags: [],
+        embeddings: [],
         updatedAt: new Date().toISOString(),
       });
     },

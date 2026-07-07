@@ -96,8 +96,8 @@ export const CORPUS_SUMMARY_MAX_CHARS = 220;
 /** 语料推断最终标签上限（滚动累积输出） */
 export const MAX_CORPUS_TAGS = 12;
 
-/** 并发 LLM 请求上限（单次最多约 20 帖，12 并发 ≈ 两轮跑完） */
-export const LLM_CONCURRENCY = 12;
+/** 并发 LLM 请求上限 */
+export const LLM_CONCURRENCY = 30;
 
 /** 最终保留的推断标签上限 */
 export const MAX_INFERRED_TAGS = 20;

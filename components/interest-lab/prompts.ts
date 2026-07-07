@@ -66,18 +66,18 @@ export const POST_PREPROCESS_PROMPT = `你是 Roadmate 兴趣推断流水线的*
 不要 markdown 或解释文字。`;
 
 /** 方案 C — 阶段 2：时间线语义合并 */
-export const TIMELINE_MERGE_PROMPT = `你是 Roadmate 兴趣推断流水线的**时间线合并器**。输入是按时间从旧到新排列的预处理帖子摘要（每条含 id 与相对时间）。
+export const TIMELINE_MERGE_PROMPT = `你是 Roadmate 兴趣推断流水线的**时间线合并器**。输入是按时间从旧到新排列的预处理帖子摘要（每条含短序号 p1/p2… 与相对时间）。
 
 任务：输出进一步合并后的时间线条目 entries：
 - **合并规则**：相邻 ${TIMELINE_MERGE_WINDOW_DAYS} 天内、语义话题高度相似的条目合并为一条
 - 合并后 summary 综合多条要点，去重、保留具体名词
-- sourcePostIds 必须来自输入中的 id，可包含 1 条或多条
-- 未满足合并条件的帖子保持独立条目（sourcePostIds 仅含自身 id）
-- 保持时间顺序；不要创造输入中不存在的 id
+- sourcePostIds 必须使用输入中的短序号（p1、p2…），可包含 1 条或多条
+- 未满足合并条件的帖子保持独立条目（sourcePostIds 仅含自身序号）
+- 保持时间顺序；不要创造输入中不存在的序号
 
 不要提取最终破冰标签，只做时间线压缩合并。
 
-只输出合法 JSON：{"entries":[{"summary":"合并后要点","sourcePostIds":["id1","id2"]}]}
+只输出合法 JSON：{"entries":[{"summary":"合并后要点","sourcePostIds":["p1","p2"]}]}
 不要 markdown 或解释文字。`;
 
 /** 方案 C — 阶段 3：时间线 → 破冰标签（最重的产品向 prompt） */

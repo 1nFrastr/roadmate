@@ -31,6 +31,7 @@ import { logInferenceTiming } from "./timing";
 import {
   formatPreprocessedForMergePrompt,
   formatTimelineForExtractPrompt,
+  resolveMergeSourcePostIds,
 } from "./timelineFormat";
 
 interface LlmContext {
@@ -185,12 +186,30 @@ async function preprocessAllPosts(
   onProgress?.(0, total);
 
   let done = 0;
+  const perPostMs: { id: string; ms: number }[] = [];
   const results = await runWithConcurrency(eligible, LLM_CONCURRENCY, async (post) => {
+    const started = Date.now();
     const result = await preprocessPost(ctx, post);
+    perPostMs.push({ id: post.id, ms: Date.now() - started });
     done += 1;
     onProgress?.(done, total);
     return result;
   });
+
+  if (perPostMs.length > 0) {
+    const sorted = [...perPostMs].sort((a, b) => b.ms - a.ms);
+    const medianMs = sorted[Math.floor(sorted.length / 2)]!.ms;
+    const slowest = sorted[0]!;
+    const secondMs = sorted[1]?.ms ?? slowest.ms;
+    logInferenceTiming("preprocess-posts", slowest.ms, {
+      postCount: total,
+      medianMs,
+      meanMs: Math.round(perPostMs.reduce((sum, item) => sum + item.ms, 0) / perPostMs.length),
+      slowestId: slowest.id,
+      tailGapMs: slowest.ms - secondMs,
+      top3: sorted.slice(0, 3).map((item) => ({ id: item.id, ms: item.ms })),
+    });
+  }
 
   return results;
 }
@@ -232,7 +251,7 @@ async function mergeTimeline(
   if (signalPosts.length === 0) return [];
 
   const postsById = new Map(signalPosts.map((post) => [post.id, post]));
-  const promptBody = formatPreprocessedForMergePrompt(signalPosts);
+  const { body: promptBody, shortToPostId } = formatPreprocessedForMergePrompt(signalPosts);
 
   const parsed = await callLlmJson<{
     entries?: { summary?: string; sourcePostIds?: string[] }[];
@@ -254,7 +273,7 @@ async function mergeTimeline(
     const summary = raw.summary?.trim();
     if (!summary) continue;
 
-    const sourcePostIds = (raw.sourcePostIds ?? []).filter((id) => validIds.has(id));
+    const sourcePostIds = resolveMergeSourcePostIds(raw.sourcePostIds ?? [], shortToPostId, validIds);
     if (sourcePostIds.length === 0) continue;
 
     entries.push({
@@ -341,15 +360,23 @@ export async function inferTagsFromTimeline(
     options?.onProgress?.({ stage, done, total });
   };
 
+  const preprocessStarted = Date.now();
   const preprocessed = await preprocessAllPosts(ctx, posts, (done, total) => {
     report("preprocess", done, total);
   });
+  const preprocessMs = Date.now() - preprocessStarted;
 
+  report("merge", 0, 1);
+  const mergeStarted = Date.now();
   const timeline = await mergeTimeline(ctx, preprocessed);
   report("merge", 1, 1);
+  const mergeMs = Date.now() - mergeStarted;
 
+  report("extract", 0, 1);
+  const extractStarted = Date.now();
   const tags = await extractTagsFromTimeline(ctx, timeline);
   report("extract", 1, 1);
+  const extractMs = Date.now() - extractStarted;
 
   logInferenceTiming("infer-timeline", Date.now() - started, {
     model: ctx.model,
@@ -357,6 +384,9 @@ export async function inferTagsFromTimeline(
     signalPosts: preprocessed.filter((p) => !p.isNoise).length,
     timelineEntries: timeline.length,
     tagCount: tags.length,
+    preprocessMs,
+    mergeMs,
+    extractMs,
   });
 
   return {
