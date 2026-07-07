@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadPostsTxt, parsePostsFromTxt } from "./postImportExport";
 import {
   createPostRecord,
@@ -90,6 +90,8 @@ function RelativeTimeControl({
 
 export function PostListEditor({ posts, onChange, onImport, disabled }: PostListEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const pendingScrollToBottomRef = useRef(false);
   const [ioMessage, setIoMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [importFilename, setImportFilename] = useState<string | null>(null);
 
@@ -115,8 +117,15 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
 
   const addPost = useCallback(() => {
     setImportFilename(null);
-    onChange([createPostRecord(""), ...posts]);
+    pendingScrollToBottomRef.current = true;
+    onChange([...posts, createPostRecord("")]);
   }, [onChange, posts]);
+
+  useEffect(() => {
+    if (!pendingScrollToBottomRef.current || !listRef.current) return;
+    pendingScrollToBottomRef.current = false;
+    listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [posts]);
 
   const handleExport = useCallback(() => {
     const exportable = posts.filter((post) => post.text.trim());
@@ -221,14 +230,17 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
           点击「添加帖子」开始测试
         </p>
       ) : (
-        <ul className="max-h-[360px] space-y-2 overflow-y-auto overscroll-contain pr-1">
+        <ul
+          ref={listRef}
+          className="max-h-[360px] space-y-2 overflow-y-auto overscroll-contain pr-1"
+        >
           {posts.map((post, index) => (
             <li
               key={post.id}
               className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3"
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-zinc-500">帖子 {posts.length - index}</span>
+                <span className="text-xs font-medium text-zinc-500">帖子 {index + 1}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   {post.extractedAt ? (
                     <span className="text-[10px] text-emerald-400/80">已纳入推断</span>

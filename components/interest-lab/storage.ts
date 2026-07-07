@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from "./constants";
-import type { StoredInterestProfile } from "./types";
+import type { PostRecord, StoredInterestProfile } from "./types";
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -16,25 +16,26 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-/** 帖子列表仅会话内使用，不写入 localStorage */
-function stripPostsForStorage(profile: StoredInterestProfile): StoredInterestProfile {
-  const { posts: _posts, ...rest } = profile;
-  return rest;
+export interface InterestLabDraft {
+  posts: PostRecord[];
+  twitterHandle: string;
+}
+
+export function loadDraft(): InterestLabDraft {
+  return readJson<InterestLabDraft>(STORAGE_KEYS.draft, { posts: [], twitterHandle: "" });
+}
+
+export function saveDraft(draft: InterestLabDraft) {
+  writeJson(STORAGE_KEYS.draft, draft);
 }
 
 export function loadProfiles(): StoredInterestProfile[] {
-  const raw = readJson<StoredInterestProfile[]>(STORAGE_KEYS.profiles, []);
-  const stripped = raw.map(stripPostsForStorage);
-  if (raw.some((item) => item.posts?.length)) {
-    writeJson(STORAGE_KEYS.profiles, stripped);
-  }
-  return stripped;
+  return readJson<StoredInterestProfile[]>(STORAGE_KEYS.profiles, []);
 }
 
 export function saveProfile(profile: StoredInterestProfile) {
   const profiles = loadProfiles();
-  const stored = stripPostsForStorage(profile);
-  const next = [stored, ...profiles.filter((item) => item.id !== stored.id)].slice(0, 20);
+  const next = [profile, ...profiles.filter((item) => item.id !== profile.id)].slice(0, 20);
   writeJson(STORAGE_KEYS.profiles, next);
   return next;
 }

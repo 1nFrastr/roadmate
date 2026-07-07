@@ -14,22 +14,15 @@ import {
   timelineResultToInterestTags,
 } from "./timelineUtils";
 import {
-  clearPostInference,
-  mergePosts,
   tweetsToPosts,
 } from "./postUtils";
-import {
-  deleteProfile,
-  loadProfiles,
-  saveProfile,
-} from "./storage";
+import { loadDraft, loadProfiles, saveDraft, saveProfile } from "./storage";
 import {
   buildProfileEmbeddings,
   createCustomTag,
   interestTagsToWordCloud,
 } from "./tagUtils";
 import type {
-  InputMode,
   InterestTag,
   PostRecord,
   StoredInterestProfile,
@@ -37,7 +30,6 @@ import type {
 } from "./types";
 
 type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
-type FetchStatus = "idle" | "fetching" | "done" | "error";
 
 const IPHONE_CONTENT_HEIGHT = IPHONE_FRAME.compact.contentHeight;
 
@@ -56,37 +48,44 @@ export function InterestLab() {
 
   const { startTransition, isTransitioning } = useJourneyTransition();
 
-  const [inputMode, setInputMode] = useState<InputMode>("paste");
-  const [twitterHandle, setTwitterHandle] = useState("");
-  const [twitterPosts, setTwitterPosts] = useState<PostRecord[]>([]);
-  const [fetchStatus, setFetchStatus] = useState<FetchStatus>("idle");
-  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
-  const [pastePosts, setPastePosts] = useState<PostRecord[]>([]);
+  const [twitterHandle, setTwitterHandle] = useState(() => loadDraft().twitterHandle);
+  const [posts, setPosts] = useState<PostRecord[]>(() => loadDraft().posts);
   const [step, setStep] = useState<Step>("idle");
   const [analyzeProgress, setAnalyzeProgress] = useState<TimelineInferenceProgress | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<StoredInterestProfile | null>(null);
-  const [savedProfiles, setSavedProfiles] = useState<StoredInterestProfile[]>([]);
   const [showJson, setShowJson] = useState(false);
   const [selectedCustomTagId, setSelectedCustomTagId] = useState<string | null>(null);
+  const skipDraftSaveRef = useRef(true);
 
   useEffect(() => {
     const profiles = loadProfiles();
-    setSavedProfiles(profiles);
     if (profiles[0]) {
-      setProfile(profiles[0]);
-      if (profiles[0].source.type === "twitter") {
-        setTwitterHandle(profiles[0].source.handle ?? "");
-      }
-      setStep("done");
+      const loaded = profiles[0];
+      setProfile(loaded);
+      setPosts((current) => (current.length > 0 ? current : (loaded.posts ?? [])));
+      setTwitterHandle((current) => {
+        if (current.trim()) return current;
+        return loaded.source.type === "twitter" ? (loaded.source.handle ?? "") : "";
+      });
+      setStep(loaded.tags.length > 0 ? "done" : "idle");
     }
   }, []);
 
+  useEffect(() => {
+    if (skipDraftSaveRef.current) {
+      skipDraftSaveRef.current = false;
+      return;
+    }
+    saveDraft({ posts, twitterHandle });
+  }, [posts, twitterHandle]);
+
   const persistProfile = useCallback((next: StoredInterestProfile) => {
     setProfile(next);
-    setSavedProfiles(saveProfile(next));
+    saveProfile(next);
   }, []);
 
   const wordCloudTags = useMemo(
@@ -164,65 +163,56 @@ export function InterestLab() {
   const statusText = useMemo(() => {
     switch (step) {
       case "fetching":
-        return "正在从 twitterapi.io 拉取帖子…";
+        return "正在获取 X 动态…";
       case "analyzing":
         return analyzeProgress
           ? `${STAGE_LABELS[analyzeProgress.stage]} ${analyzeProgress.done}/${analyzeProgress.total}…`
-          : "正在时间线推断…";
+          : "正在推断兴趣标签…";
       case "embedding":
-        return "正在生成新标签向量…";
-      case "done":
-        return "完成";
-      case "error":
-        return "出错";
+        return "正在生成标签向量…";
       default:
-        return "就绪";
+        return null;
     }
   }, [analyzeProgress, step]);
 
   const handleFetchTwitter = async () => {
     setFetchMessage(null);
-    setFetchStatus("idle");
     setError(null);
 
     const handle = twitterHandle.replace(/^@/, "").trim();
     if (!handle) {
-      setFetchStatus("error");
       setFetchMessage("请输入有效的 X 用户名");
       return;
     }
 
-    const handleChanged =
-      profile?.source.type === "twitter" && profile.source.handle !== handle;
-
     try {
-      setFetchStatus("fetching");
+      setStep("fetching");
       const { tweets, truncated } = await fetchUserTweets(twitterHandle);
-      const incoming = tweetsToPosts(tweets);
-      const basePosts = handleChanged ? [] : twitterPosts;
-      const merged = mergePosts(basePosts, incoming);
-      setTwitterPosts(merged);
-      setFetchStatus("done");
+      const incoming = tweetsToPosts(tweets).filter((post) => post.text.trim());
+      if (incoming.length === 0) {
+        throw new Error("未能从该 X 账号获取到有效动态");
+      }
+      setPosts(incoming);
+      setStep("idle");
       const limitHint = truncated ? `（已达上限 ${MAX_TWEETS_FETCH} 条）` : "";
-      setFetchMessage(`已拉取 ${incoming.length} 条，列表共 ${merged.length} 条${limitHint}`);
+      setFetchMessage(`已获取 ${incoming.length} 条动态${limitHint}`);
 
-      if (handleChanged && profile) {
+      if (profile) {
         const customTags = profile.tags.filter((tag) => tag.custom);
         const customNames = new Set(customTags.map((tag) => tag.name));
         persistProfile({
           ...profile,
           source: { type: "twitter", handle },
-          posts: undefined,
+          posts: incoming,
           tags: customTags,
           embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
           updatedAt: new Date().toISOString(),
         });
-        setStep("idle");
         setSelectedCustomTagId(null);
       }
     } catch (err) {
-      setFetchStatus("error");
-      setFetchMessage(err instanceof Error ? err.message : "拉取失败");
+      setStep("error");
+      setError(err instanceof Error ? err.message : "获取失败");
     }
   };
 
@@ -232,25 +222,14 @@ export function InterestLab() {
     setAnalyzeProgress(null);
 
     try {
-      let sourcePosts: PostRecord[] = [];
-      let source: StoredInterestProfile["source"] = { type: "paste" };
       const handle = twitterHandle.replace(/^@/, "").trim();
-
-      if (inputMode === "twitter") {
-        if (!handle) {
-          throw new Error("请输入有效的 X 用户名");
-        }
-        sourcePosts = twitterPosts.filter((post) => post.text.trim());
-        if (sourcePosts.length === 0) {
-          throw new Error("请先点击「拉取帖子」，或确认列表中有内容");
-        }
-        source = { type: "twitter", handle };
-      } else {
-        sourcePosts = pastePosts.filter((post) => post.text.trim());
-        if (sourcePosts.length === 0) {
-          throw new Error("请至少添加一条帖子");
-        }
+      const sourcePosts = posts.filter((post) => post.text.trim());
+      if (sourcePosts.length === 0) {
+        throw new Error("请先获取动态、添加帖子，或从文件导入");
       }
+      const source: StoredInterestProfile["source"] = handle
+        ? { type: "twitter", handle }
+        : { type: "paste" };
 
       const canReuseProfile =
         profile &&
@@ -279,7 +258,7 @@ export function InterestLab() {
       if (inferredTags.length === 0) {
         throw new Error(
           timelineResult.tags.length > 0
-            ? "提取到的标签经去泛化后无剩余，请点击「清空标签」后重新推断，或补充更具体的帖子"
+            ? "提取到的标签经去泛化后无剩余，请点击「清空」后重新推断，或补充更具体的帖子"
             : "未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容",
         );
       }
@@ -313,12 +292,7 @@ export function InterestLab() {
         tweetCount: source.type === "twitter" ? postsWithInference.length : undefined,
       };
 
-      if (inputMode === "paste") {
-        setPastePosts(postsWithInference);
-      } else {
-        setTwitterPosts(postsWithInference);
-      }
-
+      setPosts(postsWithInference);
       setSelectedCustomTagId(null);
       persistProfile(nextProfile);
       setAnalyzeProgress(null);
@@ -331,8 +305,8 @@ export function InterestLab() {
   };
 
   const handleImportPosts = useCallback(
-    (posts: PostRecord[], _filename: string) => {
-      setPastePosts(posts);
+    (imported: PostRecord[], _filename: string) => {
+      setPosts(imported);
       setStep("idle");
       setError(null);
       setSelectedCustomTagId(null);
@@ -344,7 +318,7 @@ export function InterestLab() {
       persistProfile({
         ...profile,
         source: { type: "paste" },
-        posts: undefined,
+        posts: imported,
         tags: customTags,
         embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
         updatedAt: new Date().toISOString(),
@@ -353,86 +327,33 @@ export function InterestLab() {
     [persistProfile, profile],
   );
 
-  const handleImportTwitterPosts = useCallback(
-    (posts: PostRecord[], _filename: string) => {
-      setTwitterPosts(posts);
-      setFetchStatus("idle");
-      setFetchMessage(null);
-      setStep("idle");
-      setError(null);
-      setSelectedCustomTagId(null);
-
-      if (!profile) return;
-
-      const customTags = profile.tags.filter((tag) => tag.custom);
-      const customNames = new Set(customTags.map((tag) => tag.name));
-      persistProfile({
-        ...profile,
-        source: { type: "twitter", handle: twitterHandle.replace(/^@/, "").trim() || undefined },
-        posts: undefined,
-        tags: customTags,
-        embeddings: profile.embeddings.filter((item) => customNames.has(item.name)),
-        updatedAt: new Date().toISOString(),
-      });
-    },
-    [persistProfile, profile, twitterHandle],
-  );
-
-  const loadSavedProfile = (item: StoredInterestProfile) => {
-    setProfile(item);
-    setStep("done");
-    setError(null);
-    setSelectedCustomTagId(null);
-    setPastePosts([]);
-    setTwitterPosts([]);
-    setFetchStatus("idle");
-    setFetchMessage(null);
-    if (item.source.type === "paste") {
-      setInputMode("paste");
-    } else if (item.source.type === "twitter") {
-      setTwitterHandle(item.source.handle ?? "");
-      setInputMode("twitter");
-    }
-  };
-
-  const handleDeleteProfile = (id: string) => {
-    setSavedProfiles(deleteProfile(id));
-    if (profile?.id === id) setProfile(null);
-  };
-
   const handleClearTags = useCallback(() => {
-    const sourcePosts =
-      inputMode === "paste" ? pastePosts : twitterPosts.length > 0 ? twitterPosts : (profile?.posts ?? []);
-    const clearedPosts = clearPostInference(sourcePosts);
-
-    if (inputMode === "paste") {
-      setPastePosts(clearedPosts);
-    } else {
-      setTwitterPosts(clearedPosts);
-    }
+    setPosts([]);
+    setTwitterHandle("");
+    setFetchMessage(null);
+    setSelectedCustomTagId(null);
+    setStep("idle");
+    setError(null);
 
     if (profile) {
       persistProfile({
         ...profile,
+        source: { type: "paste" },
         tags: [],
         embeddings: [],
-        posts: clearedPosts,
+        posts: undefined,
+        tweetCount: undefined,
         updatedAt: new Date().toISOString(),
       });
     }
-
-    setSelectedCustomTagId(null);
-    setStep("idle");
-    setError(null);
-  }, [inputMode, pastePosts, persistProfile, profile, twitterPosts]);
+  }, [persistProfile, profile]);
 
   const canClearTags = useMemo(() => {
-    const posts =
-      inputMode === "paste" ? pastePosts : twitterPosts.length > 0 ? twitterPosts : (profile?.posts ?? []);
-    const hasInferredPosts = posts.some((post) => post.extractedAt || (post.tags?.length ?? 0) > 0);
+    const hasPosts = posts.length > 0 || (profile?.posts?.length ?? 0) > 0;
+    const hasHandle = twitterHandle.trim().length > 0;
     const hasTags = (profile?.tags.length ?? 0) > 0;
-    return hasInferredPosts || hasTags;
-  }, [inputMode, pastePosts, profile, twitterPosts]);
+    return hasPosts || hasHandle || hasTags;
+  }, [posts, profile, twitterHandle]);
 
   const handleEnterPlayground = () => {
     if (
@@ -478,8 +399,7 @@ export function InterestLab() {
       )
     : "";
 
-  const isBusy =
-    step === "fetching" || step === "analyzing" || step === "embedding" || fetchStatus === "fetching";
+  const isBusy = step === "fetching" || step === "analyzing" || step === "embedding";
   const canEnterPlayground = Boolean(profile?.tags.length) && step === "done" && !isTransitioning;
 
   return (
@@ -492,7 +412,7 @@ export function InterestLab() {
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            三阶段时间线推断兴趣标签，右侧 App 预览词云；完成后进入近场设备雷达。
+            从 X 或本地帖子推断兴趣标签，右侧预览词云后进入近场雷达。
           </p>
         </div>
       </header>
@@ -504,60 +424,34 @@ export function InterestLab() {
         >
           <div className="flex flex-col gap-4 pb-1">
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <div className="mb-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setInputMode("paste")}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  inputMode === "paste"
-                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/40"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                帖子列表
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputMode("twitter")}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  inputMode === "twitter"
-                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/40"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                X 用户名
-              </button>
-            </div>
-
-            {inputMode === "twitter" ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="min-w-[200px] flex-1 text-xs text-zinc-500">
-                    X 用户名
-                    <input
-                      value={twitterHandle}
-                      onChange={(event) => setTwitterHandle(event.target.value)}
-                      placeholder="elonmusk 或 @elonmusk"
-                      className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60"
-                    />
-                  </label>
-                  <button
-                    type="button"
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="min-w-[200px] flex-1 text-xs text-zinc-500">
+                  X 用户名
+                  <span className="ml-1 text-zinc-600">（选填）</span>
+                  <input
+                    value={twitterHandle}
+                    onChange={(event) => setTwitterHandle(event.target.value)}
+                    placeholder="elonmusk 或 @elonmusk"
                     disabled={isBusy || isTransitioning}
-                    onClick={handleFetchTwitter}
-                    className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {fetchStatus === "fetching" ? "拉取中…" : "拉取帖子"}
-                  </button>
-                </div>
-                {fetchMessage ? (
-                  <p
-                    className={`text-xs ${fetchStatus === "error" ? "text-red-400/90" : "text-emerald-400/90"}`}
-                    role="status"
-                  >
-                    {fetchMessage}
-                  </p>
-                ) : null}
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60 disabled:opacity-50"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={isBusy || isTransitioning || !twitterHandle.trim()}
+                  onClick={handleFetchTwitter}
+                  className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {step === "fetching" ? "获取中…" : "获取动态"}
+                </button>
+              </div>
+              {fetchMessage ? (
+                <p className="text-xs text-emerald-400/90" role="status">
+                  {fetchMessage}
+                </p>
+              ) : null}
+              {twitterHandle.trim() ? (
                 <p className="text-xs text-zinc-500">
                   通过{" "}
                   <a
@@ -568,23 +462,16 @@ export function InterestLab() {
                   >
                     twitterapi.io
                   </a>{" "}
-                  拉取原创推文（1 次请求、最多 {MAX_TWEETS_FETCH} 条，免费 Key 自动重试限流）
+                  获取原创动态（最多 {MAX_TWEETS_FETCH} 条）
                 </p>
-                <PostListEditor
-                  posts={twitterPosts}
-                  onChange={setTwitterPosts}
-                  onImport={handleImportTwitterPosts}
-                  disabled={isBusy || isTransitioning}
-                />
-              </div>
-            ) : (
+              ) : null}
               <PostListEditor
-                posts={pastePosts}
-                onChange={setPastePosts}
+                posts={posts}
+                onChange={setPosts}
                 onImport={handleImportPosts}
                 disabled={isBusy || isTransitioning}
               />
-            )}
+            </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
@@ -593,18 +480,20 @@ export function InterestLab() {
                 onClick={handleGenerate}
                 className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isBusy ? "处理中…" : "推断并保存"}
+                {isBusy ? "处理中…" : "AI 推断"}
               </button>
               <button
                 type="button"
                 disabled={isBusy || isTransitioning || !canClearTags}
                 onClick={handleClearTags}
-                title="清除词云与语料推断结果，帖子内容保留在列表中"
+                title="清空帖子、X 用户名与推断结果"
                 className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                清空标签
+                清空
               </button>
-              <span className="text-xs text-zinc-500">{statusText}</span>
+              {statusText ? (
+                <span className="text-xs text-zinc-500">{statusText}</span>
+              ) : null}
             </div>
 
             {error ? (
@@ -613,42 +502,6 @@ export function InterestLab() {
               </p>
             ) : null}
           </section>
-
-          {savedProfiles.length > 0 ? (
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <h2 className="mb-3 text-sm font-medium text-zinc-200">
-                本地历史（{savedProfiles.length}）
-              </h2>
-              <ul className="space-y-2">
-                {savedProfiles.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800 px-3 py-2"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => loadSavedProfile(item)}
-                      className="text-left text-sm text-zinc-300 hover:text-white"
-                    >
-                      {item.source.type === "twitter" ? `@${item.source.handle}` : "帖子列表"} ·{" "}
-                      {item.tags.length} 标签
-                      {item.posts?.length ? ` · ${item.posts.length} 帖` : ""} ·{" "}
-                      <span suppressHydrationWarning>
-                        {new Date(item.createdAt).toLocaleString("zh-CN")}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProfile(item.id)}
-                      className="text-xs text-zinc-500 hover:text-red-300"
-                    >
-                      删除
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
 
           {profile ? (
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
@@ -743,7 +596,7 @@ export function InterestLab() {
                     selectedTagId={selectedCustomTagId}
                     onSelectTag={setSelectedCustomTagId}
                     className="h-full border-0 rounded-none"
-                    emptyMessage="点击顶部 + 添加自定义标签，或完成推断后显示词云"
+                    emptyMessage="点击顶部 + 添加自定义标签，或 AI 推断后显示词云"
                   />
                   <div className="pointer-events-auto absolute inset-x-0 top-0 z-30">
                     {selectedCustomTag ? (
@@ -775,7 +628,7 @@ export function InterestLab() {
               title={
                 canEnterPlayground
                   ? "将词云注入设备并进入近场雷达"
-                  : "请先完成兴趣标签推断"
+                  : "请先 AI 推断兴趣标签"
               }
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-6 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-300 disabled:cursor-not-allowed disabled:from-zinc-700 disabled:to-zinc-700 disabled:text-zinc-500 disabled:shadow-none"
             >
@@ -783,7 +636,7 @@ export function InterestLab() {
             </button>
             {!profile ? (
               <p className="mt-2 text-center text-xs text-zinc-500">
-                完成推断后，词云将注入 App 并过渡到设备画布
+                AI 推断后，词云将注入 App 并过渡到设备画布
               </p>
             ) : null}
           </div>

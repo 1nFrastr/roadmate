@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   profiles: "roadmate:interest-lab:profiles",
+  draft: "roadmate:interest-lab:draft",
 } as const;
 
 export { DEFAULT_LLM_MODEL } from "./llmModels";
@@ -8,6 +9,10 @@ export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 export const TWITTER_API_BASE = "https://api.twitterapi.io";
 /** 浏览器经 Next 代理访问（twitterapi.io 无 CORS） */
 export const TWITTER_PROXY_PATH = "/api/interest-lab/twitter/last-tweets";
+/** 同一 X 用户名拉取结果的服务端缓存 TTL */
+export const TWITTER_CACHE_TTL_MS = 60 * 60 * 1000;
+/** 缓存命中时模拟请求的随机延迟（毫秒） */
+export const TWITTER_CACHE_HIT_DELAY_MS = { min: 200, max: 800 } as const;
 export const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
 
 export const WEIGHT_FACTORS = {
