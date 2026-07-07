@@ -48,8 +48,8 @@ export function InterestLab() {
 
   const { startTransition, isTransitioning } = useJourneyTransition();
 
-  const [twitterHandle, setTwitterHandle] = useState(() => loadDraft().twitterHandle);
-  const [posts, setPosts] = useState<PostRecord[]>(() => loadDraft().posts);
+  const [twitterHandle, setTwitterHandle] = useState("");
+  const [posts, setPosts] = useState<PostRecord[]>([]);
   const [step, setStep] = useState<Step>("idle");
   const [analyzeProgress, setAnalyzeProgress] = useState<TimelineInferenceProgress | null>(
     null,
@@ -62,6 +62,10 @@ export function InterestLab() {
   const skipDraftSaveRef = useRef(true);
 
   useEffect(() => {
+    const draft = loadDraft();
+    setPosts(draft.posts);
+    setTwitterHandle(draft.twitterHandle);
+
     const profiles = loadProfiles();
     if (profiles[0]) {
       const loaded = profiles[0];
