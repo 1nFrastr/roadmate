@@ -1,8 +1,12 @@
-# Roadmate
+# Roadmate 路友
 
 > **Make Humans Talk Again** — 用 AI 读懂你的兴趣，用近场硬件帮你找到值得开口的人。
 
 Roadmate 是一款面向**线下社交破冰**的 AI 硬件交互原型（Web 模拟）。用户佩戴低功耗圆形 NFC Tag，在聚会、展会、旅行等场景中，无需掏手机、无需扫码加好友，靠**环形灯带 + 圆形墨水屏**感知「谁值得靠近」，碰一碰完成配对后，再以轻量语音/表情延续联系。
+
+**演示** [roadmate-sooty.vercel.app](https://roadmate-sooty.vercel.app/)
+
+https://github.com/user-attachments/assets/6d8564bf-a930-4b53-9e84-3205e8c081e8
 
 ---
 
