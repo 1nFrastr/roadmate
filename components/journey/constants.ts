@@ -1,5 +1,7 @@
 import { DEVICE_H, DEVICE_W } from "@/components/device-playground/constants";
 
+export const GITHUB_REPO_URL = "https://github.com/1nFrastr/roadmate";
+
 export const JOURNEY_TIMINGS = {
   headerExit: 0.28,
   leftPanelExit: 0.4,
