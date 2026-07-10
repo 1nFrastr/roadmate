@@ -226,6 +226,26 @@ npm run bench:timeline -- --verbose # 打印三阶段中间结果
 - **大模型 API（OpenRouter）**：产品核心能力——从非结构化帖子提取可破冰标签，而非硬编码规则
 - **开发过程记录**：作业要求使用 [interview.viberrate.com](https://interview.viberrate.com/) 记录思考与取舍（语音/文字 Update）
 
+#### Cursor 用量（本项目开发期间）
+
+本仓库保留了开发本项目期间的 Cursor Pro 用量快照，便于核对 AI 辅助开发的实际消耗：
+
+| 文件 | 说明 |
+|------|------|
+| [`docs/cursor-usage/usage-events-2026-07-10.csv`](docs/cursor-usage/usage-events-2026-07-10.csv) | 完整 usage events 导出（按事件明细） |
+| [`docs/cursor-usage/usage-dashboard-pro.jpg`](docs/cursor-usage/usage-dashboard-pro.jpg) | Pro 套餐用量仪表盘截图（Total / Auto+Composer / API） |
+
+- **统计区间**：约 2026-07-04 → 2026-07-08（CSV 事件时间），共 **481** 条事件
+- **合计 Total Tokens**：**161,603,624**（约 **1.62 亿**；Errored/No Charge 行为 0）
+- **构成**：Cache Read ≈ 1.50 亿 · Input（无 Cache Write）≈ 952 万 · Output ≈ 163 万 · Input（Cache Write）≈ 76 万
+- **模型占比**（按 Total Tokens）：
+
+| 模型 | Tokens | 占比 | 事件数 |
+|------|--------|------|--------|
+| `auto` | 147,413,214 | 91.2% | 451（93.8%） |
+| `claude-opus-4-8-thinking-high` | 9,916,979 | 6.1% | 14（2.9%） |
+| `composer-2.5-fast` | 4,273,431 | 2.6% | 16（3.3%） |
+
 ---
 
 ## 项目结构（精简）
@@ -247,6 +267,9 @@ components/
 scripts/
   benchmark-timeline-eval.ts  # 方案 C CLI 评测
   fixtures/corpus-cases/      # 推断测试语料
+
+docs/
+  cursor-usage/               # Cursor Pro 用量 CSV + 仪表盘截图
 ```
 
 Agent 开发指南见 [`AGENTS.md`](AGENTS.md)。
