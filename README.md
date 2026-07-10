@@ -228,12 +228,13 @@ npm run bench:timeline -- --verbose # 打印三阶段中间结果
 
 #### Cursor 用量（本项目开发期间）
 
-本仓库保留了开发本项目期间的 Cursor Pro 用量快照，便于核对 AI 辅助开发的实际消耗：
+本仓库保留了开发本项目期间的 Cursor Pro 用量快照，便于核对 AI 辅助开发的实际消耗。
 
-| 文件 | 说明 |
-|------|------|
-| [`docs/cursor-usage/usage-events-2026-07-10.csv`](docs/cursor-usage/usage-events-2026-07-10.csv) | 完整 usage events 导出（按事件明细） |
-| [`docs/cursor-usage/usage-dashboard-pro.jpg`](docs/cursor-usage/usage-dashboard-pro.jpg) | Pro 套餐用量仪表盘截图（Total / Auto+Composer / API） |
+事件明细：[`docs/cursor-usage/usage-events-2026-07-10.csv`](docs/cursor-usage/usage-events-2026-07-10.csv)
+
+![Cursor Pro 用量仪表盘](docs/cursor-usage/usage-dashboard-pro.jpg)
+
+仪表盘显示 Included in Pro 的 **Total 约 36%**——本项目开发大约只用了 **$20 Pro 订阅计划额度的约 1/3**（未额外消耗 on-demand）。
 
 - **统计区间**：约 2026-07-04 → 2026-07-08（CSV 事件时间），共 **481** 条事件
 - **合计 Total Tokens**：**161,603,624**（约 **1.62 亿**；Errored/No Charge 行为 0）
