@@ -15,7 +15,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 **已实现**：拖拽与 Matter 叠放、近场环形 LED（距离映射频率/强度）、Dock 放大、双向方向箭头、重叠灯环充能配对、匹配成功转场、Interest Lab 三阶段时间线推断 + embedding、设备 match 分（embedding 余弦 + 标签重叠）、TagWordCloud 物理词云。  
 **未实现 / Phase 2+**：Web Audio 音效、真实 NFC 确认、雷达扫描动画、完整 6 步见面仪式等。
 
-外形与交互演进详见 [`components/device-playground/DESIGN.md`](components/device-playground/DESIGN.md)。
+外形与交互演进详见 [`docs/device-playground.md`](docs/device-playground.md)。
 
 ## 技术栈
 
@@ -45,7 +45,6 @@ app/
   layout.tsx, globals.css
 
 components/device-playground/
-  DESIGN.md               # 外形演进、交互状态机、方案取舍（改设备 UI 前先读）
   DevicePlayground.tsx    # 主容器：Draggable、hooks 编排
   DeviceCard.tsx          # 单台圆形 Tag UI（金属壳、圆屏、环形 LED）
   MatchPointerArrow.tsx   # 近场双向方位箭头
@@ -62,7 +61,6 @@ components/tag-word-cloud/
   TagWordCloud.tsx, utils.ts, constants.ts, types.ts, placeholderTags.ts
 
 components/interest-lab/
-  INFERENCE.md            # 方案 C 三阶段流水线、权重公式、CLI benchmark
   InterestLab.tsx         # Web UI 编排、profile 持久化
   PostListEditor.tsx, postImportExport.ts, postUtils.ts
   tagUtils.ts             # aggregateTagsFromTimeline、computeTagWeight
@@ -71,6 +69,10 @@ components/interest-lab/
   server/                 # timelineInference.ts、timelineFormat.ts 等（方案 C）
   api/openrouter.ts       # inferTagsFromTimeline（NDJSON 流）、embedTags
   api/twitter.ts, storage.ts, constants.ts, types.ts
+
+docs/
+  device-playground.md    # 设备外形与近场交互设计
+  interest-inference.md   # 方案 C 三阶段推断与权重
 ```
 
 路径别名：`@/*` → 项目根目录。
@@ -87,7 +89,7 @@ components/interest-lab/
 
 ## 核心交互约定（设备 Demo）
 
-> 外形演进、状态机、常量含义详见 [`components/device-playground/DESIGN.md`](components/device-playground/DESIGN.md)。
+> 外形演进、状态机、常量含义详见 [`docs/device-playground.md`](docs/device-playground.md)。
 
 1. **外形（v3）**：120 px 正圆金属 Tag 壳 + 85 px 圆形墨水屏；屏外环形 LED（`device-tag-led-ring`），无物理按键。主控 RM-01 外圈 cyan halo（`device-tag-owner-halo`）。
 2. **主控设备**：`OWNER_DEVICE_INDEX = 0`，`isOwner: true`。
@@ -100,7 +102,7 @@ components/interest-lab/
 
 ## Interest Lab 约定
 
-> 三方案演进、阶段细节、权重公式、CLI 评测详见 [`components/interest-lab/INFERENCE.md`](components/interest-lab/INFERENCE.md)。
+> 三方案演进、阶段细节、权重公式、CLI 评测详见 [`docs/interest-inference.md`](docs/interest-inference.md)。
 
 1. **当前架构（方案 C）**：预处理（并行判噪 + 摘要）→ 时间线合并（7 天窗口语义去重）→ 标签提取 → 代码 `aggregateTagsFromTimeline` → embedding。主路径为 `inferTagsFromTimeline`；方案 A/B 代码保留对照，勿走主路径。
 2. **输入模式**：帖子列表（paste，支持 `roadmate-posts/1` txt 导入导出）或 X 用户名（twitterapi.io 拉帖 → 相同 `PostRecord` schema）。
@@ -126,7 +128,7 @@ components/interest-lab/
 - 保持 diff 小：不要引入通用拟物 UI 库；设备形态是自定义圆形 Tag。
 - 尊重 `prefers-reduced-motion`（见 `useProximityEffects`、`MatchPointerArrow`）。
 - OpenRouter / twitterapi.io 经 **Next.js API 路由**代理（无 CORS）；API Key 由客户端从 localStorage 传入请求，服务端不落盘。
-- 改设备外形或交互前先读 `DESIGN.md`；改推断流水线前先读 `INFERENCE.md`。
+- 改设备外形或交互前先读 `docs/device-playground.md`；改推断流水线前先读 `docs/interest-inference.md`。
 
 ## 常用命令
 
@@ -134,6 +136,6 @@ components/interest-lab/
 npm run dev              # http://localhost:3000
 npm run build
 npm run lint
-npm run bench:timeline   # 方案 C 推断 CLI benchmark（见 INFERENCE.md）
+npm run bench:timeline   # 方案 C 推断 CLI benchmark（见 docs/interest-inference.md）
 npm run bench:corpus     # 方案 B 历史对照（非主路径）
 ```

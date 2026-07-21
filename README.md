@@ -1,291 +1,183 @@
 # Roadmate 路友
 
-> **Make Humans Talk Again** — 用 AI 读懂你的兴趣，用近场硬件帮你找到值得开口的人。
+> Make Humans Talk Again
 
-Roadmate 是一款面向**线下社交破冰**的 AI 硬件交互原型（Web 模拟）。用户佩戴低功耗圆形 NFC Tag，在聚会、展会、旅行等场景中，无需掏手机、无需扫码加好友，靠**环形灯带 + 圆形墨水屏**感知「谁值得靠近」，碰一碰完成配对后，再以轻量语音/表情延续联系。
+用 AI 读懂你的兴趣，用近场硬件帮你找到值得开口的人。
 
-**演示** [roadmate-sooty.vercel.app](https://roadmate-sooty.vercel.app/)
+**演示**：[roadmate-sooty.vercel.app](https://roadmate-sooty.vercel.app/)
 
 https://github.com/user-attachments/assets/6d8564bf-a930-4b53-9e84-3205e8c081e8
 
----
+## 它是什么
 
-## 实现方式
+Roadmate 是一个线下社交破冰的 Web 原型。
 
-**方式 A：软件模拟设备体验**
+它模拟一枚可佩戴的圆形 NFC Tag：环形灯带提示匹配强度，圆屏给出靠近方向，两机重叠后完成配对。
 
-通过 Web 模拟 AI 硬件的核心输入/输出与状态机：圆形 Tag 外壳、环形 LED、墨水屏（方向箭头 / 匹配分 / 品牌字）、拖拽近场与叠放配对。配套 Next.js 前后端、OpenRouter 大模型推断、embedding 匹配分与本地 profile 存储。
+产品想解决的不是「再做一个加好友 App」，而是：
 
-未采用方式 B（ESP32 等开发板）；原型优先验证**产品场景与交互闭环**，硬件形态通过拟物 UI + 状态机对齐量产想象（NFC 靠近、环形 LED、e-ink 圆屏）。
+> 在聚会、展会、旅途里，怎么在不掏手机的前提下，先发现谁和你聊得来。
 
----
+当前用软件拟物验证完整闭环。硬件量产形态对齐「无实体键、NFC 靠近、环形 LED、圆形墨水屏」。
 
-## 目标用户、场景与核心价值
+## 核心能力
 
-### 目标用户
+| 能力 | 价值 |
+| --- | --- |
+| AI 兴趣推断 | 从近期发帖抽出可破冰的具体标签，而不是「音乐 / 旅行」这类空泛分类 |
+| 近场硬件反馈 | 距离映射灯环频闪、Dock 放大、双向方向箭头，把相似度变成可感知信号 |
+| 碰一碰配对 | 重叠后灯环充能确认，对齐真实 NFC 靠近仪式 |
+| 轻社交延续 | 配对后走语音 + 表情，鼓励线下见面，而不是立刻加微信 |
 
-- **愿意线下认识同好、但不想尬聊或强行加微信的人**  
-  典型画像：独立开发者、创作者、展会/Meetup 参与者、独自旅行时想偶遇同频路人的年轻人。
+## 谁会用、在什么场合
 
-### 使用场景
+愿意线下认识同好，但不想尬聊或强行加好友的人。
 
-**高频情境**：线下活动、共享空间、旅途驿站——周围有很多陌生人，你不知道谁和你聊得来，也不想一直低头刷手机。
+典型场景是 Meetup、展会、共享空间、旅途驿站：周围都是陌生人，你不知道谁和你聊得来，也不想一直低头刷手机。
 
-### 核心价值
+Roadmate 的做法是：硬件先筛「志趣相投」，见面只聊共同话题；Tag 挂在包或链上，余光读灯、走近读屏。
 
-| 痛点 | Roadmate 的做法 |
-|------|----------------|
-| 线上社交重、线下开口难 | 硬件先帮你筛「志趣相投」，见面只聊共同话题 |
-| 加好友太重、后续维护压力大 | 配对后走「轻链接」：语音 + 表情，鼓励真人见面 |
-| 手机社交分散注意力 | Tag 挂在包/链上，余光读灯、走近读屏，无需掏手机 |
+## 体验路径
 
-**AI 为什么能让场景更好**：从用户近期发帖（或粘贴文本）推断**可破冰的具体兴趣标签**（非泛化「音乐/旅行」），再经 embedding 计算与他人匹配度；硬件侧用距离映射灯光与方向箭头，把抽象「相似度」变成可感知的近场信号。
-
----
-
-## 核心功能与交互闭环
-
-完整 Journey：**兴趣推断 → 近场寻缘 → 碰一碰配对 → 轻社交延续**
+完整 Journey 是四步：
 
 ```
-Interest Lab (/)  →  转场  →  Playground (/playground)  →  Roadmates (/roadmates)
-     AI 读兴趣              拖 Tag 靠近匹配对象              路友列表 / 语音聊天原型
+兴趣推断 (/)  →  近场寻缘 (/playground)  →  碰一碰配对  →  轻社交 (/roadmates)
 ```
 
-### 1. Interest Lab — AI 兴趣画像
+1. **Interest Lab**：粘贴帖子或拉取 X 时间线，推断兴趣标签，词云预览权重，保存画像。
+2. **Playground**：拖动主控设备 RM-01 靠近可匹配对象，观察灯环、放大与方向箭头。
+3. **碰一碰**：两机重叠，翠绿灯环充能约 1 秒，看到匹配分与共同话题。
+4. **Roadmates**：进入路友列表与轻量对话原型。
 
-- 输入：帖子列表（支持 `roadmate-posts/1` txt 导入）或 X 用户名拉取推文
-- **三阶段 LLM 流水线**（方案 C）：预处理（判噪 + 摘要）→ 时间线合并（7 天语义去重）→ 破冰标签提取
-- 代码侧聚合 frequency / sentiment / recency → weight → OpenRouter embedding
-- 物理词云实时预览兴趣权重；结果存入 `localStorage` profile
+更细的设备交互见 [设备 Playground 设计](docs/device-playground.md)。
+推断流水线见 [兴趣推断设计](docs/interest-inference.md)。
 
-### 2. Device Playground — 近场硬件模拟
+## 设计亮点
 
-- 画布上 10 台圆形 Tag，其中 3 台可匹配；**RM-01** 为主控（cyan 光环）
-- 拖动主控靠近时：
-  - **环形琥珀 LED** 随距离加速频闪（仅最近一对参与，减少噪声）
-  - **Dock 放大** 目标设备
-  - 双方圆屏显示**实时方向箭头**（解决「灯在闪但不知道往哪走」）
-- 两机圆盘重叠 → **翠绿灯环充能 1s** → 配对成功（confetti、匹配分、共同话题）
-- match 分由 Interest Lab 的 **embedding 余弦 + 标签重叠** 驱动（`matchScoring.ts`）
+### 1. 先筛同频，再开口
 
-### 3. Roadmates — 配对后的轻社交原型
+线下破冰难，不只是因为不会说话，更是因为不知道该找谁。
 
-- 路友列表、仅语音+表情的对话、路友主页（共同标签、匹配上下文）
-- 产品取向：**轻量无感、鼓励线下见真人**
+Roadmate 把「兴趣匹配」前置到见面之前。AI 从用户近期内容抽出具体可聊话题，设备再用灯光和方向把匹配变成近场信号。见面时，双方已经有共同话题，开口成本更低。
 
-更细的外形演进与交互状态机见 [`components/device-playground/DESIGN.md`](components/device-playground/DESIGN.md)。  
-推断架构与权重公式见 [`components/interest-lab/INFERENCE.md`](components/interest-lab/INFERENCE.md)。
+### 2. 圆形信标，而不是卡片上的一颗灯
 
----
+早期外形更接近 iPod 卡片。单点 LED 在多人场景里识别度不够。
 
-## 如何运行与演示
+后来改成正圆金属 Tag + 360° 环形灯带。任意角度看起来都像一枚信标。配对确认也去掉假按键，改成重叠后灯环充能，对齐「无实体键、靠靠近完成确认」的量产想象。
 
-### 环境要求
+### 3. 兴趣推断要可破冰，也要可归因
 
-- Node.js 18+
-- [OpenRouter](https://openrouter.ai/) API Key（Interest Lab 推断与 embedding）
+逐帖并行提取容易产出近义重复标签；滚动语料又容易丢掉「哪条帖子支撑了哪个兴趣」。
 
-可选（X 拉帖模式）：
+当前主路径是三阶段时间线：预处理保吞吐，全局合并控重复，再用帖级来源链计算时效权重。标签之后再做 embedding，驱动设备上的匹配分。
 
-- [twitterapi.io](https://twitterapi.io/) API Key
+代价是多两次串行模型调用。换来的是标签更稳、更可评测。
 
-### 本地启动
+### 4. 近场反馈要克制
+
+画布上可能同时有多台设备。如果所有接近对象都闪灯，视觉噪声会盖过信号。
+
+所以琥珀频闪只留给「最近一对」可匹配设备；有效距离收紧到约三倍设备直径；灯环频率用持久动画调速，随距离连续变化，而不是每帧重建。
+
+Lab 负责「谁值得靠近」，Playground 负责「靠近时如何反馈」。两边通过画像与匹配分解耦。
+
+## 架构概览
+
+```
+浏览器
+  Interest Lab · Device Playground · Roadmates
+  GSAP 动画 · Matter.js 物理 · localStorage 画像
+        │
+        ▼
+Next.js API Routes
+  推断流式进度 · Embedding · Twitter 代理
+        │
+        ▼
+OpenRouter · twitterapi.io
+```
+
+浏览器侧完成交互与本地画像。服务端只做模型与第三方 API 代理，Key 由客户端传入，不落盘。
+
+## 技术栈
+
+| 层 | 选型 |
+| --- | --- |
+| 框架 | Next.js 16 App Router · React 19 · TypeScript |
+| 样式 | Tailwind CSS v4 · 自定义拟物样式 |
+| 动画 / 拖拽 | GSAP · Draggable |
+| 物理 | Matter.js |
+| 模型 | OpenRouter（默认 LLM + Embedding） |
+| 数据源 | twitterapi.io（可选 X 拉帖） |
+
+## 本地运行
+
+需要 Node.js 18+，以及 [OpenRouter](https://openrouter.ai/) API Key。
+X 拉帖模式另需 [twitterapi.io](https://twitterapi.io/) Key。
 
 ```bash
 npm install
-cp .env.example .env.local   # 可选：服务端默认模型等
+cp .env.example .env.local   # 可选
 npm run dev
 ```
 
-浏览器打开 [http://localhost:3000](http://localhost:3000)。
+打开 [http://localhost:3000](http://localhost:3000)。
 
-### 推荐 Demo 路径（约 5–8 分钟）
+推荐 Demo 路径约 5–8 分钟：
 
-1. **Interest Lab**（`/`）  
-   - 在设置中填入 OpenRouter API Key（存浏览器 localStorage，不上传服务端）  
-   - 粘贴 5–10 条带「距今」时间的帖子，或导入 `scripts/fixtures/corpus-cases/*.posts.txt`  
-   - 点击「推断并保存」，观察三阶段进度与词云  
-   - 点击「进入 Playground」触发 Journey 转场  
+1. 在 `/` 填入 OpenRouter Key，粘贴或导入帖子，推断并保存，进入 Playground。
+2. 在 `/playground` 拖动 RM-01 靠近显示 `match XX%` 的设备，重叠完成配对。
+3. 在 `/roadmates` 查看配对后的轻社交原型。
 
-2. **Playground**（`/playground`）  
-   - 拖动 **RM-01**（青色光环）靠近屏幕显示 `match XX%` 的设备  
-   - 展示：灯环频闪加快、Dock 放大、双向箭头  
-   - 将两台设备圆盘重叠，等待翠绿灯环充能完成  
-   - 观看配对成功动画与共同话题  
+独立组件页：`/tag-cloud`（词云测试，无需 API）。
 
-3. **Roadmates**（`/roadmates`）  
-   - 从配对成功可跳转，或直接访问  
-   - 展示配对后的轻社交界面原型  
-
-### 独立页面
-
-| 路径 | 说明 |
-|------|------|
-| `/tag-cloud` | TagWordCloud 组件测试（无需 API） |
-
-### 部署
-
-可部署至 [Vercel](https://vercel.com) 等支持 Next.js 16 的平台。环境变量参考 `.env.example`（`OPENROUTER_API_KEY` 等）。  
-用户侧 API Key 仍建议在 Demo 时由浏览器 localStorage 注入，与服务端配置二选一即可。
-
-### CLI 评测（可选）
+可选评测：
 
 ```bash
-npm run bench:timeline              # 方案 C 推断 benchmark
-npm run bench:timeline -- --verbose # 打印三阶段中间结果
+npm run bench:timeline
 ```
 
----
+## 文档
 
-## 技术实现
+| 文档 | 内容 |
+| --- | --- |
+| [设备 Playground 设计](docs/device-playground.md) | 外形演进、近场状态机、交互取舍 |
+| [兴趣推断设计](docs/interest-inference.md) | 三阶段流水线、权重公式、评测方法 |
 
-### 架构概览
+## Roadmap
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  浏览器（Client）                                              │
-│  Interest Lab UI · Device Playground · Roadmates              │
-│  GSAP 动画 · Matter.js 物理 · localStorage profile/keys       │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ fetch
-┌──────────────────────────▼──────────────────────────────────┐
-│  Next.js API Routes（Server）                                │
-│  /api/interest-lab/openrouter/infer-timeline  （NDJSON 流）   │
-│  /api/interest-lab/openrouter/embed                           │
-│  /api/interest-lab/twitter/last-tweets      （CORS 代理）    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-              OpenRouter LLM + Embedding · twitterapi.io
-```
+已完成：兴趣推断、近场灯光与方向箭头、重叠配对、匹配成功转场、轻社交原型。
 
-### 前端 / 设备模拟界面
+下一步：
 
-| 模块 | 技术 | 职责 |
-|------|------|------|
-| 框架 | Next.js 16 App Router + React 19 + TypeScript | Journey 路由、SSR 壳 |
-| 样式 | Tailwind CSS v4 + `globals.css` 自定义拟物样式 | 圆形 Tag 金属壳、环形 LED、e-ink 绿调 |
-| 动画 | GSAP + `@gsap/react` + Draggable | LED `timeScale` 频闪、Dock、配对转场、箭头旋转 |
-| 物理 | Matter.js | 设备无重力叠放；词云轻重力碰撞 |
-| Journey | `components/journey/` | Interest Lab → Playground 转场、iPhone 预览框 |
+- 近场音效
+- 真实 NFC 确认
+- 雷达扫描与更完整的见面仪式
+- 圆形墨水屏刷新与残影的硬件对齐
 
-设备状态由 React state + refs 驱动，近场逻辑集中在 `useProximityEffects`、`useMatchPairing`、`matchScoring`。
+## 开发说明
 
-### 后端 / API 层
+本项目用 Cursor Agent 辅助迭代原型与文档约定。开发过程按作业要求记录在 [interview.viberrate.com](https://interview.viberrate.com/)。
 
-- **推断**：`server/timelineInference.ts` 编排三阶段 LLM；`app/api/.../infer-timeline/route.ts` 以 NDJSON 流式返回进度
-- **Embedding**：`/api/interest-lab/openrouter/embed`
-- **Twitter**：服务端代理 twitterapi.io，Key 由客户端传入、不落盘
-- API Key：优先用户 localStorage；`.env.local` 可配服务端默认 Key（开发/部署用）
-
-### AI 能力
-
-| 环节 | 模型（默认） | 说明 |
-|------|-------------|------|
-| 预处理 / 合并 / 提取 | `minimax/minimax-m3`（可 UI 覆盖） | 方案 C 三阶段；详见 INFERENCE.md |
-| Embedding | `openai/text-embedding-3-small` | 标签向量 → 设备 match 分 |
-| 匹配分 | 代码 `matchScoring.ts` | 0.58×embedding 余弦 + 0.42×标签重叠 |
-
-### 数据与设备状态
-
-| 数据 | 存储 | 说明 |
-|------|------|------|
-| API Keys、settings | `localStorage` | 不上传 git |
-| Interest profile（tags + embeddings） | `localStorage` | 最多 20 条；**不含帖子原文** |
-| 帖子列表 | 内存 | 刷新需重新导入/拉取 |
-| 设备位置 / 配对态 | 运行时 state | Playground 会话级 |
-
----
-
-## 主要挑战、关键取舍与 AI 工具作用
-
-### 关键取舍
-
-1. **设备外形：iPod 卡片 → 圆形 AirTag Tag**  
-   单点 LED 在多人场景识别度不足；正圆 + 360° 环形灯带形成「信标」效果，任意角度一致。去掉无交互滚轮，配对改为重叠 + 灯环充能，对齐量产 NFC 想象。详见 [DESIGN.md](components/device-playground/DESIGN.md)。
-
-2. **兴趣推断：方案 A/B → 方案 C 三阶段时间线**  
-   逐帖并行难合并近义标签；滚动语料丢失帖级时间归因。方案 C 用预处理保吞吐、全局合并控重复、`sourcePostIds` 链保证 recency 可算。代价是多 2 次串行 LLM 调用。详见 [INFERENCE.md](components/interest-lab/INFERENCE.md)。
-
-3. **配对确认：屏外按钮 → 灯环充能**  
-   减少假按键，用户只需「持握靠近」，与硬件无实体键一致。
-
-4. **范围控制**  
-   优先保证 **Interest Lab + Playground 配对闭环** 可运行、可讲述；Roadmates 为配对后方向性 UI 原型；音效、真实 NFC、雷达扫描留作 Phase 2。
-
-### 主要技术挑战
-
-- **LED 频率随距离连续变化**：用持久 GSAP timeline + `timeScale`，避免每帧重建动画
-- **多人近场视觉噪声**：仅「最近一对」参与琥珀频闪；有效距离收紧为 3× 设备直径
-- **语义匹配与近场交互解耦**：Lab 负责「谁值得靠近」，Playground 负责「靠近时如何反馈」
-- **LLM 推断可评测**：`bench:timeline` + fixture 断言（`anyOf` / `forbidden` / `minSignalPosts`）
-
-### AI 工具在开发中的作用
-
-- **Cursor + Agent**：快速迭代 UI 原型、Matter/GSAP 集成、API 路由脚手架；`AGENTS.md` / `DESIGN.md` / `INFERENCE.md` 沉淀约定，减少上下文漂移
-- **大模型 API（OpenRouter）**：产品核心能力——从非结构化帖子提取可破冰标签，而非硬编码规则
-- **开发过程记录**：作业要求使用 [interview.viberrate.com](https://interview.viberrate.com/) 记录思考与取舍（语音/文字 Update）
-
-#### Cursor 用量（本项目开发期间）
-
-本仓库保留了开发本项目期间的 Cursor Pro 用量快照，便于核对 AI 辅助开发的实际消耗。
-
-事件明细：[`docs/cursor-usage/usage-events-2026-07-10.csv`](docs/cursor-usage/usage-events-2026-07-10.csv)
+Cursor Pro 用量快照见 [`docs/cursor-usage/`](docs/cursor-usage/)：约 4 天、481 条事件、合计约 1.62 亿 tokens，Included in Pro 用量约 36%。明细：[usage-events CSV](docs/cursor-usage/usage-events-2026-07-10.csv)。
 
 ![Cursor Pro 用量仪表盘](docs/cursor-usage/usage-dashboard-pro.jpg)
 
-仪表盘显示 Included in Pro 的 **Total 约 36%**——本项目开发大约只用了 **$20 Pro 订阅计划额度的约 1/3**（未额外消耗 on-demand）。
+## 总结
 
-- **统计区间**：约 2026-07-04 → 2026-07-08（CSV 事件时间），共 **481** 条事件
-- **合计 Total Tokens**：**161,603,624**（约 **1.62 亿**；Errored/No Charge 行为 0）
-- **构成**：Cache Read ≈ 1.50 亿 · Input（无 Cache Write）≈ 952 万 · Output ≈ 163 万 · Input（Cache Write）≈ 76 万
-- **模型占比**（按 Total Tokens）：
+Roadmate 的核心是：
 
-| 模型 | Tokens | 占比 | 事件数 |
-|------|--------|------|--------|
-| `auto` | 147,413,214 | 91.2% | 451（93.8%） |
-| `claude-opus-4-8-thinking-high` | 9,916,979 | 6.1% | 14（2.9%） |
-| `composer-2.5-fast` | 4,273,431 | 2.6% | 16（3.3%） |
+> 用 AI 找出可破冰的共同兴趣，用近场硬件把匹配变成可感知信号，让线下开口变得自然。
 
----
+具体来说：
 
-## 项目结构（精简）
+- 推断侧追求具体、可归因、可评测的兴趣标签
+- 设备侧用环形信标、方向箭头、重叠充能对齐无键 NFC 想象
+- 近场反馈只服务最近一对，避免多人场景噪声
+- 配对后走轻链接，鼓励真人见面
 
-```
-app/
-  (journey)/page.tsx          # Interest Lab
-  (journey)/playground/       # Device Playground
-  roadmates/                  # 路友原型
-  api/interest-lab/           # OpenRouter / Twitter 代理
-
-components/
-  device-playground/          # 硬件模拟 + DESIGN.md
-  interest-lab/                 # AI 推断 + INFERENCE.md
-  tag-word-cloud/             # 物理词云
-  journey/                    # 转场编排
-  roadmates/                  # 轻社交 UI 原型
-
-scripts/
-  benchmark-timeline-eval.ts  # 方案 C CLI 评测
-  fixtures/corpus-cases/      # 推断测试语料
-
-docs/
-  cursor-usage/               # Cursor Pro 用量 CSV + 仪表盘截图
-```
-
-Agent 开发指南见 [`AGENTS.md`](AGENTS.md)。
-
----
-
-## 后续方向（Phase 2+）
-
-- Web Audio 近场 tick 音效
-- 真实 NFC 靠近确认（替代 Web 重叠模拟）
-- Matter 物理碰撞触发配对
-- 雷达扫描动画、完整 6 步见面仪式
-- 圆形 e-ink 刷新率与残影的硬件对齐
-
----
+最终效果是一条可演示的完整闭环：读懂兴趣 → 靠近感知 → 碰一碰 → 轻社交。
 
 ## License
 

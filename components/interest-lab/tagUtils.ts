@@ -96,7 +96,7 @@ interface TimelineTagAccumulator {
   lastSeenAt: string;
 }
 
-/** 方案 C — 时间线条目归因 → 按 INFERENCE.md 公式聚合 */
+/** 方案 C — 时间线条目归因 → 按 docs/interest-inference.md 公式聚合 */
 export function aggregateTagsFromTimeline(
   timeline: TimelineEntry[],
   tagDrafts: TimelineTagDraft[],
