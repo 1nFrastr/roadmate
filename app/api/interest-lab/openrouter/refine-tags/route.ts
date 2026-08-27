@@ -22,6 +22,10 @@ function deterministicKeep(tags: { name: string; postCount: number }[]): string[
   return keep;
 }
 
+function isConfigError(message: string): boolean {
+  return /not configured|missing|is not set/i.test(message);
+}
+
 export async function POST(request: Request) {
   const started = Date.now();
 
@@ -44,8 +48,8 @@ export async function POST(request: Request) {
     const keep = await refineAggregatedTags(tags);
     return Response.json({ keep: keep ?? deterministicKeep(tags), skipped: false });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "标签精炼失败";
-    const status = message.includes("未配置") ? 503 : 502;
+    const message = err instanceof Error ? err.message : "Tag refinement failed";
+    const status = isConfigError(message) ? 503 : 502;
     return Response.json({ error: message }, { status });
   }
 }

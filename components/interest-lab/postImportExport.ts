@@ -7,7 +7,7 @@ import {
 } from "./postUtils";
 import type { PostRecord } from "./types";
 
-/** roadmate-posts txt schema 版本 */
+/** roadmate-posts txt schema version */
 export const POSTS_TXT_SCHEMA = "roadmate-posts/1";
 
 const UNIT_CHAR: Record<RelativeTimeUnit, string> = {
@@ -28,19 +28,15 @@ const WORD_TO_UNIT: Record<string, RelativeTimeUnit> = {
   h: "hours",
   hour: "hours",
   hours: "hours",
-  小时: "hours",
   d: "days",
   day: "days",
   days: "days",
-  天: "days",
   w: "weeks",
   week: "weeks",
   weeks: "weeks",
-  周: "weeks",
   m: "months",
   month: "months",
   months: "months",
-  月: "months",
 };
 
 const COMPACT_HEADER_RE = /^@\s*(\d+)\s*([hdwm])\s*$/i;
@@ -73,7 +69,7 @@ export interface ParsePostsTxtResult {
   warnings: string[];
 }
 
-/** 解析 roadmate-posts/1 格式 txt */
+/** Parse roadmate-posts/1 format txt */
 export function parsePostsFromTxt(content: string): ParsePostsTxtResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -87,7 +83,7 @@ export function parsePostsFromTxt(content: string): ParsePostsTxtResult {
     if (!currentTime) return;
     const text = bodyLines.join("\n").trim();
     if (!text) {
-      warnings.push(`第 ${lineNo} 行附近：帖子正文为空，已跳过`);
+      warnings.push(`Near line ${lineNo}: post body is empty, skipped`);
     } else {
       posts.push(createPostRecord(text, relativeToIso(currentTime.amount, currentTime.unit)));
     }
@@ -108,7 +104,9 @@ export function parsePostsFromTxt(content: string): ParsePostsTxtResult {
     }
 
     if (!currentTime) {
-      errors.push(`第 ${lineNo} 行：缺少 @时间 头（如 @3d、@6h），正文不能以 @ 以外内容开头`);
+      errors.push(
+        `Line ${lineNo}: missing @time header (e.g. @3d, @6h); body cannot start with content other than @`,
+      );
       continue;
     }
 
@@ -118,19 +116,19 @@ export function parsePostsFromTxt(content: string): ParsePostsTxtResult {
   flush();
 
   if (posts.length === 0 && errors.length === 0) {
-    errors.push("未解析到任何帖子，请检查格式是否符合 roadmate-posts/1");
+    errors.push("No posts parsed; check that the format matches roadmate-posts/1");
   }
 
   return { posts: sortPostsByCreatedAtDesc(posts), errors, warnings };
 }
 
-/** 将帖子列表序列化为 roadmate-posts/1 txt */
+/** Serialize a post list to roadmate-posts/1 txt */
 export function serializePostsToTxt(posts: PostRecord[]): string {
   const lines: string[] = [
     `# ${POSTS_TXT_SCHEMA}`,
-    "# 每帖一行 @<数量><单位>，随后为正文（可多行）；下一条 @ 开头为新帖",
-    "# 单位: h=小时 d=天 w=周 m=月（也支持 @3 days、@2 周 等写法）",
-    "# 以 # 开头的行为注释，空行忽略",
+    "# Each post starts with one line @<amount><unit>, then the body (may be multi-line); the next @ starts a new post",
+    "# Units: h=hours d=days w=weeks m=months (also supports @3 days, @2 weeks, etc.)",
+    "# Lines starting with # are comments; blank lines are ignored",
     "",
   ];
 
@@ -145,7 +143,7 @@ export function serializePostsToTxt(posts: PostRecord[]): string {
   return lines.join("\n").trimEnd() + "\n";
 }
 
-/** 导出文件名：roadmate-posts-YYYYMMDD-HHmmss.txt（本地时间） */
+/** Export filename: roadmate-posts-YYYYMMDD-HHmmss.txt (local time) */
 export function buildPostsExportFilename(now = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;

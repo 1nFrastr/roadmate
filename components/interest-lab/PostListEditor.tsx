@@ -14,7 +14,7 @@ import type { PostRecord } from "./types";
 interface PostListEditorProps {
   posts: PostRecord[];
   onChange: (posts: PostRecord[]) => void;
-  /** 批量导入：替换列表并清缓存（与 onChange 分开，便于父级重置 profile） */
+  /** Bulk import: replace the list and clear caches (separate from onChange so the parent can reset the profile) */
   onImport?: (posts: PostRecord[], filename: string) => void;
   disabled?: boolean;
 }
@@ -22,11 +22,11 @@ interface PostListEditorProps {
 const RELATIVE_UNITS: RelativeTimeUnit[] = ["hours", "days", "weeks", "months"];
 
 const QUICK_PRESETS: { label: string; amount: number; unit: RelativeTimeUnit }[] = [
-  { label: "刚刚", amount: 0, unit: "hours" },
-  { label: "6小时", amount: 6, unit: "hours" },
-  { label: "3天", amount: 3, unit: "days" },
-  { label: "2周", amount: 2, unit: "weeks" },
-  { label: "3月", amount: 3, unit: "months" },
+  { label: "Just now", amount: 0, unit: "hours" },
+  { label: "6h", amount: 6, unit: "hours" },
+  { label: "3d", amount: 3, unit: "days" },
+  { label: "2w", amount: 2, unit: "weeks" },
+  { label: "3mo", amount: 3, unit: "months" },
 ];
 
 function RelativeTimeControl({
@@ -46,7 +46,7 @@ function RelativeTimeControl({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] text-zinc-500">距今</span>
+      <span className="text-[10px] text-zinc-500">Ago</span>
       <input
         type="number"
         min={0}
@@ -130,11 +130,11 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
   const handleExport = useCallback(() => {
     const exportable = posts.filter((post) => post.text.trim());
     if (exportable.length === 0) {
-      setIoMessage({ kind: "err", text: "没有可导出的帖子（正文不能为空）" });
+      setIoMessage({ kind: "err", text: "No posts to export (body cannot be empty)" });
       return;
     }
     downloadPostsTxt(exportable);
-    setIoMessage({ kind: "ok", text: `已导出 ${exportable.length} 条帖子` });
+    setIoMessage({ kind: "ok", text: `Exported ${exportable.length} posts` });
   }, [posts]);
 
   const handleImportFile = useCallback(
@@ -148,7 +148,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
         const { posts: imported, errors, warnings } = parsePostsFromTxt(content);
 
         if (errors.length > 0) {
-          setIoMessage({ kind: "err", text: errors.join("；") });
+          setIoMessage({ kind: "err", text: errors.join("; ") });
           return;
         }
 
@@ -158,10 +158,10 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
           onChange(imported);
         }
         setImportFilename(file.name);
-        const warningText = warnings.length > 0 ? `（${warnings[0]}）` : "";
-        setIoMessage({ kind: "ok", text: `已导入 ${imported.length} 条帖子${warningText}` });
+        const warningText = warnings.length > 0 ? ` (${warnings[0]})` : "";
+        setIoMessage({ kind: "ok", text: `Imported ${imported.length} posts${warningText}` });
       } catch {
-        setIoMessage({ kind: "err", text: "读取文件失败" });
+        setIoMessage({ kind: "err", text: "Failed to read file" });
       }
     },
     [onChange, onImport],
@@ -171,7 +171,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
-          三阶段时间线推断（预处理 → 合并 → 标签），时间用「距今」方便测试 recency 加权
+          Three-stage timeline inference (preprocess → merge → tags); use “Ago” times to test recency weighting
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -180,7 +180,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
             onClick={() => fileInputRef.current?.click()}
             className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
           >
-            批量导入
+            Import
           </button>
           <button
             type="button"
@@ -188,7 +188,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
             onClick={handleExport}
             className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50"
           >
-            批量导出
+            Export
           </button>
           <button
             type="button"
@@ -196,7 +196,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
             onClick={addPost}
             className="rounded-lg border border-zinc-700 px-2.5 py-1 text-xs text-cyan-400 transition hover:border-cyan-500/40 hover:text-cyan-300 disabled:opacity-50"
           >
-            + 添加帖子
+            + Add post
           </button>
           <input
             ref={fileInputRef}
@@ -210,9 +210,9 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
 
       {importFilename ? (
         <p className="text-xs text-zinc-400">
-          导入文件：
+          Imported file:{" "}
           <span className="font-mono text-zinc-300">{importFilename}</span>
-          {posts.length > 0 ? ` · ${posts.length} 条帖子` : null}
+          {posts.length > 0 ? ` · ${posts.length} posts` : null}
         </p>
       ) : null}
 
@@ -227,7 +227,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
 
       {posts.length === 0 ? (
         <p className="rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-4 text-center text-sm text-zinc-500">
-          点击「添加帖子」开始测试
+          Click “Add post” to start testing
         </p>
       ) : (
         <ul
@@ -240,10 +240,10 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
               className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3"
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-zinc-500">帖子 {index + 1}</span>
+                <span className="text-xs font-medium text-zinc-500">Post {index + 1}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   {post.extractedAt ? (
-                    <span className="text-[10px] text-emerald-400/80">已纳入推断</span>
+                    <span className="text-[10px] text-emerald-400/80">Included in inference</span>
                   ) : null}
                   <button
                     type="button"
@@ -251,7 +251,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
                     onClick={() => removePost(post.id)}
                     className="text-[10px] text-zinc-500 hover:text-red-300 disabled:opacity-50"
                   >
-                    删除
+                    Delete
                   </button>
                 </div>
               </div>
@@ -265,7 +265,7 @@ export function PostListEditor({ posts, onChange, onImport, disabled }: PostList
                 disabled={disabled}
                 onChange={(event) => updatePost(post.id, { text: event.target.value })}
                 rows={2}
-                placeholder="输入单条发帖内容…"
+                placeholder="Enter a single post…"
                 className="mt-2 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm leading-relaxed text-zinc-100 outline-none focus:border-cyan-500/60 disabled:opacity-50"
               />
             </li>

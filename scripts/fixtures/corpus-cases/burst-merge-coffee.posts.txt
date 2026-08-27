@@ -1,14 +1,14 @@
 # roadmate-posts/1
-# 4 帖纯咖啡，全在 5 天内 — 测试 7 天窗口内合并 + frequency 按 sourcePostIds 展开
+# 4 coffee-only posts within 5 days — test 7-day window merge + frequency expanded via sourcePostIds
 
 @1d
-周末试了埃塞俄比亚耶加雪菲手冲，酸度很亮
+Tried Ethiopian Yirgacheffe pour-over this weekend — bright acidity
 
 @2d
-入坑意式浓缩，换了新磨豆机，调研磨度调到崩溃
+Got into espresso, new grinder, dialing grind size until I lost my mind
 
 @3d
-调整手冲水质和粉水比，终于冲出层次感
+Tweaked pour-over water and brew ratio — finally getting layered cups
 
 @5d
-学做 dirty 拿铁，冰博客奶比例终于对了
+Learning dirty lattes — oat milk ratio finally right

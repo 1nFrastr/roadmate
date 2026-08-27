@@ -10,7 +10,7 @@ export function isTagNameTooLong(name: string): boolean {
   return tagNameLength(name) > MAX_TAG_NAME_LENGTH;
 }
 
-/** 结构性过滤：仅做长度约束与同批次去重；标签的语义取舍全部交给 prompt */
+/** Structural filter: length constraints and within-batch dedupe only; semantic choices are left to the prompt */
 export function filterPostTagDrafts(tags: PostTagDraft[]): PostTagDraft[] {
   const seen = new Set<string>();
   const result: PostTagDraft[] = [];

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 interface TagWordCloudAddOrbProps {
   disabled?: boolean;
   onSubmit: (name: string) => void;
-  /** 嵌入 iPhone 屏幕顶部栏 */
+  /** Embed in the iPhone screen top bar */
   inScreen?: boolean;
 }
 
@@ -69,7 +69,7 @@ export function TagWordCloudAddOrb({
             type="text"
             value={value}
             maxLength={24}
-            placeholder="标签名"
+            placeholder="Tag name"
             disabled={disabled}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={(event) => {
@@ -91,15 +91,15 @@ export function TagWordCloudAddOrb({
             onClick={submit}
             className="tag-add-orb-confirm shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-cyan-200 transition enabled:hover:text-white disabled:opacity-40"
           >
-            添加
+            Add
           </button>
         </div>
       ) : null}
       <button
         type="button"
         disabled={disabled}
-        aria-label="添加自定义标签"
-        title="添加自定义标签"
+        aria-label="Add custom tag"
+        title="Add custom tag"
         onClick={() => setOpen((current) => !current)}
         className={`tag-add-orb-button flex shrink-0 items-center justify-center rounded-full transition enabled:hover:scale-105 disabled:opacity-40 ${
           inScreen ? "h-9 w-9" : "h-11 w-11"

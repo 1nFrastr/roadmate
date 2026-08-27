@@ -1,6 +1,6 @@
 /**
- * 方案 C 三阶段时间线推断 CLI 管线。
- * 阶段 1 并行预处理 → 阶段 2 时间线合并 → 阶段 3 标签提取 → 代码聚合权重
+ * Scheme C three-stage timeline inference CLI pipeline.
+ * Stage 1 parallel preprocess → stage 2 timeline merge → stage 3 tag extract → code-side weight aggregation
  */
 
 import { inferTagsFromTimeline } from "../../components/interest-lab/server/timelineInference";

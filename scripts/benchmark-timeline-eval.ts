@@ -1,11 +1,11 @@
 /**
- * 方案 C 时间线推断评测 — 三阶段流水线 benchmark。
+ * Scheme C timeline inference eval — three-stage pipeline benchmark.
  *
- * 流程:
- *   parsePostsFromTxt → inferTagsFromTimeline(预处理/合并/提取)
- *   → aggregateTagsFromTimeline(频率/情感/新鲜度权重)
+ * Flow:
+ *   parsePostsFromTxt → inferTagsFromTimeline(preprocess/merge/extract)
+ *   → aggregateTagsFromTimeline(frequency/sentiment/recency weights)
  *
- * 用法:
+ * Usage:
  *   npm run bench:timeline
  *   npm run bench:timeline -- --case multi-theme-user
  *   npm run bench:timeline -- /path/to/roadmate-posts.txt
@@ -24,9 +24,9 @@ import { runTimelineInference } from "./lib/timelineInferencePipeline";
 const DEFAULT_CASES_DIR = resolve(process.cwd(), "scripts/fixtures/corpus-cases");
 
 const STAGE_LABELS: Record<TimelineInferenceProgress["stage"], string> = {
-  preprocess: "阶段1 预处理",
-  merge: "阶段2 时间线合并",
-  extract: "阶段3 标签提取",
+  preprocess: "Stage 1 preprocess",
+  merge: "Stage 2 timeline merge",
+  extract: "Stage 3 tag extract",
 };
 
 interface CaseExpect {
@@ -35,7 +35,7 @@ interface CaseExpect {
   anyOf?: string[][];
   minTags?: number;
   maxTags?: number;
-  /** 预处理后至少保留的有效帖数 */
+  /** Min signal posts remaining after preprocess */
   minSignalPosts?: number;
 }
 
@@ -81,7 +81,7 @@ function loadEnvLocal(): void {
   try {
     content = readFileSync(envPath, "utf8");
   } catch {
-    throw new Error("未找到 .env.local，请配置 OPENROUTER_API_KEY");
+    throw new Error("Missing .env.local — please set OPENROUTER_API_KEY");
   }
 
   for (const line of content.split(/\r?\n/)) {
@@ -129,12 +129,12 @@ function parseArgs(argv: string[]) {
       continue;
     }
     if (arg === "--help" || arg === "-h") {
-      console.log(`用法:
-  npm run bench:timeline                              # manifest 全部 case
-  npm run bench:timeline -- --case multi-theme-user   # 单个 case
-  npm run bench:timeline -- posts.txt                 # 单文件
-  npm run bench:timeline -- --verbose                 # 打印三阶段明细
-  npm run bench:timeline -- --json                    # JSON 输出`);
+      console.log(`Usage:
+  npm run bench:timeline                              # all manifest cases
+  npm run bench:timeline -- --case multi-theme-user   # single case
+  npm run bench:timeline -- posts.txt                 # single file
+  npm run bench:timeline -- --verbose                 # print three-stage details
+  npm run bench:timeline -- --json                    # JSON output`);
       process.exit(0);
     }
     if (!arg.startsWith("-")) {
@@ -159,7 +159,7 @@ function findMatchingTag(needle: string, tags: InterestTag[]): string | null {
 function loadManifest(casesDir: string): Manifest {
   const manifestPath = join(casesDir, "manifest.json");
   if (!existsSync(manifestPath)) {
-    throw new Error(`未找到 manifest: ${manifestPath}`);
+    throw new Error(`Manifest not found: ${manifestPath}`);
   }
   return JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 }
@@ -172,15 +172,15 @@ function loadCasePosts(caseDef: CorpusCase, casesDir: string): PostRecord[] {
     const postsPath = join(casesDir, caseDef.postsFile);
     raw = readFileSync(postsPath, "utf8");
   } else {
-    throw new Error(`case ${caseDef.id} 缺少 posts 或 postsFile`);
+    throw new Error(`case ${caseDef.id} missing posts or postsFile`);
   }
 
   const { posts, errors } = parsePostsFromTxt(raw);
   if (errors.length > 0) {
-    throw new Error(`case ${caseDef.id} 帖子解析失败:\n${errors.join("\n")}`);
+    throw new Error(`case ${caseDef.id} failed to parse posts:\n${errors.join("\n")}`);
   }
   if (posts.length === 0) {
-    throw new Error(`case ${caseDef.id} 帖子为空`);
+    throw new Error(`case ${caseDef.id} posts are empty`);
   }
   return posts;
 }
@@ -276,13 +276,13 @@ function formatRelative(iso: string): string {
 
 function printTagTable(tags: InterestTag[]) {
   if (tags.length === 0) {
-    console.log("  (无标签)");
+    console.log("  (no tags)");
     return;
   }
 
   const nameWidth = Math.max(4, ...tags.map((t) => [...t.name].length));
   console.log(
-    `  ${"标签".padEnd(nameWidth)}  frequency  sentiment  recency   weight  entries`,
+    `  ${"tag".padEnd(nameWidth)}  frequency  sentiment  recency   weight  entries`,
   );
   console.log(`  ${"─".repeat(nameWidth + 52)}`);
 
@@ -296,7 +296,7 @@ function printTagTable(tags: InterestTag[]) {
 
 function printWordCloud(tags: InterestTag[]) {
   if (tags.length === 0) {
-    console.log("  (空词云)");
+    console.log("  (empty word cloud)");
     return;
   }
 
@@ -322,31 +322,31 @@ function printPipelineDetail(
   const signal = timelineResult.preprocessed.filter((p) => !p.isNoise);
   const noise = timelineResult.preprocessed.filter((p) => p.isNoise);
 
-  console.log(`\n── 思维链路 ──`);
-  console.log(`  原始帖 ${timelineResult.preprocessed.length} → 有效 ${signal.length} / 噪音 ${noise.length}`);
-  console.log(`  时间线条目 ${timelineResult.timeline.length} → 标签 ${timelineResult.tags.length}`);
+  console.log(`\n── Reasoning chain ──`);
+  console.log(`  raw posts ${timelineResult.preprocessed.length} → signal ${signal.length} / noise ${noise.length}`);
+  console.log(`  timeline entries ${timelineResult.timeline.length} → tags ${timelineResult.tags.length}`);
 
   if (verbose) {
-    console.log(`\n── 阶段 1：预处理 ──`);
+    console.log(`\n── Stage 1: preprocess ──`);
     for (const post of timelineResult.preprocessed) {
       const rel = formatRelative(post.createdAt);
       if (post.isNoise) {
-        console.log(`  [噪音] ${rel}`);
+        console.log(`  [noise] ${rel}`);
         continue;
       }
       console.log(`  ${rel} ${post.summary.slice(0, 80)}`);
     }
 
-    console.log(`\n── 阶段 2：时间线合并 ──`);
+    console.log(`\n── Stage 2: timeline merge ──`);
     for (const entry of timelineResult.timeline) {
       const rel = formatRelative(entry.createdAt);
       const merged =
-        entry.sourcePostIds.length > 1 ? ` (合并 ${entry.sourcePostIds.length} 帖)` : "";
+        entry.sourcePostIds.length > 1 ? ` (merged ${entry.sourcePostIds.length} posts)` : "";
       console.log(`  [${entry.id}] ${rel}${merged}`);
       console.log(`    ${entry.summary.slice(0, 100)}`);
     }
 
-    console.log(`\n── 阶段 3：标签归因 ──`);
+    console.log(`\n── Stage 3: tag attribution ──`);
     for (const tag of timelineResult.tags) {
       console.log(
         `  ${tag.name} (sentiment ${tag.sentiment.toFixed(2)}) → ${tag.entryIds.join(", ")}`,
@@ -358,7 +358,7 @@ function printPipelineDetail(
     .filter((stage) => stageTiming[stage] !== undefined)
     .map((stage) => `${STAGE_LABELS[stage]} ${stageTiming[stage]}ms`);
   if (timingParts.length > 0) {
-    console.log(`\n── 耗时 ── ${timingParts.join(" · ")} · 总计 ${result.wallMs}ms`);
+    console.log(`\n── Timing ── ${timingParts.join(" · ")} · total ${result.wallMs}ms`);
   }
 }
 
@@ -391,20 +391,20 @@ async function runSingleFile(postsPath: string, model: string, verbose: boolean)
   const raw = readFileSync(postsPath, "utf8");
   const { posts, errors } = parsePostsFromTxt(raw);
   if (errors.length > 0) {
-    throw new Error(`帖子解析失败:\n${errors.join("\n")}`);
+    throw new Error(`Failed to parse posts:\n${errors.join("\n")}`);
   }
 
-  console.log(`文件: ${postsPath}`);
-  console.log(`帖子: ${posts.length} · 模型: ${model}`);
-  console.log(`流程: 方案 C — 预处理 → 时间线合并 → 标签提取 → 权重聚合\n`);
+  console.log(`File: ${postsPath}`);
+  console.log(`Posts: ${posts.length} · model: ${model}`);
+  console.log(`Flow: Scheme C — preprocess → timeline merge → tag extract → weight aggregate\n`);
 
   const result = await runWithModel(posts, model, verbose);
   printPipelineDetail(result, verbose);
 
-  console.log(`\n── 标签权重明细 ──`);
+  console.log(`\n── Tag weight details ──`);
   printTagTable(result.inferredTags);
 
-  console.log(`\n── 词云预览（batch 内相对大小）──`);
+  console.log(`\n── Word-cloud preview (relative size within batch) ──`);
   printWordCloud(result.inferredTags);
 }
 
@@ -412,39 +412,39 @@ function printCaseResult(result: CaseEvalResult, verbose: boolean) {
   const mark = result.pass ? "✓" : "✗";
   console.log(`\n${mark} ${result.id} — ${result.description}`);
   console.log(
-    `  ${result.model} · ${result.postCount} 帖 · 有效 ${result.signalPosts} · 时间线 ${result.timelineEntries} · ${result.wallMs}ms · ${result.tags.length} 标签 · 得分 ${(result.score * 100).toFixed(0)}%`,
+    `  ${result.model} · ${result.postCount} posts · signal ${result.signalPosts} · timeline ${result.timelineEntries} · ${result.wallMs}ms · ${result.tags.length} tags · score ${(result.score * 100).toFixed(0)}%`,
   );
   if (result.error) {
-    console.log(`  错误: ${result.error}`);
+    console.log(`  Error: ${result.error}`);
     return;
   }
 
-  console.log(`\n── 标签权重明细 ──`);
+  console.log(`\n── Tag weight details ──`);
   printTagTable(result.tags);
 
-  console.log(`\n── 词云预览（batch 内相对大小）──`);
+  console.log(`\n── Word-cloud preview (relative size within batch) ──`);
   printWordCloud(result.tags);
 
   const { checks } = result;
   for (const item of checks.anyOf) {
-    const status = item.hit ? `✓ → ${item.hit}` : `✗ 未命中 (${item.group.join("|")})`;
-    console.log(`  主题组 ${item.group.slice(0, 3).join("|")}${item.group.length > 3 ? "…" : ""}: ${status}`);
+    const status = item.hit ? `✓ → ${item.hit}` : `✗ miss (${item.group.join("|")})`;
+    console.log(`  Theme group ${item.group.slice(0, 3).join("|")}${item.group.length > 3 ? "…" : ""}: ${status}`);
   }
   for (const item of checks.required) {
-    const status = item.hit ? `✓ → ${item.hit}` : "✗ 未命中";
-    console.log(`  必需「${item.needle}」: ${status}`);
+    const status = item.hit ? `✓ → ${item.hit}` : "✗ miss";
+    console.log(`  Required "${item.needle}": ${status}`);
   }
   for (const item of checks.forbidden) {
-    const status = item.hit ? `✗ 违规 → ${item.hit}` : "✓ 未出现";
-    console.log(`  禁止「${item.needle}」: ${status}`);
+    const status = item.hit ? `✗ violation → ${item.hit}` : "✓ absent";
+    console.log(`  Forbidden "${item.needle}": ${status}`);
   }
   if (checks.tagCount.min !== undefined || checks.tagCount.max !== undefined) {
     const range = `${checks.tagCount.min ?? 0}~${checks.tagCount.max ?? "∞"}`;
-    console.log(`  标签数 ${checks.tagCount.actual} (期望 ${range}): ${checks.tagCount.ok ? "✓" : "✗"}`);
+    console.log(`  Tag count ${checks.tagCount.actual} (expected ${range}): ${checks.tagCount.ok ? "✓" : "✗"}`);
   }
   if (checks.signalPosts.min !== undefined) {
     console.log(
-      `  有效帖 ${checks.signalPosts.actual} (期望 ≥${checks.signalPosts.min}): ${checks.signalPosts.ok ? "✓" : "✗"}`,
+      `  Signal posts ${checks.signalPosts.actual} (expected ≥${checks.signalPosts.min}): ${checks.signalPosts.ok ? "✓" : "✗"}`,
     );
   }
 }
@@ -456,8 +456,8 @@ function printSummary(results: CaseEvalResult[]) {
   const avgScore =
     results.length === 0 ? 0 : results.reduce((sum, r) => sum + r.score, 0) / results.length;
 
-  console.log("\n=== 汇总 ===");
-  console.log(`通过 ${passed} · 失败 ${failed} · 错误 ${errored} · 平均得分 ${(avgScore * 100).toFixed(0)}%`);
+  console.log("\n=== Summary ===");
+  console.log(`Passed ${passed} · failed ${failed} · errored ${errored} · avg score ${(avgScore * 100).toFixed(0)}%`);
 }
 
 async function runManifestEval(options: {
@@ -473,14 +473,14 @@ async function runManifestEval(options: {
   if (options.caseFilter) {
     cases = cases.filter((c) => c.id === options.caseFilter);
     if (cases.length === 0) {
-      throw new Error(`未找到 case: ${options.caseFilter}`);
+      throw new Error(`Case not found: ${options.caseFilter}`);
     }
   }
 
-  console.log(`评测目录: ${options.casesDir}`);
-  console.log(`schema: ${manifest.schema ?? "(未标注)"}`);
-  console.log(`case 数: ${cases.length} · 模型: ${options.models.join(", ")}`);
-  console.log("流程: 方案 C — 预处理 → 时间线合并 → 标签提取 → aggregateTagsFromTimeline\n");
+  console.log(`Eval directory: ${options.casesDir}`);
+  console.log(`schema: ${manifest.schema ?? "(unspecified)"}`);
+  console.log(`Cases: ${cases.length} · models: ${options.models.join(", ")}`);
+  console.log("Flow: Scheme C — preprocess → timeline merge → tag extract → aggregateTagsFromTimeline\n");
 
   const results: CaseEvalResult[] = [];
 
@@ -496,7 +496,7 @@ async function runManifestEval(options: {
 
       try {
         if (options.verbose) {
-          console.log(`\n--- ${caseDef.id} (${posts.length} 帖) ---`);
+          console.log(`\n--- ${caseDef.id} (${posts.length} posts) ---`);
         }
         const pipeline = await runWithModel(posts, model, options.verbose);
         const signalPosts = pipeline.timelineResult.preprocessed.filter((p) => !p.isNoise).length;
@@ -552,7 +552,7 @@ async function runManifestEval(options: {
 async function main() {
   loadEnvLocal();
   if (!process.env.OPENROUTER_API_KEY?.trim()) {
-    throw new Error("OPENROUTER_API_KEY 未配置");
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
   const { casesDir, singlePostsPath, caseFilter, models, jsonOutput, verbose } = parseArgs(

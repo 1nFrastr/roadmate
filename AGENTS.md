@@ -4,138 +4,138 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Roadmate — Agent 指南
+# Roadmate — Agent Guide
 
-## 项目是什么
+## What this project is
 
-**Roadmate** 是一个近场社交硬件交互 Demo（Web 原型）。模拟低功耗圆形 NFC Tag 设备（AirTag 灵感金属圆盘 + 圆形墨水屏），在画布上展示多台拟物设备，用户拖动「我的设备」（RM-01）靠近志趣相投的设备，通过 **Dock 放大**、**环形灯带频闪** 与 **圆屏方向箭头** 感知匹配强度，重叠后可完成碰一碰配对仪式。
+**Roadmate** is a near-field social hardware interaction demo (web prototype). It simulates low-power circular NFC Tag devices (AirTag-inspired metal discs with circular e-ink screens), shows multiple skeuomorphic devices on a canvas, and lets the user drag “my device” (RM-01) toward like-minded devices. Matching strength is perceived through **Dock scale-up**, **ring LED strobing**, and **on-screen direction arrows**; after overlap, a tap-to-pair ritual can complete.
 
-**Journey 路径**：`/` Interest Lab 推断兴趣 → 转场 → `/playground` 近场交互 → `/roadmates` 社交原型。
+**Journey path**: `/` Interest Lab infers interests → transition → `/playground` near-field interaction → `/roadmates` social prototype.
 
-**已实现**：拖拽与 Matter 叠放、近场环形 LED（距离映射频率/强度）、Dock 放大、双向方向箭头、重叠灯环充能配对、匹配成功转场、Interest Lab 三阶段时间线推断 + embedding、设备 match 分（embedding 余弦 + 标签重叠）、TagWordCloud 物理词云。  
-**未实现 / Phase 2+**：Web Audio 音效、真实 NFC 确认、雷达扫描动画、完整 6 步见面仪式等。
+**Implemented**: drag and Matter stacking, near-field ring LEDs (distance maps to frequency/intensity), Dock scale-up, bidirectional direction arrows, overlap ring charge pairing, match-success transition, Interest Lab three-stage timeline inference + embedding, device match score (embedding cosine + tag overlap), TagWordCloud physics word cloud.  
+**Not implemented / Phase 2+**: Web Audio effects, real NFC confirmation, radar scan animation, full 6-step meet ritual, etc.
 
-外形与交互演进详见 [`docs/device-playground.md`](docs/device-playground.md)。
+Device form and interaction evolution: [`docs/device-playground.md`](docs/device-playground.md).
 
-## 技术栈
+## Tech stack
 
-| 层级 | 选型 |
+| Layer | Choice |
 |------|------|
-| 框架 | Next.js 16 App Router + React 19 + TypeScript |
-| 样式 | Tailwind CSS v4（`app/globals.css` 含拟物 Tag / 词云样式） |
-| 动画 / 拖拽 | GSAP + `@gsap/react` + `Draggable` |
-| 物理 | Matter.js（设备：无重力叠放；词云：轻重力 + 边界碰撞） |
-| LLM / Embedding | OpenRouter（经 Next.js API 路由；Key 存 localStorage，客户端传入、不落盘） |
-| Twitter 数据源 | twitterapi.io（Interest Lab X 模式，经服务端代理） |
+| Framework | Next.js 16 App Router + React 19 + TypeScript |
+| Styling | Tailwind CSS v4 (`app/globals.css` includes skeuomorphic Tag / word-cloud styles) |
+| Animation / drag | GSAP + `@gsap/react` + `Draggable` |
+| Physics | Matter.js (devices: zero-gravity stacking; word cloud: light gravity + wall collisions) |
+| LLM / Embedding | OpenRouter (via Next.js API routes; Key in localStorage, passed from client, not persisted server-side) |
+| Twitter data source | twitterapi.io (Interest Lab X mode, via server proxy) |
 
-**不要**用 Framer Motion 或纯 CSS `@keyframes` 替代 LED 频率映射——频率需 runtime 随距离连续变化。
+**Do not** replace LED frequency mapping with Framer Motion or pure CSS `@keyframes` — frequency must change continuously at runtime with distance.
 
-## 目录结构
+## Directory structure
 
 ```
 app/
   (journey)/
-    page.tsx              # Journey 首页 → Interest Lab
+    page.tsx              # Journey home → Interest Lab
     playground/page.tsx   # Device Playground
-    layout.tsx            # JourneyShell + 转场 Provider
-  interests/page.tsx      # 重定向到 /
-  roadmates/page.tsx      # Roadmates 社交原型
-  tag-cloud/page.tsx      # TagWordCloud 独立测试页
-  api/interest-lab/       # openrouter infer-timeline / embed 等；twitter 代理
+    layout.tsx            # JourneyShell + transition Provider
+  interests/page.tsx      # Redirect to /
+  roadmates/page.tsx      # Roadmates social prototype
+  tag-cloud/page.tsx      # TagWordCloud standalone test page
+  api/interest-lab/       # openrouter infer-timeline / embed etc.; twitter proxy
   layout.tsx, globals.css
 
 components/device-playground/
-  DevicePlayground.tsx    # 主容器：Draggable、hooks 编排
-  DeviceCard.tsx          # 单台圆形 Tag UI（金属壳、圆屏、环形 LED）
-  MatchPointerArrow.tsx   # 近场双向方位箭头
-  MatchScoreCounter.tsx   # 配对成功屏分数/话题
-  matchScoring.ts         # embedding 余弦 + 标签重叠 → match %
-  useDevicePhysics.ts     # Matter 引擎、刚体、DOM 同步
-  useProximityEffects.ts  # Dock 放大 + 环形 LED timeScale / intensity
-  match-pairing/          # useMatchPairing、充能进度、成功转场
+  DevicePlayground.tsx    # Main container: Draggable, hook orchestration
+  DeviceCard.tsx          # Single circular Tag UI (metal shell, round screen, ring LED)
+  MatchPointerArrow.tsx   # Near-field bidirectional bearing arrows
+  MatchScoreCounter.tsx   # Match-success screen score / topics
+  matchScoring.ts         # embedding cosine + tag overlap → match %
+  useDevicePhysics.ts     # Matter engine, rigid bodies, DOM sync
+  useProximityEffects.ts  # Dock scale-up + ring LED timeScale / intensity
+  match-pairing/          # useMatchPairing, charge progress, success transition
   constants.ts, types.ts, layoutInitialDevices.ts
 
-components/journey/       # Journey 转场、iPhone 预览框、localStorage 状态
+components/journey/       # Journey transitions, iPhone preview frame, localStorage state
 
 components/tag-word-cloud/
   TagWordCloud.tsx, utils.ts, constants.ts, types.ts, placeholderTags.ts
 
 components/interest-lab/
-  InterestLab.tsx         # Web UI 编排、profile 持久化
+  InterestLab.tsx         # Web UI orchestration, profile persistence
   PostListEditor.tsx, postImportExport.ts, postUtils.ts
-  tagUtils.ts             # aggregateTagsFromTimeline、computeTagWeight
-  timelineUtils.ts        # 推断结果应用、timelineResultToInterestTags
-  prompts.ts              # 三阶段 system prompt
-  server/                 # timelineInference.ts、timelineFormat.ts 等（方案 C）
-  api/openrouter.ts       # inferTagsFromTimeline（NDJSON 流）、embedTags
+  tagUtils.ts             # aggregateTagsFromTimeline, computeTagWeight
+  timelineUtils.ts        # Apply inference results, timelineResultToInterestTags
+  prompts.ts              # Three-stage system prompt
+  server/                 # timelineInference.ts, timelineFormat.ts, etc. (Scheme C)
+  api/openrouter.ts       # inferTagsFromTimeline (NDJSON stream), embedTags
   api/twitter.ts, storage.ts, constants.ts, types.ts
 
 docs/
-  device-playground.md    # 设备外形与近场交互设计
-  interest-inference.md   # 方案 C 三阶段推断与权重
+  device-playground.md    # Device form factor and near-field interaction design
+  interest-inference.md   # Scheme C three-stage inference and weighting
 ```
 
-路径别名：`@/*` → 项目根目录。
+Path alias: `@/*` → project root.
 
-## 路由
+## Routes
 
-| 路径 | 说明 |
+| Path | Description |
 |------|------|
-| `/` | Journey 首页 — Interest Lab 兴趣推断 |
-| `/playground` | Device Playground 近场交互 |
-| `/roadmates` | Roadmates 社交原型 |
-| `/interests` | 重定向到 `/` |
-| `/tag-cloud` | TagWordCloud 组件 playground（无需 API） |
+| `/` | Journey home — Interest Lab interest inference |
+| `/playground` | Device Playground near-field interaction |
+| `/roadmates` | Roadmates social prototype |
+| `/interests` | Redirect to `/` |
+| `/tag-cloud` | TagWordCloud component playground (no API required) |
 
-## 核心交互约定（设备 Demo）
+## Core interaction conventions (device demo)
 
-> 外形演进、状态机、常量含义详见 [`docs/device-playground.md`](docs/device-playground.md)。
+> Form evolution, state machine, and constant meanings: [`docs/device-playground.md`](docs/device-playground.md).
 
-1. **外形（v3）**：120 px 正圆金属 Tag 壳 + 85 px 圆形墨水屏；屏外环形 LED（`device-tag-led-ring`），无物理按键。主控 RM-01 外圈 cyan halo（`device-tag-owner-halo`）。
-2. **主控设备**：`OWNER_DEVICE_INDEX = 0`，`isOwner: true`。
-3. **可匹配设备**：10 台中 3 台 `matchable: true`；match 分由 Interest Lab embedding（`matchScoring.ts`）驱动，屏显 `match XX%`。
-4. **近场灯光**（`useProximityEffects`）：仅拖动**主控**时，**最近一对** matchable 设备参与琥珀色（`#ffb020`）环形频闪；有效距离 `LED_MATCH_RANGE = DEVICE_D × 3`；`distanceToLedTimeScale` / `distanceToLedIntensity` 映射频率与光晕强度。持久 GSAP timeline + `timeScale` 调速，禁止每帧 kill/recreate。
-5. **方向箭头**（`MatchPointerArrow`）：有效距离内双方圆屏显示实时旋转箭头（`bearingBetweenCenters`）；待机显示 ROADMATE 品牌字，箭头激活时让位。
-6. **碰一碰配对**（`useMatchPairing`）：重叠 → 翠绿灯环（`#34d399`）充能 1s（`MATCH_CONFIRM_HOLD_MS`）→ 成功转场（confetti、分数、共同话题）。曾用屏外确认按钮，已改为灯环进度，对齐「无实体键、NFC 靠近」方向。
-7. **Dock 放大**：主控进入 `DOCK_RADIUS`（225 px）内时，目标设备 scale 至 `DOCK_MAX_SCALE`（1.35）。
-8. **物理**：拖拽时刚体 `setStatic(true)`，松手后恢复；`afterUpdate` 将非拖拽设备 body 位置同步回 DOM。
+1. **Form (v3)**: 120 px circular metal Tag shell + 85 px circular e-ink screen; ring LED outside the screen (`device-tag-led-ring`); no physical buttons. Owner RM-01 has a cyan outer halo (`device-tag-owner-halo`).
+2. **Owner device**: `OWNER_DEVICE_INDEX = 0`, `isOwner: true`.
+3. **Matchable devices**: 3 of 10 have `matchable: true`; match score is driven by Interest Lab embeddings (`matchScoring.ts`); screen shows `match XX%`.
+4. **Near-field lights** (`useProximityEffects`): only while dragging the **owner**, the **nearest pair** of matchable devices participate in amber (`#ffb020`) ring strobing; effective range `LED_MATCH_RANGE = DEVICE_D × 3`; `distanceToLedTimeScale` / `distanceToLedIntensity` map frequency and glow intensity. Use a persistent GSAP timeline + `timeScale` for speed control; do not kill/recreate every frame.
+5. **Direction arrows** (`MatchPointerArrow`): within effective range both round screens show real-time rotating arrows (`bearingBetweenCenters`); idle shows the ROADMATE brand wordmark, which yields when the arrow is active.
+6. **Tap-to-pair** (`useMatchPairing`): overlap → emerald ring (`#34d399`) charge for 1s (`MATCH_CONFIRM_HOLD_MS`) → success transition (confetti, score, shared topics). Formerly used an off-screen confirm button; now uses ring progress, aligned with “no physical keys, NFC proximity” direction.
+7. **Dock scale-up**: when the owner enters `DOCK_RADIUS` (225 px), the target device scales to `DOCK_MAX_SCALE` (1.35).
+8. **Physics**: while dragging, rigid body `setStatic(true)`, restored on release; `afterUpdate` syncs non-dragged device body positions back to the DOM.
 
-## Interest Lab 约定
+## Interest Lab conventions
 
-> 三方案演进、阶段细节、权重公式、CLI 评测详见 [`docs/interest-inference.md`](docs/interest-inference.md)。
+> Three-scheme evolution, stage details, weight formula, CLI evaluation: [`docs/interest-inference.md`](docs/interest-inference.md).
 
-1. **当前架构（方案 C）**：预处理（并行判噪 + 摘要）→ 时间线合并（7 天窗口语义去重）→ 标签提取 → 代码 `aggregateTagsFromTimeline` → embedding。主路径为 `inferTagsFromTimeline`；方案 A/B 代码保留对照，勿走主路径。
-2. **输入模式**：帖子列表（paste，支持 `roadmate-posts/1` txt 导入导出）或 X 用户名（twitterapi.io 拉帖 → 相同 `PostRecord` schema）。
-3. **推断触发**：每次「推断并保存」**全量重跑**三阶段（不做增量跳过）；帖子列表**不写入** localStorage。
-4. **权重公式**：`weight = 0.40×frequency + 0.20×sentiment×recency + 0.40×recency`；`frequency` / `recency` 由代码按 `sourcePostIds` → `createdAt` 归因链计算，非 LLM 输出。系数见 `constants.ts` 的 `WEIGHT_FACTORS`、`RECENCY_DECAY_LAMBDA`。
-5. **默认模型**（`constants.ts`）：LLM `minimax/minimax-m3`，Embedding `openai/text-embedding-3-small`；可在 UI 覆盖。
-6. **本地存储**：API Key、settings、profile（标签 + embedding，**不含帖子**）在 `localStorage`；**不要**把 Key 提交到 git 或服务端持久化。
-7. **输出**：JSON 预览含 tags + embeddings；下方 `TagWordCloud` 实时展示（推断标签 weight 在 batch 内 min-max 归一化后映射尺寸）。
+1. **Current architecture (Scheme C)**: preprocess (parallel noise filter + summary) → timeline merge (7-day window semantic dedupe) → tag extraction → code `aggregateTagsFromTimeline` → embedding. Main path is `inferTagsFromTimeline`; Scheme A/B code is kept for comparison — do not use as the main path.
+2. **Input modes**: post list (paste; supports `roadmate-posts/1` txt import/export) or X username (twitterapi.io fetch → same `PostRecord` schema).
+3. **Inference trigger**: each “Infer and save” **fully re-runs** all three stages (no incremental skip); the post list is **not** written to localStorage.
+4. **Weight formula**: `weight = 0.40×frequency + 0.20×sentiment×recency + 0.40×recency`; `frequency` / `recency` are computed in code via the `sourcePostIds` → `createdAt` attribution chain, not LLM output. Coefficients: `WEIGHT_FACTORS`, `RECENCY_DECAY_LAMBDA` in `constants.ts`.
+5. **Default models** (`constants.ts`): LLM `minimax/minimax-m3`, Embedding `openai/text-embedding-3-small`; overridable in the UI.
+6. **Local storage**: API Key, settings, profile (tags + embedding, **no posts**) in `localStorage`; **do not** commit the Key to git or persist it on the server.
+7. **Output**: JSON preview includes tags + embeddings; `TagWordCloud` below updates live (inferred tag weights are min-max normalized within the batch, then mapped to size).
 
-## TagWordCloud 约定
+## TagWordCloud conventions
 
-1. **Props**：`tags: { name, weight }[]`；推断标签的 `weight` 在**当前 batch 内 min-max 归一化**后映射球体直径（相对排名，非绝对线性）；自定义标签由滑轨权重绝对映射。
-2. **物理**：轻重力下落、底/侧墙碰撞；初始布局用 `createTagLayouts`，必要时 `separateOverlappingBodies` 防重叠。
-3. **拖拽**：GSAP `Draggable`，拖拽时 body `setStatic(true)`，`afterUpdate` 同步非拖拽标签位置。
-4. **样式**：`.tag-word-cloud` / `.tag-word-cloud-shape-circle` 等在 `globals.css`；色相按 `visualWeight` 分配。
-5. **复用**：Interest Lab 直接 import `TagWordCloud`；独立测试走 `/tag-cloud`。
+1. **Props**: `tags: { name, weight }[]`; inferred tag `weight` is **min-max normalized within the current batch**, then mapped to sphere diameter (relative rank, not absolute linear); custom tags map absolute slider weights.
+2. **Physics**: light gravity fall, bottom/side wall collisions; initial layout via `createTagLayouts`, and `separateOverlappingBodies` when needed to prevent overlap.
+3. **Drag**: GSAP `Draggable`; while dragging, body `setStatic(true)`; `afterUpdate` syncs non-dragged tag positions.
+4. **Styles**: `.tag-word-cloud` / `.tag-word-cloud-shape-circle` etc. in `globals.css`; hue assigned by `visualWeight`.
+5. **Reuse**: Interest Lab imports `TagWordCloud` directly; standalone test at `/tag-cloud`.
 
-## 改代码时注意
+## When changing code
 
-- 所有 canvas / GSAP / Matter 逻辑必须在 `'use client'` 组件内。
-- 动画 setup 优先用 `useGSAP({ scope: ref })`，unmount 时自动 revert。
-- 调参集中在各模块 `constants.ts`（设备：`DOCK_RADIUS`、`LED_MATCH_RANGE` 等；词云：`PHYSICS`、`TAG_SIZE`；Lab：`WEIGHT_FACTORS`、`TIMELINE_MERGE_WINDOW_DAYS`）。
-- 保持 diff 小：不要引入通用拟物 UI 库；设备形态是自定义圆形 Tag。
-- 尊重 `prefers-reduced-motion`（见 `useProximityEffects`、`MatchPointerArrow`）。
-- OpenRouter / twitterapi.io 经 **Next.js API 路由**代理（无 CORS）；API Key 由客户端从 localStorage 传入请求，服务端不落盘。
-- 改设备外形或交互前先读 `docs/device-playground.md`；改推断流水线前先读 `docs/interest-inference.md`。
+- All canvas / GSAP / Matter logic must live in `'use client'` components.
+- Prefer `useGSAP({ scope: ref })` for animation setup; auto-reverts on unmount.
+- Keep tunables in each module’s `constants.ts` (devices: `DOCK_RADIUS`, `LED_MATCH_RANGE`, etc.; word cloud: `PHYSICS`, `TAG_SIZE`; Lab: `WEIGHT_FACTORS`, `TIMELINE_MERGE_WINDOW_DAYS`).
+- Keep diffs small: do not introduce a generic skeuomorphic UI library; the device form is a custom circular Tag.
+- Respect `prefers-reduced-motion` (see `useProximityEffects`, `MatchPointerArrow`).
+- OpenRouter / twitterapi.io are proxied via **Next.js API routes** (no CORS); API Key is passed from the client from localStorage; the server does not persist it.
+- Before changing device form or interaction, read `docs/device-playground.md`; before changing the inference pipeline, read `docs/interest-inference.md`.
 
-## 常用命令
+## Common commands
 
 ```bash
 npm run dev              # http://localhost:3000
 npm run build
 npm run lint
-npm run bench:timeline   # 方案 C 推断 CLI benchmark（见 docs/interest-inference.md）
-npm run bench:corpus     # 方案 B 历史对照（非主路径）
+npm run bench:timeline   # Scheme C inference CLI benchmark (see docs/interest-inference.md)
+npm run bench:corpus     # Scheme B historical comparison (not the main path)
 ```

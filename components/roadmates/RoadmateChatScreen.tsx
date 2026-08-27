@@ -192,7 +192,7 @@ export function RoadmateChatScreen() {
     <div className="roadmates-screen relative flex h-full min-h-0 flex-col">
       <header className="roadmates-chat-header shrink-0 px-3 pb-2.5 pt-1">
         <div className="flex items-center gap-2">
-          <button type="button" className="shrink-0 p-1 text-zinc-400" aria-label="返回">
+          <button type="button" className="shrink-0 p-1 text-zinc-400" aria-label="Back">
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
               <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -216,7 +216,7 @@ export function RoadmateChatScreen() {
           <button
             type="button"
             className="absolute inset-0 z-10 cursor-default"
-            aria-label="关闭表情回应"
+            aria-label="Close reaction picker"
             onClick={() => setActiveReactionMsgId(null)}
           />
         ) : null}
@@ -244,8 +244,9 @@ export function RoadmateChatScreen() {
           aria-live="polite"
         >
           <p key={quotaToastKey} className="roadmates-toast-pill text-[10px] text-zinc-300">
-            今日还可发送{" "}
-            <span className="font-mono tabular-nums text-cyan-300/90">{REMAINING_MESSAGES}</span> 条消息
+            You can send{" "}
+            <span className="font-mono tabular-nums text-cyan-300/90">{REMAINING_MESSAGES}</span> more
+            messages today
           </p>
         </div>
       ) : null}
@@ -254,11 +255,11 @@ export function RoadmateChatScreen() {
         <button
           type="button"
           className="roadmates-record-btn flex h-9 w-full items-center justify-center gap-1.5 rounded-lg px-3.5"
-          aria-label="按住说话"
+          aria-label="Hold to talk"
           onPointerDown={handleRecordPointerDown}
         >
           <MicIcon className="h-3.5 w-3.5 shrink-0 text-cyan-400/75" />
-          <span className="text-[11px] font-medium tracking-wide text-zinc-200">按住说话</span>
+          <span className="text-[11px] font-medium tracking-wide text-zinc-200">Hold to talk</span>
         </button>
       </div>
     </div>

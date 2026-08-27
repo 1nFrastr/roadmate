@@ -31,7 +31,7 @@ interface DeviceCardProps {
 }
 
 function idleStatusText(device: DeviceState): string {
-  if (device.isOwner) return "我的设备";
+  if (device.isOwner) return "My device";
   if (device.matchable) return `match ${device.matchScore}%`;
   return "idle";
 }

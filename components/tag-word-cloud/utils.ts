@@ -77,7 +77,7 @@ export function measureTagBox(
   name: string,
   visualWeight: number,
   preset: TagSizePreset = "default",
-  /** 自定义标签：权重直接驱动球体直径，不被文本宽度下限钉死 */
+  /** Custom tags: weight drives orb diameter directly, not pinned by text-width floor */
   weightDrivesSize = false,
 ) {
   const metrics = TAG_SIZE_BY_PRESET[preset];
@@ -196,7 +196,7 @@ export function stepPhysicsEngine(MatterApi: typeof Matter, engine: Matter.Engin
   }
 }
 
-/** 替换圆形刚体（保持中心），确保碰撞半径与视觉尺寸一致 */
+/** Replace circular rigid body (keep center) so collision radius matches visual size */
 export function replaceTagPhysicsBody(
   MatterApi: typeof Matter,
   world: Matter.Composite,
@@ -220,7 +220,7 @@ export function replaceTagPhysicsBody(
   return newBody;
 }
 
-/** 缩放后给重叠球体冲量，让引擎继续模拟出可见位移 */
+/** After scaling, impulse overlapping orbs so the engine keeps producing visible motion */
 export function applyResizeRepulsion(
   MatterApi: typeof Matter,
   source: Matter.Body,

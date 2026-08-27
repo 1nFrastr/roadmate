@@ -20,13 +20,13 @@ export async function POST(request: Request) {
     posts = body.posts ?? [];
     model = body.model;
   } catch {
-    return Response.json({ error: "请求体无效" }, { status: 400 });
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
   const eligible = getEligiblePosts(posts);
 
   if (eligible.length === 0) {
-    return Response.json({ error: "没有可分析的帖子内容" }, { status: 400 });
+    return Response.json({ error: "No analyzable post content" }, { status: 400 });
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
         send({ type: "complete", result });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "时间线推断失败";
+        const message = err instanceof Error ? err.message : "Timeline inference failed";
         send({ type: "error", message });
       } finally {
         controller.close();

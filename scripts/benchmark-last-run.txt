@@ -2,20 +2,20 @@
 > roadmate@0.1.0 bench:flash
 > tsx scripts/benchmark-flash-models.ts
 
-帖子文件: /Users/xb/roadmate/scripts/fixtures/roadmate-posts.txt
-帖子数: 7，并发: 12
-待测模型: google/gemini-2.5-flash, qwen/qwen3.6-flash, deepseek/deepseek-v4-flash, qwen/qwen3.5-flash-02-23, z-ai/glm-4.7-flash, minimax/minimax-m3
+Posts file: /Users/xb/roadmate/scripts/fixtures/roadmate-posts.txt
+Posts: 7, concurrency: 12
+Models under test: google/gemini-2.5-flash, qwen/qwen3.6-flash, deepseek/deepseek-v4-flash, qwen/qwen3.5-flash-02-23, z-ai/glm-4.7-flash, minimax/minimax-m3
 
-[1/6] google/gemini-2.5-flash … 墙钟 1172ms，标签 0，错误 7
-[2/6] qwen/qwen3.6-flash … 墙钟 22244ms，标签 10，错误 0
-[3/6] deepseek/deepseek-v4-flash … 墙钟 11098ms，标签 2，错误 0
-[4/6] qwen/qwen3.5-flash-02-23 … 墙钟 68031ms，标签 1，错误 0
-[5/6] z-ai/glm-4.7-flash … 墙钟 10794ms，标签 0，错误 0
-[6/6] minimax/minimax-m3 … 墙钟 16707ms，标签 2，错误 0
+[1/6] google/gemini-2.5-flash … wall 1172ms, tags 0, errors 7
+[2/6] qwen/qwen3.6-flash … wall 22244ms, tags 10, errors 0
+[3/6] deepseek/deepseek-v4-flash … wall 11098ms, tags 2, errors 0
+[4/6] qwen/qwen3.5-flash-02-23 … wall 68031ms, tags 1, errors 0
+[5/6] z-ai/glm-4.7-flash … wall 10794ms, tags 0, errors 0
+[6/6] minimax/minimax-m3 … wall 16707ms, tags 2, errors 0
 
-=== Flash 模型逐帖提取基准（与 Interest Lab 相同 prompt / 并发）===
+=== Flash model per-post extract benchmark (same prompt / concurrency as Interest Lab) ===
 
-排名	模型	墙钟(ms)	最慢帖(ms)	中位(ms)	均耗(ms)	标签数	错误
+Rank	Model	Wall(ms)	Slowest(ms)	Median(ms)	Avg(ms)	Tags	Errors
 1	google/gemini-2.5-flash 🏆	1172	1151	955	985	0	7
 2	z-ai/glm-4.7-flash	10794	10794	3661	4445	0	0
 3	deepseek/deepseek-v4-flash	11098	11098	4250	5142	2	0
@@ -23,9 +23,9 @@
 5	qwen/qwen3.6-flash	22244	22241	18569	15511	10	0
 6	qwen/qwen3.5-flash-02-23	68031	68030	47300	41497	1	0
 
-最快: google/gemini-2.5-flash（墙钟 1172ms，7 帖，并发 12）
+Fastest: google/gemini-2.5-flash (wall 1172ms, 7 posts, concurrency 12)
 
---- 各模型最慢 3 帖 ---
+--- Slowest 3 posts per model ---
 
 google/gemini-2.5-flash
   1151ms  tags=0 ERR 403: {"error":{"message":"This model is not available in your region.","code":403}}

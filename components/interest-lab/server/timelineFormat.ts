@@ -19,7 +19,7 @@ export interface MergePromptPayload {
   shortToPostId: Map<string, string>;
 }
 
-/** 阶段 2 输入：按时间从旧到新；帖子 id 用 p1/p2 短序号，避免 UUID 拖慢 JSON 生成 */
+/** Stage 2 input: oldest → newest; use short p1/p2 ids so UUIDs do not slow JSON generation */
 export function formatPreprocessedForMergePrompt(posts: PreprocessedPost[]): MergePromptPayload {
   const signal = posts.filter((post) => !post.isNoise && post.summary.trim());
   const shortToPostId = new Map<string, string>();
@@ -35,7 +35,7 @@ export function formatPreprocessedForMergePrompt(posts: PreprocessedPost[]): Mer
   return { body, shortToPostId };
 }
 
-/** 将 merge 输出的 p1/p2 短序号还原为帖子 id（兼容模型误回传 UUID） */
+/** Map merge output short p1/p2 ids back to post ids (also accepts a mistaken UUID from the model) */
 export function resolveMergeSourcePostIds(
   rawIds: string[],
   shortToPostId: Map<string, string>,
@@ -57,7 +57,7 @@ export function resolveMergeSourcePostIds(
   return result;
 }
 
-/** 阶段 3 输入：合并后的时间线 */
+/** Stage 3 input: merged timeline */
 export function formatTimelineForExtractPrompt(entries: TimelineEntry[]): string {
   return entries
     .map(

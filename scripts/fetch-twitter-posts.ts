@@ -1,12 +1,12 @@
 /**
- * 测试 twitterapi.io last_tweets 直连，并保存为 roadmate-posts/1 格式。
+ * Test twitterapi.io last_tweets direct call and save as roadmate-posts/1 format.
  *
- * 用法:
+ * Usage:
  *   npm run fetch:twitter -- --user jack
  *   npm run fetch:twitter -- --user jack --out scripts/output/jack.posts.txt
  *   npm run fetch:twitter -- jack
  *
- * 依赖 .env.local 中的 TWITTER_API_KEY。
+ * Requires TWITTER_API_KEY in .env.local.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -24,7 +24,7 @@ function loadEnvLocal(): void {
   try {
     content = readFileSync(envPath, "utf8");
   } catch {
-    throw new Error("未找到 .env.local，请配置 TWITTER_API_KEY");
+    throw new Error("Missing .env.local — please set TWITTER_API_KEY");
   }
 
   for (const line of content.split(/\r?\n/)) {
@@ -68,13 +68,13 @@ function parseArgs(argv: string[]) {
 }
 
 function printHelp(): void {
-  console.log(`用法: npm run fetch:twitter -- --user <handle> [--out <path>]
+  console.log(`Usage: npm run fetch:twitter -- --user <handle> [--out <path>]
 
-选项:
-  --user   X 用户名（可带 @）
-  --out    输出 .posts.txt 路径（默认 scripts/output/twitter-<handle>-<时间>.posts.txt）
+Options:
+  --user   X username (optional @)
+  --out    Output .posts.txt path (default scripts/output/twitter-<handle>-<timestamp>.posts.txt)
 
-示例:
+Examples:
   npm run fetch:twitter -- --user elonmusk
   npm run fetch:twitter -- elonmusk --out scripts/fixtures/corpus-cases/elon.posts.txt
 `);
@@ -97,30 +97,30 @@ async function main(): Promise<void> {
   loadEnvLocal();
   const apiKey = process.env.TWITTER_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error(".env.local 中未配置 TWITTER_API_KEY");
+    throw new Error("TWITTER_API_KEY is not configured in .env.local");
   }
 
   const handle = user.replace(/^@/, "").trim();
-  console.log(`拉取 @${handle} …（单次 API，含 RT/引用，不含回复）`);
+  console.log(`Fetching @${handle} … (single API call, includes RT/quotes, excludes replies)`);
 
   const started = Date.now();
   const { tweets, truncated } = await fetchUserTweetsDirect(handle, apiKey);
   const elapsed = Date.now() - started;
 
   const posts = tweetsToPosts(tweets);
-  const withQuote = tweets.filter((t) => t.text.includes("\n\n[引用]\n")).length;
+  const withQuote = tweets.filter((t) => t.text.includes("\n\n[Quote]\n")).length;
   const outPath = outArg ?? defaultOutPath(handle);
 
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, serializePostsToTxt(posts), "utf8");
 
   console.log("");
-  console.log(`✓ API 调用成功 (${elapsed}ms)`);
-  console.log(`  帖子数: ${posts.length}${truncated ? "（可能还有更多，未翻页）" : ""}`);
-  console.log(`  含引用展开: ${withQuote} 条`);
-  console.log(`  已保存: ${outPath}`);
+  console.log(`✓ API call succeeded (${elapsed}ms)`);
+  console.log(`  Posts: ${posts.length}${truncated ? " (more may exist; no pagination)" : ""}`);
+  console.log(`  With quote expansion: ${withQuote}`);
+  console.log(`  Saved: ${outPath}`);
   console.log("");
-  console.log("前 3 条预览:");
+  console.log("First 3 post previews:");
   for (const post of posts.slice(0, 3)) {
     const preview = post.text.replace(/\s+/g, " ").slice(0, 120);
     console.log(`  · ${preview}${post.text.length > 120 ? "…" : ""}`);

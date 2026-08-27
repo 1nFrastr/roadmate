@@ -10,9 +10,9 @@ import { RoadmateListScreen } from "./RoadmateListScreen";
 import { RoadmateProfileScreen } from "./RoadmateProfileScreen";
 
 const SCREENS = [
-  { label: "路友列表", Screen: RoadmateListScreen },
-  { label: "对话", Screen: RoadmateChatScreen },
-  { label: "路友主页", Screen: RoadmateProfileScreen },
+  { label: "Roadmate list", Screen: RoadmateListScreen },
+  { label: "Chat", Screen: RoadmateChatScreen },
+  { label: "Roadmate profile", Screen: RoadmateProfileScreen },
 ] as const;
 
 gsap.registerPlugin(useGSAP);
@@ -54,11 +54,11 @@ export function RoadmatesPrototype() {
       <header ref={headerRef} className="shrink-0 border-b border-white/5 px-6 py-5" style={hiddenStyle}>
         <div className="mx-auto flex max-w-6xl flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Roadmate · 轻链接</p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">路友原型</h1>
+            <p className="text-xs uppercase tracking-widest text-zinc-500">Roadmate · Light links</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-50">Roadmates Prototype</h1>
           </div>
           <p className="max-w-md text-sm leading-relaxed text-zinc-500">
-            轻量无感 · 鼓励线下见真人 · 仅语音与表情
+            Lightweight & low-friction · Meet in person · Voice & emoji only
           </p>
         </div>
       </header>

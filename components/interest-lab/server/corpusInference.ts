@@ -82,7 +82,7 @@ async function inferRollingBatch(
         { role: "system", content: CORPUS_ROLLING_INFERENCE_PROMPT },
         {
           role: "user",
-          content: `请滚动更新用户画像（综合 prior + 本批新帖）：\n\n${JSON.stringify(payload)}`,
+          content: `Roll-update the user profile (combine prior + this batch of new posts):\n\n${JSON.stringify(payload)}`,
         },
       ],
     }),
@@ -90,7 +90,7 @@ async function inferRollingBatch(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenRouter 语料推断失败 (${response.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`OpenRouter corpus inference failed (${response.status}): ${detail.slice(0, 200)}`);
   }
 
   const data = (await response.json()) as {

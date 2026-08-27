@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { embedTags } from "@/components/interest-lab/server/openrouter";
 
+function isConfigError(message: string): boolean {
+  return /not configured|missing|is not set/i.test(message);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
@@ -16,8 +20,8 @@ export async function POST(request: NextRequest) {
     const vectors = await embedTags(tagNames);
     return NextResponse.json({ vectors });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Embedding 失败";
-    const status = message.includes("未配置") ? 503 : 502;
+    const message = err instanceof Error ? err.message : "Embedding failed";
+    const status = isConfigError(message) ? 503 : 502;
     return NextResponse.json({ error: message }, { status });
   }
 }

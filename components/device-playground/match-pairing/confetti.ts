@@ -9,7 +9,7 @@ export interface ConfettiOrigin {
   y: number;
 }
 
-/** 礼花从 V 字叠放上方喷出，避开中间重叠的屏幕区域 */
+/** Confetti bursts from above the V-stack, avoiding the overlapping screen area in the middle */
 export function computePairConfettiOrigin(
   playgroundWidth: number,
   layoutY: number,

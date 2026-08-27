@@ -40,9 +40,9 @@ type Step = "idle" | "fetching" | "analyzing" | "embedding" | "done" | "error";
 const IPHONE_CONTENT_HEIGHT = IPHONE_FRAME.compact.contentHeight;
 
 const STAGE_LABELS: Record<TimelineInferenceProgress["stage"], string> = {
-  preprocess: "预处理",
-  merge: "时间线合并",
-  extract: "标签提取",
+  preprocess: "Preprocess",
+  merge: "Timeline merge",
+  extract: "Tag extraction",
 };
 
 export function InterestLab() {
@@ -126,7 +126,7 @@ export function InterestLab() {
         (tag) => tag.name.toLowerCase() === trimmed.toLowerCase(),
       );
       if (duplicate) {
-        setError("该标签已存在");
+        setError("That tag already exists");
         return;
       }
 
@@ -173,13 +173,13 @@ export function InterestLab() {
   const statusText = useMemo(() => {
     switch (step) {
       case "fetching":
-        return "正在获取 X 动态…";
+        return "Fetching X posts…";
       case "analyzing":
         return analyzeProgress
           ? `${STAGE_LABELS[analyzeProgress.stage]} ${analyzeProgress.done}/${analyzeProgress.total}…`
-          : "正在推断兴趣标签…";
+          : "Inferring interest tags…";
       case "embedding":
-        return "正在生成标签向量…";
+        return "Generating tag embeddings…";
       default:
         return null;
     }
@@ -191,7 +191,7 @@ export function InterestLab() {
 
     const handle = twitterHandle.replace(/^@/, "").trim();
     if (!handle) {
-      setFetchMessage("请输入有效的 X 用户名");
+      setFetchMessage("Enter a valid X username");
       return;
     }
 
@@ -200,12 +200,12 @@ export function InterestLab() {
       const { tweets, truncated } = await fetchUserTweets(twitterHandle);
       const incoming = tweetsToPosts(tweets).filter((post) => post.text.trim());
       if (incoming.length === 0) {
-        throw new Error("未能从该 X 账号获取到有效动态");
+        throw new Error("Could not fetch any valid posts from that X account");
       }
       setPosts(incoming);
       setStep("idle");
-      const limitHint = truncated ? `（已达上限 ${MAX_TWEETS_FETCH} 条）` : "";
-      setFetchMessage(`已获取 ${incoming.length} 条动态${limitHint}`);
+      const limitHint = truncated ? ` (hit limit of ${MAX_TWEETS_FETCH})` : "";
+      setFetchMessage(`Fetched ${incoming.length} posts${limitHint}`);
 
       if (profile) {
         persistProfile({
@@ -217,7 +217,7 @@ export function InterestLab() {
       }
     } catch (err) {
       setStep("error");
-      setError(err instanceof Error ? err.message : "获取失败");
+      setError(err instanceof Error ? err.message : "Fetch failed");
     }
   };
 
@@ -230,7 +230,7 @@ export function InterestLab() {
       const handle = twitterHandle.replace(/^@/, "").trim();
       const sourcePosts = posts.filter((post) => post.text.trim());
       if (sourcePosts.length === 0) {
-        throw new Error("请先获取动态、添加帖子，或从文件导入");
+        throw new Error("Fetch posts, add posts, or import from a file first");
       }
       const source: StoredInterestProfile["source"] = handle
         ? { type: "twitter", handle }
@@ -239,7 +239,7 @@ export function InterestLab() {
       const eligiblePosts = getEligiblePosts(sourcePosts);
 
       if (eligiblePosts.length === 0) {
-        throw new Error("请至少添加一条有内容的帖子");
+        throw new Error("Add at least one post with content");
       }
 
       setStep("analyzing");
@@ -255,8 +255,8 @@ export function InterestLab() {
       if (inferredTags.length === 0) {
         throw new Error(
           timelineResult.tags.length > 0
-            ? "提取到的标签经去泛化后无剩余，请点击「清空」后重新推断，或补充更具体的帖子"
-            : "未能从帖子中提取到有效兴趣标签，请尝试更丰富的内容",
+            ? 'Extracted tags were all filtered as too generic. Click "Clear" and re-infer, or add more specific posts'
+            : "Could not extract useful interest tags from the posts; try richer content",
         );
       }
 
@@ -291,7 +291,7 @@ export function InterestLab() {
     } catch (err) {
       setAnalyzeProgress(null);
       setStep("error");
-      setError(err instanceof Error ? err.message : "未知错误");
+      setError(err instanceof Error ? err.message : "Unknown error");
     }
   };
 
@@ -387,9 +387,9 @@ export function InterestLab() {
       >
         <div>
           <p className="text-xs uppercase tracking-widest text-cyan-400/80">Roadmate · Step 1</p>
-          <h1 className="mt-1 text-2xl font-semibold text-zinc-100">兴趣标签推断</h1>
+          <h1 className="mt-1 text-2xl font-semibold text-zinc-100">Interest tag inference</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            从 X 或本地帖子推断兴趣标签，右侧预览词云后进入近场雷达。
+            Infer interest tags from X or local posts, preview the word cloud on the right, then enter near-field radar.
           </p>
         </div>
         <a
@@ -420,12 +420,12 @@ export function InterestLab() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-end gap-2">
                 <label className="min-w-[200px] flex-1 text-xs text-zinc-500">
-                  X 用户名
-                  <span className="ml-1 text-zinc-600">（选填）</span>
+                  X username
+                  <span className="ml-1 text-zinc-600">(optional)</span>
                   <input
                     value={twitterHandle}
                     onChange={(event) => setTwitterHandle(event.target.value)}
-                    placeholder="elonmusk 或 @elonmusk"
+                    placeholder="elonmusk or @elonmusk"
                     disabled={isBusy || isTransitioning}
                     className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-500/60 disabled:opacity-50"
                   />
@@ -436,7 +436,7 @@ export function InterestLab() {
                   onClick={handleFetchTwitter}
                   className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {step === "fetching" ? "获取中…" : "获取动态"}
+                  {step === "fetching" ? "Fetching…" : "Fetch posts"}
                 </button>
               </div>
               {fetchMessage ? (
@@ -446,7 +446,7 @@ export function InterestLab() {
               ) : null}
               {twitterHandle.trim() ? (
                 <p className="text-xs text-zinc-500">
-                  通过{" "}
+                  Fetch original posts via{" "}
                   <a
                     href="https://twitterapi.io/dashboard"
                     target="_blank"
@@ -455,7 +455,7 @@ export function InterestLab() {
                   >
                     twitterapi.io
                   </a>{" "}
-                  获取原创动态（最多 {MAX_TWEETS_FETCH} 条）
+                  (up to {MAX_TWEETS_FETCH})
                 </p>
               ) : null}
               <PostListEditor
@@ -473,16 +473,16 @@ export function InterestLab() {
                 onClick={handleGenerate}
                 className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isBusy ? "处理中…" : "AI 推断"}
+                {isBusy ? "Working…" : "AI infer"}
               </button>
               <button
                 type="button"
                 disabled={isBusy || isTransitioning || !canClearTags}
                 onClick={handleClearTags}
-                title="清空帖子、X 用户名与推断结果"
+                title="Clear posts, X username, and inference results"
                 className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                清空
+                Clear
               </button>
               {statusText ? (
                 <span className="text-xs text-zinc-500">{statusText}</span>
@@ -499,13 +499,13 @@ export function InterestLab() {
           {profile ? (
             <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-medium text-zinc-200">结构化结果</h2>
+                <h2 className="text-sm font-medium text-zinc-200">Structured result</h2>
                 <button
                   type="button"
                   onClick={() => setShowJson((value) => !value)}
                   className="text-xs text-zinc-500 hover:text-zinc-300"
                 >
-                  {showJson ? "收起" : "展开"} JSON
+                  {showJson ? "Collapse" : "Expand"} JSON
                 </button>
               </div>
 
@@ -513,7 +513,7 @@ export function InterestLab() {
                 <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="text-zinc-500">
                     <tr>
-                      <th className="pb-2 pr-3">标签</th>
+                      <th className="pb-2 pr-3">Tag</th>
                       <th className="pb-2 pr-3 font-mono">frequency</th>
                       <th className="pb-2 pr-3 font-mono">sentiment</th>
                       <th className="pb-2 pr-3 font-mono">recency</th>
@@ -538,7 +538,7 @@ export function InterestLab() {
                 </table>
                 {profile.tags.some((tag) => tag.custom) ? (
                   <div className="mt-4 border-t border-zinc-800/80 pt-3">
-                    <p className="mb-2 text-[11px] text-zinc-500">自定义标签（仅 weight 可调）</p>
+                    <p className="mb-2 text-[11px] text-zinc-500">Custom tags (weight only)</p>
                     <ul className="space-y-1 text-xs text-zinc-400">
                       {profile.tags
                         .filter((tag) => tag.custom)
@@ -570,9 +570,9 @@ export function InterestLab() {
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <h2 className="text-sm font-medium text-zinc-200">
-                App 预览
+                App preview
                 {profile
-                  ? ` · ${profile.tags.length} 标签${(profile.posts?.length ?? profile.tweetCount) ? ` · ${profile.posts?.length ?? profile.tweetCount} 帖` : ""}`
+                  ? ` · ${profile.tags.length} tags${(profile.posts?.length ?? profile.tweetCount) ? ` · ${profile.posts?.length ?? profile.tweetCount} posts` : ""}`
                   : ""}
               </h2>
             </div>
@@ -589,7 +589,7 @@ export function InterestLab() {
                     selectedTagId={selectedCustomTagId}
                     onSelectTag={setSelectedCustomTagId}
                     className="h-full border-0 rounded-none"
-                    emptyMessage="点击顶部 + 添加自定义标签，或 AI 推断后显示词云"
+                    emptyMessage="Tap + at the top to add a custom tag, or run AI infer to show the word cloud"
                   />
                   <div className="pointer-events-auto absolute inset-x-0 top-0 z-30">
                     {selectedCustomTag ? (
@@ -620,16 +620,16 @@ export function InterestLab() {
               onClick={handleEnterPlayground}
               title={
                 canEnterPlayground
-                  ? "将词云注入设备并进入近场雷达"
-                  : "请先 AI 推断兴趣标签"
+                  ? "Inject the word cloud into the device and enter near-field radar"
+                  : "Run AI infer on interest tags first"
               }
               className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-6 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-emerald-300 disabled:cursor-not-allowed disabled:from-zinc-700 disabled:to-zinc-700 disabled:text-zinc-500 disabled:shadow-none"
             >
-              {isTransitioning ? "正在进入近场雷达…" : "进入近场雷达 →"}
+              {isTransitioning ? "Entering near-field radar…" : "Enter near-field radar →"}
             </button>
             {!profile ? (
               <p className="mt-2 text-center text-xs text-zinc-500">
-                AI 推断后，词云将注入 App 并过渡到设备画布
+                After AI infer, the word cloud injects into the app and transitions to the device canvas
               </p>
             ) : null}
           </div>

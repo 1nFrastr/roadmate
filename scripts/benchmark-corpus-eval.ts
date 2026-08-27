@@ -1,11 +1,11 @@
 /**
- * 语料滚动推断评测 — 对齐首页「导入 txt → 推断并保存」完整链路。
+ * Corpus rolling inference eval — aligns with homepage "import txt → infer & save" full path.
  *
- * 流程（与 extract-posts API + InterestLab.handleGenerate 一致）:
- *   parsePostsFromTxt → planCorpusInference → inferTagsFromCorpus(分批滚动)
+ * Flow (same as extract-posts API + InterestLab.handleGenerate):
+ *   parsePostsFromTxt → planCorpusInference → inferTagsFromCorpus(batch rolling)
  *   → applyCorpusInference → corpusTagsToInterestTags → buildInferenceContext
  *
- * 用法:
+ * Usage:
  *   npm run bench:corpus
  *   npm run bench:corpus -- /path/to/roadmate-posts.txt
  *   npm run bench:corpus -- --case multi-theme-user
@@ -29,7 +29,7 @@ interface CaseExpect {
   anyOf?: string[][];
   minTags?: number;
   maxTags?: number;
-  /** 至少触发 N 批滚动（模拟首页分批进度） */
+  /** Require at least N rolling batches (simulate homepage batch progress) */
   minBatches?: number;
 }
 
@@ -75,7 +75,7 @@ function loadEnvLocal(): void {
   try {
     content = readFileSync(envPath, "utf8");
   } catch {
-    throw new Error("未找到 .env.local，请配置 OPENROUTER_API_KEY");
+    throw new Error("Missing .env.local — please set OPENROUTER_API_KEY");
   }
 
   for (const line of content.split(/\r?\n/)) {
@@ -123,12 +123,12 @@ function parseArgs(argv: string[]) {
       continue;
     }
     if (arg === "--help" || arg === "-h") {
-      console.log(`用法:
-  npm run bench:corpus                              # manifest 全部 case
-  npm run bench:corpus -- --case multi-theme-user   # 单个 case
-  npm run bench:corpus -- posts.txt                 # 单文件（首页同款流程）
-  npm run bench:corpus -- --verbose                 # 打印分批滚动进度
-  npm run bench:corpus -- --json                    # JSON 输出`);
+      console.log(`Usage:
+  npm run bench:corpus                              # all manifest cases
+  npm run bench:corpus -- --case multi-theme-user   # single case
+  npm run bench:corpus -- posts.txt                 # single file (homepage-equivalent flow)
+  npm run bench:corpus -- --verbose                 # print batch rolling progress
+  npm run bench:corpus -- --json                    # JSON output`);
       process.exit(0);
     }
     if (!arg.startsWith("-")) {
@@ -153,7 +153,7 @@ function findMatchingTag(needle: string, tags: string[]): string | null {
 function loadManifest(casesDir: string): Manifest {
   const manifestPath = join(casesDir, "manifest.json");
   if (!existsSync(manifestPath)) {
-    throw new Error(`未找到 manifest: ${manifestPath}`);
+    throw new Error(`Manifest not found: ${manifestPath}`);
   }
   return JSON.parse(readFileSync(manifestPath, "utf8")) as Manifest;
 }
@@ -166,15 +166,15 @@ function loadCasePosts(caseDef: CorpusCase, casesDir: string): PostRecord[] {
     const postsPath = join(casesDir, caseDef.postsFile);
     raw = readFileSync(postsPath, "utf8");
   } else {
-    throw new Error(`case ${caseDef.id} 缺少 posts 或 postsFile`);
+    throw new Error(`case ${caseDef.id} missing posts or postsFile`);
   }
 
   const { posts, errors } = parsePostsFromTxt(raw);
   if (errors.length > 0) {
-    throw new Error(`case ${caseDef.id} 帖子解析失败:\n${errors.join("\n")}`);
+    throw new Error(`case ${caseDef.id} failed to parse posts:\n${errors.join("\n")}`);
   }
   if (posts.length === 0) {
-    throw new Error(`case ${caseDef.id} 帖子为空`);
+    throw new Error(`case ${caseDef.id} posts are empty`);
   }
   return posts;
 }
@@ -271,7 +271,7 @@ async function runWithModel(posts: PostRecord[], model: string, verbose: boolean
       priorState: null,
       onProgress: verbose
         ? (done, total) => {
-            process.stdout.write(`    分批 ${done}/${total}\n`);
+            process.stdout.write(`    batch ${done}/${total}\n`);
           }
         : undefined,
     });
@@ -297,68 +297,68 @@ async function runSingleFile(postsPath: string, model: string, verbose: boolean)
   const raw = readFileSync(postsPath, "utf8");
   const { posts, errors } = parsePostsFromTxt(raw);
   if (errors.length > 0) {
-    throw new Error(`帖子解析失败:\n${errors.join("\n")}`);
+    throw new Error(`Failed to parse posts:\n${errors.join("\n")}`);
   }
 
   const batchCount = splitPostsIntoBatches(
     posts.map((p) => ({ id: p.id, text: p.text, createdAt: p.createdAt })),
   ).length;
 
-  console.log(`文件: ${postsPath}`);
-  console.log(`帖子: ${posts.length} · 预估分批: ${batchCount} · 模型: ${model}`);
-  console.log(`流程: 导入(parsePostsFromTxt) → planCorpusInference(full) → 滚动分批推断 → corpusTagsToInterestTags\n`);
+  console.log(`File: ${postsPath}`);
+  console.log(`Posts: ${posts.length} · estimated batches: ${batchCount} · model: ${model}`);
+  console.log(`Flow: import(parsePostsFromTxt) → planCorpusInference(full) → rolling batch infer → corpusTagsToInterestTags\n`);
 
   const { tags, summary, wallMs, planMode, batchCount: actualBatches, batchProgress } =
     await runWithModel(posts, model, verbose);
 
-  console.log(`模式 ${planMode} · 分批 ${actualBatches} · 耗时 ${wallMs}ms · ${tags.length} 标签\n`);
+  console.log(`Mode ${planMode} · batches ${actualBatches} · ${wallMs}ms · ${tags.length} tags\n`);
   if (verbose && batchProgress.length > 0) {
-    console.log("滚动进度:", batchProgress.map((p) => `${p.done}/${p.total}`).join(" → "));
+    console.log("Rolling progress:", batchProgress.map((p) => `${p.done}/${p.total}`).join(" → "));
     console.log();
   }
-  console.log("summary:", summary || "(空)");
-  console.log("\n标签:", tags.join(" · ") || "(空)");
+  console.log("summary:", summary || "(empty)");
+  console.log("\nTags:", tags.join(" · ") || "(empty)");
 }
 
 function printCaseResult(result: CaseEvalResult, verbose: boolean) {
   const mark = result.pass ? "✓" : "✗";
   console.log(`\n${mark} ${result.id} — ${result.description}`);
   console.log(
-    `  ${result.model} · ${result.postCount} 帖 · ${result.planMode} · ${result.batchCount} 批 · ${result.wallMs}ms · ${result.tags.length} 标签 · 得分 ${(result.score * 100).toFixed(0)}%`,
+    `  ${result.model} · ${result.postCount} posts · ${result.planMode} · ${result.batchCount} batches · ${result.wallMs}ms · ${result.tags.length} tags · score ${(result.score * 100).toFixed(0)}%`,
   );
   if (result.error) {
-    console.log(`  错误: ${result.error}`);
+    console.log(`  Error: ${result.error}`);
     return;
   }
-  console.log(`  标签: ${result.tags.join(" · ") || "(空)"}`);
+  console.log(`  Tags: ${result.tags.join(" · ") || "(empty)"}`);
   if (verbose) {
-    console.log(`  summary: ${result.summary.slice(0, 120) || "(空)"}`);
+    console.log(`  summary: ${result.summary.slice(0, 120) || "(empty)"}`);
     if (result.batchProgress?.length) {
-      console.log(`  滚动: ${result.batchProgress.map((p) => `${p.done}/${p.total}`).join(" → ")}`);
+      console.log(`  Rolling: ${result.batchProgress.map((p) => `${p.done}/${p.total}`).join(" → ")}`);
     }
   }
 
   const { checks } = result;
   if (checks.batches.min !== undefined) {
     console.log(
-      `  分批 ${checks.batches.actual} (期望 ≥${checks.batches.min}): ${checks.batches.ok ? "✓" : "✗"}`,
+      `  Batches ${checks.batches.actual} (expected ≥${checks.batches.min}): ${checks.batches.ok ? "✓" : "✗"}`,
     );
   }
   for (const item of checks.anyOf) {
-    const status = item.hit ? `✓ → ${item.hit}` : `✗ 未命中 (${item.group.join("|")})`;
-    console.log(`  主题组 ${item.group.slice(0, 3).join("|")}${item.group.length > 3 ? "…" : ""}: ${status}`);
+    const status = item.hit ? `✓ → ${item.hit}` : `✗ miss (${item.group.join("|")})`;
+    console.log(`  Theme group ${item.group.slice(0, 3).join("|")}${item.group.length > 3 ? "…" : ""}: ${status}`);
   }
   for (const item of checks.required) {
-    const status = item.hit ? `✓ → ${item.hit}` : "✗ 未命中";
-    console.log(`  必需「${item.needle}」: ${status}`);
+    const status = item.hit ? `✓ → ${item.hit}` : "✗ miss";
+    console.log(`  Required "${item.needle}": ${status}`);
   }
   for (const item of checks.forbidden) {
-    const status = item.hit ? `✗ 违规 → ${item.hit}` : "✓ 未出现";
-    console.log(`  禁止「${item.needle}」: ${status}`);
+    const status = item.hit ? `✗ violation → ${item.hit}` : "✓ absent";
+    console.log(`  Forbidden "${item.needle}": ${status}`);
   }
   if (checks.tagCount.min !== undefined || checks.tagCount.max !== undefined) {
     const range = `${checks.tagCount.min ?? 0}~${checks.tagCount.max ?? "∞"}`;
-    console.log(`  标签数 ${checks.tagCount.actual} (期望 ${range}): ${checks.tagCount.ok ? "✓" : "✗"}`);
+    console.log(`  Tag count ${checks.tagCount.actual} (expected ${range}): ${checks.tagCount.ok ? "✓" : "✗"}`);
   }
 }
 
@@ -369,8 +369,8 @@ function printSummary(results: CaseEvalResult[]) {
   const avgScore =
     results.length === 0 ? 0 : results.reduce((sum, r) => sum + r.score, 0) / results.length;
 
-  console.log("\n=== 汇总 ===");
-  console.log(`通过 ${passed} · 失败 ${failed} · 错误 ${errored} · 平均得分 ${(avgScore * 100).toFixed(0)}%`);
+  console.log("\n=== Summary ===");
+  console.log(`Passed ${passed} · failed ${failed} · errored ${errored} · avg score ${(avgScore * 100).toFixed(0)}%`);
 
   const byModel = new Map<string, CaseEvalResult[]>();
   for (const row of results) {
@@ -380,11 +380,11 @@ function printSummary(results: CaseEvalResult[]) {
   }
 
   if (byModel.size > 1) {
-    console.log("\n按模型:");
+    console.log("\nBy model:");
     for (const [model, rows] of byModel) {
       const modelPassed = rows.filter((r) => r.pass && !r.error).length;
       const modelScore = rows.reduce((s, r) => s + r.score, 0) / rows.length;
-      console.log(`  ${model}: ${modelPassed}/${rows.length} 通过, 均分 ${(modelScore * 100).toFixed(0)}%`);
+      console.log(`  ${model}: ${modelPassed}/${rows.length} passed, avg ${(modelScore * 100).toFixed(0)}%`);
     }
   }
 }
@@ -402,14 +402,14 @@ async function runManifestEval(options: {
   if (options.caseFilter) {
     cases = cases.filter((c) => c.id === options.caseFilter);
     if (cases.length === 0) {
-      throw new Error(`未找到 case: ${options.caseFilter}`);
+      throw new Error(`Case not found: ${options.caseFilter}`);
     }
   }
 
-  console.log(`评测目录: ${options.casesDir}`);
-  console.log(`schema: ${manifest.schema ?? "(未标注)"}`);
-  console.log(`case 数: ${cases.length} · 模型: ${options.models.join(", ")}`);
-  console.log("流程: 首页同款 — planCorpusInference → 滚动分批 → corpusTagsToInterestTags\n");
+  console.log(`Eval directory: ${options.casesDir}`);
+  console.log(`schema: ${manifest.schema ?? "(unspecified)"}`);
+  console.log(`Cases: ${cases.length} · models: ${options.models.join(", ")}`);
+  console.log("Flow: homepage-equivalent — planCorpusInference → rolling batches → corpusTagsToInterestTags\n");
 
   const results: CaseEvalResult[] = [];
 
@@ -425,7 +425,7 @@ async function runManifestEval(options: {
 
       try {
         if (options.verbose) {
-          console.log(`\n--- ${caseDef.id} (${posts.length} 帖) ---`);
+          console.log(`\n--- ${caseDef.id} (${posts.length} posts) ---`);
         }
         const { tags, summary, wallMs, planMode, batchCount, batchProgress } = await runWithModel(
           posts,
@@ -479,7 +479,7 @@ async function runManifestEval(options: {
 async function main() {
   loadEnvLocal();
   if (!process.env.OPENROUTER_API_KEY?.trim()) {
-    throw new Error("OPENROUTER_API_KEY 未配置");
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
   const { casesDir, singlePostsPath, caseFilter, models, jsonOutput, verbose } = parseArgs(

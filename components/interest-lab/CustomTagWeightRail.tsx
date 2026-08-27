@@ -11,7 +11,7 @@ interface CustomTagWeightRailProps {
   inScreen?: boolean;
 }
 
-/** iPhone 屏幕内滑轨占用高度（px） */
+/** Height (px) reserved by the in-iPhone-screen weight rail */
 export const CUSTOM_TAG_RAIL_IN_SCREEN_HEIGHT = 58;
 
 export function CustomTagWeightRail({
@@ -36,7 +36,7 @@ export function CustomTagWeightRail({
             {tagName}
           </span>
           {!inScreen ? (
-            <span className="shrink-0 text-[10px] uppercase tracking-wider text-cyan-400/70">自定义</span>
+            <span className="shrink-0 text-[10px] uppercase tracking-wider text-cyan-400/70">Custom</span>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center">
@@ -47,12 +47,12 @@ export function CustomTagWeightRail({
               inScreen ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-xs"
             }`}
           >
-            删除
+            Delete
           </button>
         </div>
       </div>
       <div className={`flex items-center ${inScreen ? "gap-2" : "gap-3"}`}>
-        <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">小</span>
+        <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">Small</span>
         <input
           type="range"
           min={CUSTOM_TAG_WEIGHT_MIN}
@@ -63,7 +63,7 @@ export function CustomTagWeightRail({
           className="custom-tag-rail-slider min-w-0 flex-1"
           style={{ "--rail-progress": `${((weight - CUSTOM_TAG_WEIGHT_MIN) / (CUSTOM_TAG_WEIGHT_MAX - CUSTOM_TAG_WEIGHT_MIN)) * 100}%` } as CSSProperties}
         />
-        <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">大</span>
+        <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">Large</span>
       </div>
     </div>
   );

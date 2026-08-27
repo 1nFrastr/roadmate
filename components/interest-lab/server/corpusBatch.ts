@@ -19,7 +19,7 @@ const UNIT_SHORT: Record<string, string> = {
   months: "m",
 };
 
-/** 按时间从旧到新切批，过滤跳过帖 */
+/** Batch oldest → newest; filter skipped posts */
 export function splitPostsIntoBatches(posts: CorpusBatchPost[]): CorpusBatch[] {
   const eligible = posts
     .filter((post) => post.text.trim() && !shouldSkipTagExtraction(post.text))
@@ -65,7 +65,7 @@ export function collectBatchPostIds(batches: CorpusBatch[]): string[] {
   return batches.flatMap((batch) => batch.posts.map((post) => post.id));
 }
 
-/** 被跳过的帖也标记为已处理，避免重复触发 */
+/** Mark skipped posts as processed too, to avoid re-triggering */
 export function collectAllEligiblePostIds(posts: CorpusBatchPost[]): string[] {
   return posts.filter((post) => post.text.trim()).map((post) => post.id);
 }

@@ -37,7 +37,7 @@ body {
     linear-gradient(180deg, #0a0a0c 0%, #111116 100%);
 }
 
-/* ── AirTag 形态设备 ── */
+/* ── AirTag-shaped device ── */
 
 .device-tag-shell {
   background:
@@ -125,7 +125,7 @@ body {
   pointer-events: none;
 }
 
-/* ── 设备小屏（墨绿灰 e-ink 纸感，灯光仅在环带 LED） ── */
+/* ── Device small screen (muted green-gray e-ink paper feel; light only on LED ring) ── */
 
 .device-tag-screen-face {
   --epaper-paper: #c4cfbf;
@@ -180,7 +180,7 @@ body {
   z-index: 3;
 }
 
-/* Web 模拟用：设备 ID / 状态标注，位于外壳下方 */
+/* Web sim only: device ID / status label below the shell */
 .device-tag-sim-label {
   width: max-content;
   white-space: nowrap;

@@ -5,7 +5,7 @@ export type CorpusInferencePlan =
   | { mode: "incremental"; posts: PostRecord[]; priorState: CorpusInferenceState }
   | { mode: "noop"; posts: [] };
 
-/** 判断全量重跑 vs 增量追加 */
+/** Decide full rerun vs incremental append */
 export function planCorpusInference(
   posts: PostRecord[],
   priorState?: CorpusInferenceState | null,
@@ -19,7 +19,7 @@ export function planCorpusInference(
 
   const processedSet = new Set(priorState.processedPostIds);
 
-  // 删帖、改帖（extractedAt 被清）、或 processed 集合不一致 → 全量
+  // Deleted/edited posts (extractedAt cleared) or processed-set mismatch → full rerun
   for (const id of processedSet) {
     if (!eligibleIds.has(id)) return { mode: "full", posts: eligible };
   }

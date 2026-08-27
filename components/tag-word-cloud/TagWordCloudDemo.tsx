@@ -17,7 +17,7 @@ export function TagWordCloudDemo() {
           <p className="text-xs uppercase tracking-widest text-violet-400/80">Component Playground</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-100">TagWordCloud</h1>
           <p className="mt-2 max-w-xl text-sm text-zinc-400">
-            独立词云组件测试页，使用随机 placeholder 标签，无需调用 API。
+            Standalone word-cloud component playground with random placeholder tags — no API needed.
           </p>
         </div>
         <div className="flex gap-2">
@@ -25,20 +25,20 @@ export function TagWordCloudDemo() {
             href="/"
             className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
           >
-            兴趣推断 →
+            Interest Lab →
           </Link>
           <Link
             href="/playground"
             className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
           >
-            ← 设备 Demo
+            ← Device Demo
           </Link>
         </div>
       </header>
 
       <section className="flex flex-wrap items-end gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
         <label className="text-xs text-zinc-500">
-          标签数量
+          Tag count
           <input
             type="range"
             min={6}
@@ -54,9 +54,9 @@ export function TagWordCloudDemo() {
           onClick={() => setSeed((value) => value + 1)}
           className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-violet-400"
         >
-          重新随机
+          Reshuffle
         </button>
-        <p className="text-xs text-zinc-500">拖拽标签 · 重力下落 · 圆形大小随权重变化</p>
+        <p className="text-xs text-zinc-500">Drag tags · Gravity fall · Circle size follows weight</p>
       </section>
 
       <TagWordCloud key={seed} tags={tags} />

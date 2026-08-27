@@ -1,6 +1,6 @@
 /**
- * 与首页 Interest Lab「导入 txt → 推断并保存」相同的服务端推断链路。
- * 对齐 extract-posts API + InterestLab.handleGenerate 的后处理。
+ * Same server-side inference path as Interest Lab homepage "import txt → infer & save".
+ * Aligns with extract-posts API + InterestLab.handleGenerate post-processing.
  */
 
 import {
@@ -30,7 +30,7 @@ export interface HomepageInferenceResult {
   wallMs: number;
 }
 
-/** 模拟 txt 批量导入后首次推断：无 priorState */
+/** Simulate first inference after bulk txt import: no priorState */
 export async function runHomepageInference(
   posts: PostRecord[],
   options?: {
@@ -42,7 +42,7 @@ export async function runHomepageInference(
   const plan = planCorpusInference(posts, priorState);
 
   if (plan.mode === "noop") {
-    throw new Error("没有新帖子需要分析");
+    throw new Error("No new posts to analyze");
   }
 
   const batchPosts = plan.posts.map((post) => ({

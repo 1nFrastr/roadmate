@@ -1,7 +1,7 @@
 /**
- * 用固定帖子集对比多个 Flash 模型的逐帖提取速度。
+ * Compare per-post extract speed across Flash models on a fixed post set.
  *
- * 用法:
+ * Usage:
  *   npm run bench:flash
  *   npm run bench:flash -- /path/to/roadmate-posts.txt
  *   npm run bench:flash -- --models qwen/qwen3.6-flash,deepseek/deepseek-v4-flash
@@ -51,7 +51,7 @@ function loadEnvLocal(): void {
   try {
     content = readFileSync(envPath, "utf8");
   } catch {
-    throw new Error("未找到 .env.local，请配置 OPENROUTER_API_KEY");
+    throw new Error("Missing .env.local — please set OPENROUTER_API_KEY");
   }
 
   for (const line of content.split(/\r?\n/)) {
@@ -77,7 +77,7 @@ function parseArgs(argv: string[]) {
       continue;
     }
     if (arg === "--help" || arg === "-h") {
-      console.log(`用法: npm run bench:flash -- [posts.txt] [--models a,b,c]`);
+      console.log(`Usage: npm run bench:flash -- [posts.txt] [--models a,b,c]`);
       process.exit(0);
     }
     if (!arg.startsWith("-")) {
@@ -122,7 +122,7 @@ async function extractTagsFromPost(
         { role: "system", content: POST_TAG_EXTRACTION_PROMPT },
         {
           role: "user",
-          content: `请分析以下发帖，提取能体现公共上下文的搭子标签（≤6 字）：\n\n${text.slice(0, 2000)}`,
+          content: `Analyze the following post and extract buddy/interest tags that reflect shared context (≤6 chars each):\n\n${text.slice(0, 2000)}`,
         },
       ],
     }),
@@ -230,8 +230,8 @@ function isEligibleResult(row: ModelBenchmarkResult): boolean {
 }
 
 function ineligibleReason(row: ModelBenchmarkResult): string {
-  if (row.errors > 0) return `错误 ${row.errors}/${row.postCount}`;
-  if (row.totalTags === 0) return "无有效标签";
+  if (row.errors > 0) return `errors ${row.errors}/${row.postCount}`;
+  if (row.totalTags === 0) return "no valid tags";
   return "";
 }
 
@@ -240,14 +240,14 @@ function printResults(results: ModelBenchmarkResult[]) {
   const ineligible = [...results].filter((row) => !isEligibleResult(row)).sort((a, b) => a.wallMs - b.wallMs);
   const fastest = eligible[0];
 
-  console.log("\n=== Flash 模型逐帖提取基准（与 Interest Lab 相同 prompt / 并发）===\n");
-  console.log("有效排名：无 API 错误且至少提取到 1 个标签\n");
+  console.log("\n=== Flash model per-post extract benchmark (same prompt / concurrency as Interest Lab) ===\n");
+  console.log("Eligible ranking: no API errors and at least 1 extracted tag\n");
 
   if (eligible.length === 0) {
-    console.log("（无有效模型）\n");
+    console.log("(no eligible models)\n");
   } else {
     console.log(
-      ["排名", "模型", "墙钟(ms)", "最慢帖(ms)", "中位(ms)", "均耗(ms)", "标签数"].join("\t"),
+      ["Rank", "Model", "Wall(ms)", "Slowest(ms)", "Median(ms)", "Avg(ms)", "Tags"].join("\t"),
     );
     eligible.forEach((row, index) => {
       const mark = row.model === fastest?.model ? " 🏆" : "";
@@ -264,13 +264,13 @@ function printResults(results: ModelBenchmarkResult[]) {
       );
     });
     console.log(
-      `\n推荐: ${fastest!.model}（墙钟 ${fastest!.wallMs}ms，${fastest!.totalTags} 标签，${fastest!.postCount} 帖）`,
+      `\nRecommended: ${fastest!.model} (wall ${fastest!.wallMs}ms, ${fastest!.totalTags} tags, ${fastest!.postCount} posts)`,
     );
   }
 
   if (ineligible.length > 0) {
-    console.log("\n--- 未纳入排名（403 / 全空标签 / 请求失败）---\n");
-    console.log(["模型", "墙钟(ms)", "标签数", "错误", "原因"].join("\t"));
+    console.log("\n--- Excluded from ranking (403 / all-empty tags / request failure) ---\n");
+    console.log(["Model", "Wall(ms)", "Tags", "Errors", "Reason"].join("\t"));
     for (const row of ineligible) {
       console.log(
         [row.model, row.wallMs, row.totalTags, row.errors, ineligibleReason(row)].join("\t"),
@@ -278,9 +278,9 @@ function printResults(results: ModelBenchmarkResult[]) {
     }
   }
 
-  console.log("\n--- 各模型最慢 3 帖 ---");
+  console.log("\n--- Slowest 3 posts per model ---");
   for (const row of [...results].sort((a, b) => a.wallMs - b.wallMs)) {
-    console.log(`\n${row.model}${isEligibleResult(row) ? "" : " (无效)"}`);
+    console.log(`\n${row.model}${isEligibleResult(row) ? "" : " (ineligible)"}`);
     for (const item of row.perPostMs.slice(0, 3)) {
       const err = item.error ? ` ERR ${item.error}` : "";
       console.log(`  ${item.ms}ms  tags=${item.tagCount}${err}`);
@@ -291,24 +291,24 @@ function printResults(results: ModelBenchmarkResult[]) {
 async function main() {
   loadEnvLocal();
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY 未配置");
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
   const { postsPath, models } = parseArgs(process.argv.slice(2));
   const raw = readFileSync(postsPath, "utf8");
   const { posts, errors } = parsePostsFromTxt(raw);
 
   if (errors.length > 0) {
-    throw new Error(`帖子解析失败:\n${errors.join("\n")}`);
+    throw new Error(`Failed to parse posts:\n${errors.join("\n")}`);
   }
   if (posts.length === 0) {
-    throw new Error("帖子为空");
+    throw new Error("Posts are empty");
   }
 
   const payload = posts.map((post) => ({ id: post.id, text: post.text }));
 
-  console.log(`帖子文件: ${postsPath}`);
-  console.log(`帖子数: ${posts.length}，并发: ${LLM_CONCURRENCY}`);
-  console.log(`待测模型: ${models.join(", ")}\n`);
+  console.log(`Posts file: ${postsPath}`);
+  console.log(`Posts: ${posts.length}, concurrency: ${LLM_CONCURRENCY}`);
+  console.log(`Models under test: ${models.join(", ")}\n`);
 
   const results: ModelBenchmarkResult[] = [];
 
@@ -317,7 +317,7 @@ async function main() {
     process.stdout.write(`[${i + 1}/${models.length}] ${model} … `);
     const result = await benchmarkModel(apiKey, model, payload, LLM_CONCURRENCY);
     results.push(result);
-    console.log(`墙钟 ${result.wallMs}ms，标签 ${result.totalTags}，错误 ${result.errors}`);
+    console.log(`wall ${result.wallMs}ms, tags ${result.totalTags}, errors ${result.errors}`);
 
     if (i < models.length - 1) {
       await sleep(2000);

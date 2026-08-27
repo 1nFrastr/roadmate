@@ -30,7 +30,7 @@ async function consumeNdjsonStream<T>(
   onLine: (event: T) => void,
 ): Promise<void> {
   if (!response.body) {
-    throw new Error("服务端未返回流式响应");
+    throw new Error("Server did not return a streaming response");
   }
 
   const reader = response.body.getReader();
@@ -63,7 +63,7 @@ type TimelineInferStreamEvent =
   | { type: "complete"; result: TimelineInferenceResult }
   | { type: "error"; message: string };
 
-/** 方案 C — 三阶段时间线推断（每次全量重跑） */
+/** Scheme C — three-stage timeline inference (full rerun every time) */
 export async function inferTagsFromTimeline(
   posts: PostRecord[],
   options?: {
@@ -80,7 +80,7 @@ export async function inferTagsFromTimeline(
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "时间线推断失败"));
+    throw new Error(await readApiError(response, "Timeline inference failed"));
   }
 
   let completeResult: TimelineInferenceResult | null = null;
@@ -109,13 +109,13 @@ export async function inferTagsFromTimeline(
   }
 
   if (!completeResult) {
-    throw new Error("时间线推断未完成");
+    throw new Error("Timeline inference did not complete");
   }
 
   return completeResult;
 }
 
-/** @deprecated 方案 B — 滚动语料推断（分批 + 压缩上下文） */
+/** @deprecated Scheme B — rolling corpus inference (batches + compressed context) */
 export async function inferTagsFromCorpus(
   posts: PostRecord[],
   options?: {
@@ -135,7 +135,7 @@ export async function inferTagsFromCorpus(
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "语料推断失败"));
+    throw new Error(await readApiError(response, "Corpus inference failed"));
   }
 
   let completeResult: CorpusInferenceResult | null = null;
@@ -160,13 +160,13 @@ export async function inferTagsFromCorpus(
   }
 
   if (!completeResult) {
-    throw new Error("语料推断未完成");
+    throw new Error("Corpus inference did not complete");
   }
 
   return completeResult;
 }
 
-/** @deprecated 使用 inferTagsFromCorpus */
+/** @deprecated Use inferTagsFromCorpus */
 export async function extractTagsFromPosts(
   posts: { id: string; text: string }[],
   options?: {
@@ -184,7 +184,7 @@ export async function extractTagsFromPosts(
   return map;
 }
 
-/** profile 级标签精炼；失败时 return null，调用方应回退到聚合结果 */
+/** Profile-level tag refinement; returns null on failure so callers can fall back to the aggregated result */
 export async function refineAggregatedTags(
   tags: { name: string; postCount: number }[],
 ): Promise<string[] | null> {
@@ -211,7 +211,7 @@ export async function embedTags(tagNames: string[]): Promise<number[][]> {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Embedding 失败"));
+    throw new Error(await readApiError(response, "Embedding failed"));
   }
 
   const data = (await response.json()) as { vectors?: number[][] };

@@ -8,20 +8,20 @@ function twitterCacheTag(userName: string, cursor?: string): string {
   return page ? `twitter:${handle}:${page}` : `twitter:${handle}`;
 }
 
-/** 浏览器无法直连 twitterapi.io（无 CORS），由服务端转发；Key 从环境变量读取 */
+/** Browser cannot call twitterapi.io directly (no CORS); proxy on the server. Key is read from env. */
 export async function GET(request: NextRequest) {
   const userName = request.nextUrl.searchParams.get("userName")?.trim();
   const cursor = request.nextUrl.searchParams.get("cursor")?.trim();
 
   if (!userName) {
-    return NextResponse.json({ status: "error", message: "缺少 userName" }, { status: 400 });
+    return NextResponse.json({ status: "error", message: "Missing userName" }, { status: 400 });
   }
 
   let apiKey: string;
   try {
     apiKey = getTwitterApiKey();
   } catch (err) {
-    const message = err instanceof Error ? err.message : "服务端未配置 TWITTER_API_KEY";
+    const message = err instanceof Error ? err.message : "Server TWITTER_API_KEY is not configured";
     return NextResponse.json({ status: "error", message }, { status: 503 });
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      { status: "error", message: "Twitter API 代理请求失败" },
+      { status: "error", message: "Twitter API proxy request failed" },
       { status: 502 },
     );
   }

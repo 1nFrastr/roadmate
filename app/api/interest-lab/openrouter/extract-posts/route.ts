@@ -19,21 +19,21 @@ export async function POST(request: Request) {
     posts = body.posts ?? [];
     priorState = body.priorState ?? null;
   } catch {
-    return Response.json({ error: "请求体无效" }, { status: 400 });
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
   if (posts.length === 0) {
-    return Response.json({ error: "缺少 posts" }, { status: 400 });
+    return Response.json({ error: "Missing posts" }, { status: 400 });
   }
 
   const plan = planCorpusInference(posts, priorState);
 
   if (plan.mode === "noop") {
-    return Response.json({ error: "没有新帖子需要分析" }, { status: 400 });
+    return Response.json({ error: "No new posts to analyze" }, { status: 400 });
   }
 
   if (plan.posts.length === 0) {
-    return Response.json({ error: "没有可分析的帖子内容" }, { status: 400 });
+    return Response.json({ error: "No analyzable post content" }, { status: 400 });
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
           },
         );
 
-        // 增量模式：合并 processedPostIds
+        // Incremental mode: merge processedPostIds
         if (plan.mode === "incremental") {
           const mergedIds = [
             ...new Set([...plan.priorState.processedPostIds, ...result.processedPostIds]),
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
         send({ type: "complete", result });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "语料推断失败";
+        const message = err instanceof Error ? err.message : "Corpus inference failed";
         send({ type: "error", message });
       } finally {
         controller.close();

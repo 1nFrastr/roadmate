@@ -38,13 +38,13 @@ function decayForDays(days: number): number {
   return Math.exp(-RECENCY_DECAY_LAMBDA * days);
 }
 
-/** 纯频次：出现次数 / 总帖数（不与 recency 耦合，时间衰减仅由 recency 维度承担） */
+/** Raw frequency: occurrence count / total posts (not coupled to recency; time decay is only on the recency axis) */
 function computeRawFrequency(occurrenceCount: number, totalPosts: number): number {
   if (occurrenceCount <= 0 || totalPosts <= 0) return 0;
   return Math.round((occurrenceCount / totalPosts) * 1000) / 1000;
 }
 
-/** 以最后一次出现时间为准，几个月前 ≈ 0 */
+/** Based on last-seen time; a few months ago ≈ 0 */
 function computeRecencyFromLastSeen(lastSeenAt: string, now: number): number {
   return Math.round(decayForDays(daysSince(lastSeenAt, now)) * 1000) / 1000;
 }
@@ -55,7 +55,7 @@ function isStaleTag(lastSeenAt: string, postCount: number, now = Date.now()): bo
   return days > STALE_TAG_DAYS;
 }
 
-/** 语料级推断结果 → InterestTag（按 LLM 排序映射 weight） */
+/** Corpus-level inference result → InterestTag (map weight from LLM order) */
 export function corpusTagsToInterestTags(
   drafts: PostTagDraft[],
   posts: PostRecord[],
@@ -96,7 +96,7 @@ interface TimelineTagAccumulator {
   lastSeenAt: string;
 }
 
-/** 方案 C — 时间线条目归因 → 按 docs/interest-inference.md 公式聚合 */
+/** Scheme C — timeline entry attribution → aggregate with the docs/interest-inference.md formula */
 export function aggregateTagsFromTimeline(
   timeline: TimelineEntry[],
   tagDrafts: TimelineTagDraft[],
@@ -252,7 +252,7 @@ export function aggregateTagsFromPosts(posts: PostRecord[]): InterestTag[] {
     .slice(0, MAX_INFERRED_TAGS);
 }
 
-/** 按 profile 精炼结果保留标签，顺序与 keepNames 一致 */
+/** Keep tags from profile refinement, in keepNames order */
 export function applyTagRefinement(tags: InterestTag[], keepNames: string[]): InterestTag[] {
   const byKey = new Map(tags.map((tag) => [normalizeTagKey(tag.name), tag]));
   const kept: InterestTag[] = [];
@@ -265,7 +265,7 @@ export function applyTagRefinement(tags: InterestTag[], keepNames: string[]): In
   return kept;
 }
 
-/** @deprecated 整段语料 LLM 分数直接转标签 */
+/** @deprecated Convert whole-corpus LLM scores directly to tags */
 export function draftsToTags(drafts: LlmTagDraft[]): InterestTag[] {
   return drafts
     .map((draft) => ({

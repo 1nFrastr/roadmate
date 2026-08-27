@@ -6,7 +6,7 @@ function PlatformBadge({ platform }: { platform: "xiaohongshu" | "twitter" }) {
   if (platform === "xiaohongshu") {
     return (
       <span className="roadmates-platform-badge roadmates-platform-badge--xhs shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium">
-        小红书
+        Xiaohongshu
       </span>
     );
   }
@@ -22,7 +22,7 @@ function SocialIcon({ platform }: { platform: "xiaohongshu" | "twitter" }) {
   if (platform === "xiaohongshu") {
     return (
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/15 text-[11px] font-bold text-red-300">
-        红
+        XH
       </span>
     );
   }
@@ -39,12 +39,12 @@ export function RoadmateProfileScreen() {
     <div className="roadmates-screen flex h-full min-h-0 flex-col">
       <header className="roadmates-header shrink-0 px-4 pb-3 pt-1">
         <div className="flex items-center gap-2">
-          <button type="button" className="shrink-0 p-1 text-zinc-400" aria-label="返回">
+          <button type="button" className="shrink-0 p-1 text-zinc-400" aria-label="Back">
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
               <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <h1 className="text-[15px] font-semibold text-zinc-50">路友主页</h1>
+          <h1 className="text-[15px] font-semibold text-zinc-50">Roadmate Profile</h1>
         </div>
       </header>
 
@@ -58,13 +58,13 @@ export function RoadmateProfileScreen() {
           <h2 className="mt-3 text-[15px] font-semibold text-zinc-50">{MOCK_PROFILE.name}</h2>
           <p className="mt-1 text-[10px] text-zinc-500">{MOCK_PROFILE.matchContext}</p>
           <div className="roadmates-match-score mt-2 rounded-full px-3 py-1 text-[11px] font-medium text-cyan-200">
-            匹配 {MOCK_PROFILE.matchScore}%
+            Match {MOCK_PROFILE.matchScore}%
           </div>
         </section>
 
         <section className="mb-4">
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-            共同标签
+            Shared tags
           </h3>
           <div className="flex flex-wrap gap-1.5">
             {MOCK_PROFILE.commonTags.slice(0, 3).map((tag) => (
@@ -77,7 +77,7 @@ export function RoadmateProfileScreen() {
 
         <section className="mb-4">
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-            社媒入口
+            Social links
           </h3>
           <div className="space-y-2">
             {MOCK_PROFILE.socialLinks.map((link) => (
@@ -108,7 +108,7 @@ export function RoadmateProfileScreen() {
 
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-            最近动态
+            Recent posts
           </h3>
           <ul className="space-y-2">
             {MOCK_PROFILE.posts.map((post) => (
@@ -119,7 +119,7 @@ export function RoadmateProfileScreen() {
                 </div>
                 <p className="text-[11px] leading-relaxed text-zinc-300">{post.content}</p>
                 {post.likes != null ? (
-                  <p className="mt-1.5 text-[9px] text-zinc-600">{post.likes} 赞</p>
+                  <p className="mt-1.5 text-[9px] text-zinc-600">{post.likes} likes</p>
                 ) : null}
               </li>
             ))}

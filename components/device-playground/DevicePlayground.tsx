@@ -576,14 +576,14 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
         <div>
           <p className="text-sm text-zinc-400">
             {pairingLocked
-              ? "配对成功 · 共同兴趣已同步到设备屏幕"
+              ? "Match success · Shared interests synced to device screens"
               : pairingPhase === "holding"
-                ? "设备重叠 · 环带绿灯加载中，保持接触完成配对"
-                : "匹配设备相距 3 个设备直径内 LED 亮起，越近越快越亮 · 重叠碰一碰可配对"}
+                ? "Devices overlapping · Green ring charging — keep contact to finish pairing"
+                : "LEDs light within 3 device diameters of a match · Closer = faster & brighter · Overlap to tap-pair"}
           </p>
           {initialized ? (
             <p className="mt-1 font-mono text-xs text-zinc-600">
-              我的设备: {ownerDevice?.label ?? "RM-01"} · {matchableCount} / {TOTAL_DEVICES}{" "}
+              My device: {ownerDevice?.label ?? "RM-01"} · {matchableCount} / {TOTAL_DEVICES}{" "}
               matchable
             </p>
           ) : null}
@@ -592,7 +592,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
           href="/"
           className="pointer-events-auto rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-1.5 text-sm text-zinc-300 backdrop-blur transition hover:border-zinc-500 hover:text-white"
         >
-          ← 兴趣 Lab
+          ← Interest Lab
         </Link>
       </header>
 
@@ -654,7 +654,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
               type="button"
               className="pair-success-backdrop absolute inset-0 z-[160] cursor-default border-0 bg-transparent p-0"
               onClick={dismissSuccess}
-              aria-label="点击空白处返回"
+              aria-label="Click empty space to go back"
             />
             <div className="pair-success-actions pointer-events-none absolute inset-x-0 bottom-20 z-[170] flex justify-center px-4">
               <button
@@ -665,7 +665,7 @@ export function DevicePlayground({ entrance = "default" }: DevicePlaygroundProps
                 }}
                 className="pointer-events-auto rounded-full border border-emerald-400/40 bg-emerald-500/10 px-5 py-2.5 text-sm font-medium text-emerald-200 shadow-[0_4px_24px_rgba(16,185,129,0.15)] backdrop-blur-sm transition hover:border-emerald-400/60 hover:bg-emerald-500/20 active:scale-[0.98]"
               >
-                查看路友 App →
+                View Roadmates App →
               </button>
             </div>
           </>

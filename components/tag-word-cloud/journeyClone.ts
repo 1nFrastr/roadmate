@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import type { TagSnapshot } from "./types";
 
-/** 过渡克隆时去掉的交互态 class，保留球体视觉样式（含 custom / shape） */
+/** Interactive-state classes stripped on transition clones; keep orb visual styles (including custom / shape) */
 const STRIP_CLASSES = [
   "tag-word-cloud-item--selected",
   "cursor-grab",
@@ -10,8 +10,8 @@ const STRIP_CLASSES = [
 ] as const;
 
 /**
- * 视口视觉尺寸 / 布局尺寸，扣除元素自身 GSAP scale 与旋转造成的 AABB 膨胀。
- * 用于 IphonePreviewSlot 等祖先 transform: scale() 场景。
+ * Viewport visual size / layout size, subtracting AABB inflation from the element's own GSAP scale and rotation.
+ * Used when ancestors like IphonePreviewSlot apply transform: scale().
  */
 export function measureTagVisualScale(element: HTMLElement): number {
   const rect = element.getBoundingClientRect();
@@ -33,9 +33,9 @@ export function measureTagVisualScale(element: HTMLElement): number {
 }
 
 /**
- * 深拷贝真实标签 DOM 用于 Journey 过渡 overlay。
- * 样式变更只需改 TagWordCloud 渲染，无需同步手写 clone 结构。
- * 尺寸保留布局 px（inline），视觉缩放由 transition 侧 gsap scale 还原。
+ * Deep-clone real tag DOM for the Journey transition overlay.
+ * Style changes only need TagWordCloud render updates — no hand-kept clone structure.
+ * Size stays in layout px (inline); visual scale is restored via gsap scale on the transition side.
  */
 export function cloneTagElementForJourney(
   snap: Pick<TagSnapshot, "element" | "rect">,

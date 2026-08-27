@@ -3,20 +3,20 @@
   "cases": [
     {
       "id": "multi-theme-user",
-      "description": "真实用户帖 + 跨主题混帖（16 帖），应保留多主题具体标签、过滤职场噪音",
+      "description": "Real-user style posts + cross-theme mix (16 posts); keep concrete multi-theme tags, filter career noise",
       "postsFile": "multi-theme-user.posts.txt",
       "expect": {
         "anyOf": [
-          ["厦门", "青旅", "自由行"],
-          ["手冲", "耶加", "咖啡"],
-          ["芙莉莲", "空洞骑士"],
-          ["攀岩", "岩馆", "V4"],
-          ["托福", "考研", "自习室"],
-          ["潮汕", "火锅"],
-          ["川西", "骑行"],
-          ["胶片", "Kodak"]
+          ["Xiamen", "hostel", "solo travel"],
+          ["pour-over", "Yirgacheffe", "coffee"],
+          ["Frieren", "Hollow Knight"],
+          ["climbing", "gym", "V4"],
+          ["TOEFL", "grad exam", "study room"],
+          ["Chaoshan", "hotpot"],
+          ["Western Sichuan", "cycling"],
+          ["film", "Kodak"]
         ],
-        "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "求职"],
+        "forbidden": ["salary", "dating", "impostor", "mindset", "interview", "job hunt"],
         "minTags": 5,
         "maxTags": 12,
         "minSignalPosts": 6
@@ -24,16 +24,16 @@
     },
     {
       "id": "hobby-dense",
-      "description": "四主题高密度（咖啡/攀岩/游戏/胶片各 4 帖，16 帖），测试四线并存",
+      "description": "Four themes dense (coffee/climbing/gaming/film ×4 each, 16 posts) — test four lines coexisting",
       "postsFile": "hobby-dense.posts.txt",
       "expect": {
         "anyOf": [
-          ["手冲", "咖啡", "潮汕", "拿铁"],
-          ["攀岩", "岩馆", "指力板", "白河"],
-          ["芙莉莲", "空洞骑士", "Helldivers", "indie"],
-          ["胶片", "Kodak", "扫街", "中画幅"]
+          ["pour-over", "coffee", "Chaoshan", "latte"],
+          ["climbing", "gym", "hangboard", "Baihe"],
+          ["Frieren", "Hollow Knight", "Helldivers", "indie"],
+          ["film", "Kodak", "street", "medium format"]
         ],
-        "forbidden": ["美食", "运动", "游戏", "摄影"],
+        "forbidden": ["food", "sports", "games", "photography"],
         "minTags": 6,
         "maxTags": 12,
         "minSignalPosts": 12
@@ -41,19 +41,19 @@
     },
     {
       "id": "noise-mixed",
-      "description": "职场/心态噪音为主（16 帖），少量兴趣信号应 survive 去噪",
+      "description": "Mostly career/mindset noise (16 posts); sparse interest signals should survive denoise",
       "postsFile": "noise-mixed.posts.txt",
       "expect": {
         "anyOf": [
-          ["厦门", "青旅"],
-          ["手冲", "咖啡"],
-          ["空洞骑士", "Switch"],
-          ["芙莉莲"],
-          ["攀岩", "岩馆"],
-          ["川西", "骑行"],
-          ["托福", "考研", "自习室"]
+          ["Xiamen", "hostel"],
+          ["pour-over", "coffee"],
+          ["Hollow Knight", "Switch"],
+          ["Frieren"],
+          ["climbing", "gym"],
+          ["Western Sichuan", "cycling"],
+          ["TOEFL", "grad exam", "study room"]
         ],
-        "forbidden": ["薪资", "年薪", "婚恋", "配得感", "心态", "面试", "PUA", "躺平"],
+        "forbidden": ["salary", "dating", "impostor", "mindset", "interview", "PUA", "lie flat"],
         "minTags": 3,
         "maxTags": 10,
         "minSignalPosts": 4
@@ -61,10 +61,10 @@
     },
     {
       "id": "sparse-noise",
-      "description": "无明确兴趣信号（8 帖），应少标签或空",
+      "description": "No clear interest signal (8 posts); few tags or empty",
       "postsFile": "sparse-noise.posts.txt",
       "expect": {
-        "forbidden": ["天气", "加班", "地铁"],
+        "forbidden": ["weather", "overtime", "subway"],
         "minTags": 0,
         "maxTags": 2,
         "minSignalPosts": 0
@@ -72,15 +72,15 @@
     },
     {
       "id": "burst-merge-coffee",
-      "description": "4 帖纯咖啡均在 5 天内 — 测试窗口内合并后 frequency entries≥3",
+      "description": "4 coffee-only posts within 5 days — after in-window merge, frequency entries ≥3",
       "postsFile": "burst-merge-coffee.posts.txt",
       "expect": {
         "anyOf": [
-          ["手冲", "耶加", "咖啡"],
-          ["意式", "磨豆机", "浓缩"],
-          ["拿铁", "dirty"]
+          ["pour-over", "Yirgacheffe", "coffee"],
+          ["espresso", "grinder", "shot"],
+          ["latte", "dirty"]
         ],
-        "forbidden": ["美食", "饮品"],
+        "forbidden": ["food", "drinks"],
         "minTags": 1,
         "maxTags": 5,
         "minSignalPosts": 4
@@ -88,15 +88,15 @@
     },
     {
       "id": "cross-period-coffee",
-      "description": "咖啡跨 @1d/@1m/@3m 三波，中间夹职场噪音 — 测试不跨周期合并、跨期频次累加",
+      "description": "Coffee across @1d/@1m/@3m waves with career noise — no cross-period merge; cross-period frequency still accumulates",
       "postsFile": "cross-period-coffee.posts.txt",
       "expect": {
         "anyOf": [
-          ["手冲", "耶加", "咖啡"],
-          ["拉花", "拿铁"],
-          ["咖啡馆", "探店"]
+          ["pour-over", "Yirgacheffe", "coffee"],
+          ["latte art", "latte"],
+          ["cafe", "cafe hopping"]
         ],
-        "forbidden": ["薪资", "年薪", "PUA", "面试", "心态"],
+        "forbidden": ["salary", "PUA", "interview", "mindset"],
         "minTags": 1,
         "maxTags": 6,
         "minSignalPosts": 4
@@ -104,16 +104,16 @@
     },
     {
       "id": "climbing-dominant",
-      "description": "攀岩 10 帖 + 2 噪音 — 测试单主题高频应主导标签列表",
+      "description": "Climbing ×10 + noise ×2 — single-theme high frequency should dominate the tag list",
       "postsFile": "climbing-dominant.posts.txt",
       "expect": {
         "anyOf": [
-          ["攀岩", "岩馆", "V4"],
-          ["指力板", "悬垂"],
-          ["白河", "老岩场", "先锋"],
-          ["抱石", "磕线"]
+          ["climbing", "gym", "V4"],
+          ["hangboard", "hang"],
+          ["Baihe", "crag", "lead"],
+          ["bouldering", "send"]
         ],
-        "forbidden": ["天气", "地铁", "运动"],
+        "forbidden": ["weather", "subway", "sports"],
         "minTags": 3,
         "maxTags": 8,
         "minSignalPosts": 8
@@ -121,14 +121,14 @@
     },
     {
       "id": "two-theme-recency",
-      "description": "近期咖啡 3 帖 vs 远期骑行 1 帖 — 测试咖啡 weight 应高于骑行",
+      "description": "Recent coffee ×3 vs older cycling ×1 — coffee weight should beat cycling",
       "postsFile": "two-theme-recency.posts.txt",
       "expect": {
         "anyOf": [
-          ["手冲", "耶加", "咖啡", "拿铁", "磨豆机"],
-          ["川西", "骑行", "环线"]
+          ["pour-over", "Yirgacheffe", "coffee", "latte", "grinder"],
+          ["Western Sichuan", "cycling", "loop"]
         ],
-        "forbidden": ["美食", "旅行", "运动"],
+        "forbidden": ["food", "travel", "sports"],
         "minTags": 2,
         "maxTags": 5,
         "minSignalPosts": 4
@@ -136,23 +136,23 @@
     },
     {
       "id": "long-scattered",
-      "description": "20 帖长列表稀疏多主题 — 测试去噪 + 多主题并存不丢信号",
+      "description": "20-post long sparse multi-theme list — denoise + keep coexisting themes without dropping signal",
       "postsFile": "long-scattered.posts.txt",
       "expect": {
         "anyOf": [
-          ["厦门", "青旅"],
-          ["手冲", "咖啡", "耶加"],
-          ["芙莉莲"],
-          ["攀岩", "V4", "岩馆"],
-          ["空洞骑士", "Switch"],
-          ["考研", "自习室", "政治"],
-          ["川西", "骑行"],
-          ["胶片", "Kodak"],
-          ["潮汕", "火锅"],
-          ["托福", "TPO"],
+          ["Xiamen", "hostel"],
+          ["pour-over", "coffee", "Yirgacheffe"],
+          ["Frieren"],
+          ["climbing", "V4", "gym"],
+          ["Hollow Knight", "Switch"],
+          ["grad exam", "study room", "politics"],
+          ["Western Sichuan", "cycling"],
+          ["film", "Kodak"],
+          ["Chaoshan", "hotpot"],
+          ["TOEFL", "TPO"],
           ["Helldivers"]
         ],
-        "forbidden": ["薪资", "年薪", "配得感", "心态", "面试", "天气", "加班"],
+        "forbidden": ["salary", "impostor", "mindset", "interview", "weather", "overtime"],
         "minTags": 5,
         "maxTags": 12,
         "minSignalPosts": 8
@@ -160,18 +160,18 @@
     },
     {
       "id": "four-month-multi-theme",
-      "description": "50 帖跨 4 个月多主题详略混杂 — 测试长时线去噪、跨期合并与多兴趣并存",
+      "description": "50 posts across ~4 months, mixed detail levels — long-horizon denoise, cross-period merge, multi-interest coexistence",
       "postsFile": "four-month-multi-theme.posts.txt",
       "expect": {
         "anyOf": [
-          ["手冲", "耶加", "咖啡", "意式", "拉花"],
-          ["攀岩", "岩馆", "V4", "抱石", "指力板"],
-          ["芙莉莲", "空洞骑士", "Helldivers", "Balatro"],
-          ["胶片", "Kodak", "Portra", "中画幅", "扫街"],
-          ["厦门", "青旅", "川西", "骑行", "潮汕"],
-          ["考研", "政治", "自习室", "托福", "TPO"]
+          ["pour-over", "Yirgacheffe", "coffee", "espresso", "latte art"],
+          ["climbing", "gym", "V4", "bouldering", "hangboard"],
+          ["Frieren", "Hollow Knight", "Helldivers", "Balatro"],
+          ["film", "Kodak", "Portra", "medium format", "street"],
+          ["Xiamen", "hostel", "Western Sichuan", "cycling", "Chaoshan"],
+          ["grad exam", "politics", "study room", "TOEFL", "TPO"]
         ],
-        "forbidden": ["薪资", "年薪", "配得感", "心态", "面试", "PUA", "躺平", "天气", "加班"],
+        "forbidden": ["salary", "impostor", "mindset", "interview", "PUA", "lie flat", "weather", "overtime"],
         "minTags": 6,
         "maxTags": 15,
         "minSignalPosts": 25

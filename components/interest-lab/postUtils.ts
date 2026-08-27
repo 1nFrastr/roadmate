@@ -15,10 +15,10 @@ const UNIT_MS: Record<RelativeTimeUnit, number> = {
 };
 
 export const RELATIVE_TIME_UNIT_LABELS: Record<RelativeTimeUnit, string> = {
-  hours: "小时前",
-  days: "天前",
-  weeks: "周前",
-  months: "月前",
+  hours: "hours ago",
+  days: "days ago",
+  weeks: "weeks ago",
+  months: "months ago",
 };
 
 export function relativeToIso(amount: number, unit: RelativeTimeUnit, now = Date.now()): string {
@@ -26,7 +26,7 @@ export function relativeToIso(amount: number, unit: RelativeTimeUnit, now = Date
   return new Date(now - clamped * UNIT_MS[unit]).toISOString();
 }
 
-/** 将 ISO 时间回填为相对时间控件值 */
+/** Convert an ISO timestamp back to relative-time control values */
 export function isoToRelative(
   iso: string,
   now = Date.now(),
@@ -55,7 +55,7 @@ export function createPostRecord(text: string, createdAt?: string): PostRecord {
   };
 }
 
-/** 按发布时间降序（最新在前） */
+/** Sort by publish time descending (newest first) */
 export function sortPostsByCreatedAtDesc(posts: PostRecord[]): PostRecord[] {
   return [...posts].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -112,7 +112,7 @@ export function applyExtractedTags(
   });
 }
 
-/** 清除逐帖 LLM 推断结果，保留帖子文本与时间 */
+/** Clear per-post LLM inference results; keep post text and timestamps */
 export function clearPostInference(posts: PostRecord[]): PostRecord[] {
   return posts.map((post) => ({
     id: post.id,

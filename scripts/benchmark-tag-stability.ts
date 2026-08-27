@@ -1,7 +1,7 @@
 /**
- * 同一帖子集连续跑 N 次语料滚动推断，对比结果是否一致。
+ * Run corpus rolling inference N times on the same post set and compare consistency.
  *
- * 用法:
+ * Usage:
  *   npx tsx scripts/benchmark-tag-stability.ts
  *   npx tsx scripts/benchmark-tag-stability.ts /path/to/roadmate-posts.txt 3
  */
@@ -40,21 +40,21 @@ async function main() {
   const raw = readFileSync(postsPath, "utf8");
   const { posts, errors } = parsePostsFromTxt(raw);
   if (errors.length > 0) {
-    console.warn("解析警告:", errors.join("; "));
+    console.warn("Parse warnings:", errors.join("; "));
   }
 
-  console.log(`帖子 ${posts.length} 条 · 语料滚动推断 × ${runs}\n`);
+  console.log(`${posts.length} posts · corpus rolling inference × ${runs}\n`);
 
   const allRuns: string[][] = [];
   for (let i = 0; i < runs; i += 1) {
     const tags = await runOnce(posts);
     allRuns.push(tags);
-    console.log(`Run ${i + 1}: ${tags.length} 标签 → ${tags.join(" · ") || "(空)"}`);
+    console.log(`Run ${i + 1}: ${tags.length} tags → ${tags.join(" · ") || "(empty)"}`);
   }
 
   const baseline = allRuns[0]?.join("|") ?? "";
   const stable = allRuns.every((tags) => tags.join("|") === baseline);
-  console.log(stable ? "\n✓ 结果完全一致" : "\n✗ 存在差异");
+  console.log(stable ? "\n✓ Results fully identical" : "\n✗ Differences found");
 }
 
 main().catch((err) => {

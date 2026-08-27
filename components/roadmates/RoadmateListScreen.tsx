@@ -70,8 +70,8 @@ export function RoadmateListScreen() {
   return (
     <div className="roadmates-screen flex h-full min-h-0 flex-col">
       <header className="roadmates-header shrink-0 px-4 pb-3 pt-1">
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-50">路友</h1>
-        <p className="mt-0.5 text-[11px] text-zinc-500">轻链接 · 鼓励线下见</p>
+        <h1 className="text-lg font-semibold tracking-tight text-zinc-50">Roadmates</h1>
+        <p className="mt-0.5 text-[11px] text-zinc-500">Light links · Meet in person</p>
       </header>
 
       <div className="roadmates-new-banner mx-3 mb-3 flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5">
@@ -94,7 +94,7 @@ export function RoadmateListScreen() {
                       {session.name}
                       {session.isGroup && session.memberCount ? (
                         <span className="ml-1 text-[11px] font-normal text-zinc-500">
-                          · {session.memberCount} 人
+                          · {session.memberCount} people
                         </span>
                       ) : null}
                     </span>

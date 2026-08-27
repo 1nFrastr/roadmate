@@ -1,14 +1,14 @@
 # roadmate-posts/1
-# 近期咖啡 3 帖（@1d-@4d）vs 远期骑行 1 帖（@2m）— 测试 recency/frequency 权重排序
+# Recent coffee ×3 (@1d–@4d) vs older cycling ×1 (@2m) — test recency/frequency weight ordering
 
 @1d
-周末试了埃塞俄比亚耶加雪菲手冲
+Tried Ethiopian Yirgacheffe pour-over this weekend
 
 @2d
-入坑意式浓缩，换了新磨豆机
+Got into espresso — new grinder arrived
 
 @4d
-学做 dirty 拿铁，奶泡比例调对了
+Practicing dirty lattes — finally nailed the milk ratio
 
 @2m
-计划去川西骑行，已经在看环线和海拔攻略
+Planning a Western Sichuan cycling trip — already reading loop routes and altitude tips

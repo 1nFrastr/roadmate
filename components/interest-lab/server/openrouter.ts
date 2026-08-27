@@ -46,7 +46,7 @@ export async function refineAggregatedTags(
         { role: "system", content: TAG_REFINEMENT_PROMPT },
         {
           role: "user",
-          content: `请精炼以下聚合标签，优先保留最有公共上下文共鸣的（≤6 字）：\n\n${JSON.stringify(payload)}`,
+          content: `Refine the following aggregated tags; prefer those with the strongest shared-context resonance (≤6 characters):\n\n${JSON.stringify(payload)}`,
         },
       ],
     }),
@@ -101,7 +101,7 @@ export async function embedTags(tagNames: string[]): Promise<number[][]> {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenRouter Embedding 请求失败 (${response.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`OpenRouter embedding request failed (${response.status}): ${detail.slice(0, 200)}`);
   }
 
   const data = (await response.json()) as {
@@ -110,7 +110,7 @@ export async function embedTags(tagNames: string[]): Promise<number[][]> {
 
   const rows = data.data ?? [];
   if (rows.length !== tagNames.length) {
-    throw new Error("Embedding 返回数量与标签数量不一致");
+    throw new Error("Embedding result count does not match tag count");
   }
 
   const vectors = rows
@@ -126,5 +126,5 @@ export async function embedTags(tagNames: string[]): Promise<number[][]> {
   return vectors;
 }
 
-/** @deprecated 逐帖提取已替换为语料滚动推断 */
+/** @deprecated Per-post extraction was replaced by rolling corpus inference */
 export type { PostTagDraft };

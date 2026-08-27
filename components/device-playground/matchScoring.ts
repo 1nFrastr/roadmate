@@ -8,11 +8,11 @@ const SCORE_BLEND = { embedding: 0.58, overlap: 0.42 } as const;
 const SIM_CALIBRATION = { floor: 0.42, ceiling: 0.96 } as const;
 const NEIGHBOR_COUNT = 3;
 
-/** 三台路人目标重叠率：高 / 中 / 低（再加小幅 jitter） */
+/** Target overlap rates for three bystander devices: high / mid / low (plus small jitter) */
 const NEIGHBOR_OVERLAP_TARGETS = [0.68, 0.42, 0.22] as const;
-/** 各档独有标签数量 */
+/** Number of unique tags per tier */
 const NEIGHBOR_DISTINCT_COUNTS = [2, 3, 4] as const;
-/** 合成 embedding 与 owner 的偏离强度 */
+/** How far synthetic embeddings diverge from the owner */
 const NEIGHBOR_DIVERGENCE = [0.55, 1.05, 1.75] as const;
 
 function clamp(value: number, min: number, max: number): number {
@@ -76,7 +76,7 @@ function addVectors(a: number[], b: number[], weightB: number): number[] {
   return out;
 }
 
-/** 按 tag.weight 加权平均各标签 embedding，再 L2 归一化 */
+/** Weight-average tag embeddings by tag.weight, then L2-normalize */
 export function weightedProfileVector(profile: DeviceInterestProfile): number[] | null {
   const vectors: number[][] = [];
   const weights: number[] = [];
@@ -152,8 +152,8 @@ function similarityToMatchPercent(similarity: number): number {
 }
 
 /**
- * 混合 profile 向量余弦相似度与加权标签重叠度，映射到 55–98 展示区间。
- * 无 embedding 时退化为纯标签重叠。
+ * Blend profile-vector cosine similarity with weighted tag overlap, mapped to a 55–98 display range.
+ * Falls back to tag overlap only when embeddings are missing.
  */
 export function computeMatchScore(
   owner: DeviceInterestProfile,
@@ -339,7 +339,7 @@ function buildSyntheticNeighborProfileForSlot(
   return { tags, embeddings };
 }
 
-/** 一次性生成三台路人 profile，保证重叠率 / 独有标签 / 分数有区分度 */
+/** Generate three bystander profiles at once with differentiated overlap / unique tags / scores */
 export function buildSyntheticNeighborProfiles(
   owner: DeviceInterestProfile,
   profileSeed: number,
@@ -351,7 +351,7 @@ export function buildSyntheticNeighborProfiles(
   );
 }
 
-/** @deprecated 单台生成；Playground 请用 buildSyntheticNeighborProfiles */
+/** @deprecated Per-device generation; Playground should use buildSyntheticNeighborProfiles */
 export function buildSyntheticNeighborProfile(
   owner: DeviceInterestProfile,
   seed: number,

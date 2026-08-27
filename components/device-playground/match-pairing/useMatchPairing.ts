@@ -77,7 +77,7 @@ export function useMatchPairing({
   const dismissingRef = useRef(false);
   const navigatingRef = useRef(false);
   const phaseRef = useRef<PairingPhase>("idle");
-  /** dismiss 后设备仍重叠时，抑制重新进入 holding，避免 pointer-events:none 锁死画布 */
+  /** After dismiss, if devices still overlap, suppress re-entering holding so pointer-events:none does not lock the canvas */
   const pairingCooldownRef = useRef(false);
 
   const ownerDevice = devices.find((device) => device.isOwner);

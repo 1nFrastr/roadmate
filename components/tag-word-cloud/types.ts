@@ -28,10 +28,10 @@ export interface TagLayout {
 export interface TagSnapshot {
   id: string;
   name: string;
-  /** 冻结时的真实 DOM，供 Journey 过渡深拷贝 */
+  /** Frozen live DOM for Journey transition deep-cloning */
   element: HTMLElement;
   rect: DOMRectReadOnly;
-  /** 祖先 scale 等造成的视口/布局比，过渡 clone 用 gsap scale 还原 */
+  /** Viewport/layout ratio from ancestor scale etc.; transition clones restore via gsap scale */
   visualScale: number;
   hue: number;
   fontSize: number;
@@ -45,7 +45,7 @@ export interface TagWordCloudProps {
   emptyMessage?: string;
   interactive?: boolean;
   size?: "default" | "compact";
-  /** 允许选中 / 编辑自定义标签 */
+  /** Allow selecting / editing custom tags */
   enableCustomTags?: boolean;
   selectedTagId?: string | null;
   onSelectTag?: (id: string | null) => void;

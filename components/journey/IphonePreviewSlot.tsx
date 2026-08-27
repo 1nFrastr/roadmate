@@ -7,7 +7,7 @@ interface IphonePreviewSlotProps {
   className?: string;
 }
 
-/** 预览槽：空间不足时等比缩小 iPhone，避免上下被裁切 */
+/** Preview slot: scale iPhone down proportionally when space is tight to avoid vertical clipping */
 export function IphonePreviewSlot({ children, className = "" }: IphonePreviewSlotProps) {
   const slotRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);

@@ -1,161 +1,161 @@
-# 设备 Playground 设计
+# Device Playground design
 
-用 Web 拟物验证近场 Tag 的外形与交互：拖动主控靠近同频设备，靠灯环、方向箭头和重叠充能完成配对。
+Use a web skeuomorph to validate near-field Tag form and interaction: drag the owner toward like-minded devices, and complete pairing via ring light, direction arrows, and overlap charge.
 
-代码入口：`components/device-playground/`。
+Code entry: `components/device-playground/`.
 
-## 要解决的问题
+## Problem to solve
 
-线下场景里，用户需要在不掏手机的前提下回答两件事：
+In offline settings, users need to answer two questions without pulling out a phone:
 
-1. 附近有没有人和我聊得来？
-2. 如果有，往哪边走？
+1. Is there anyone nearby I would click with?
+2. If so, which way should I go?
 
-Web 原型要同时验证硬件外形是否可信，以及近场反馈是否够清楚。
+The web prototype must validate both that the hardware form feels credible and that near-field feedback is clear enough.
 
-## 为什么朴素方案不够
+## Why naive approaches fall short
 
-最早做成竖向 iPod 卡片，顶部一颗状态灯。
+The earliest form was a vertical iPod card with a single status LED on top.
 
-这能演示「有匹配」。
+That can demo “there is a match.”
 
-但在多人画布上不够用：
+But it is not enough on a multi-person canvas:
 
-- 单点灯像普通指示灯，远处难认，侧面容易漏看
-- 假滚轮没有交互，却占掉屏幕和结构空间
-- 屏外确认按钮像 App，不像「无实体键、靠靠近确认」的硬件
+- A single LED reads like a generic indicator — hard to spot from afar, easy to miss from the side
+- A fake scroll wheel has no interaction yet consumes screen and structure space
+- An off-screen confirm button feels like an App, not “no physical keys; confirm by proximity” hardware
 
-需要的是一枚任意角度都像信标的设备，以及一套只靠距离推进的反馈链。
+What is needed: a device that reads as a beacon from any angle, and a feedback chain driven only by distance.
 
-## 核心设计
+## Core design
 
-当前形态是圆形 Tag：
+Current form is a circular Tag:
 
-- 120 px 正圆金属壳
-- 85 px 圆形墨水屏
-- 屏外环形灯带
-- 无物理按键
+- 120 px circular metal shell
+- 85 px circular e-ink screen
+- Ring light strip outside the screen
+- No physical buttons
 
-主控 RM-01 带青色外圈光环，便于在画布上辨认。
+Owner RM-01 has a cyan outer halo for easy recognition on the canvas.
 
-交互原则就四条：
+Four interaction principles:
 
-1. **距离即信号**：拖动主控即可驱动整套反馈，不依赖点击。
-2. **双通道反馈**：灯环给余光，圆屏给精确信息。
-3. **渐进式仪式**：远 → 近 → 重叠 → 充能 → 成功，每一步有独立视觉态。
-4. **硬件可信**：无假按键，对齐 NFC 靠近、环形 LED、圆形墨水屏的量产想象。
+1. **Distance is the signal**: dragging the owner drives the full feedback set — no clicks required.
+2. **Dual-channel feedback**: the ring serves peripheral vision; the round screen serves precise info.
+3. **Progressive ritual**: far → near → overlap → charge → success, each step with its own visual state.
+4. **Hardware credibility**: no fake buttons; aligned with NFC proximity, ring LED, and circular e-ink production vision.
 
-语义匹配和近场交互拆开：Interest Lab 决定「谁值得靠近」，Playground 决定「靠近时如何反馈」。两边通过画像与匹配分解耦。
+Semantic matching and near-field interaction are split: Interest Lab decides “who is worth approaching”; Playground decides “how to feedback while approaching.” They stay decoupled via profile and match score.
 
-## 关键机制
+## Key mechanisms
 
-### 1. 外形：从卡片收敛到圆形信标
+### 1. Form: from card to circular beacon
 
-| 阶段 | 形态 | 灯光 | 按键 |
+| Stage | Form | Lights | Buttons |
 | --- | --- | --- | --- |
-| v1 | iPod 竖向卡片 | 顶部单点 LED | 底部滚轮装饰 |
-| v2 | 去掉滚轮的卡片 | 仍是单点 LED | 无 |
-| v3（当前） | AirTag 式正圆 | 360° 环形灯带 | 无；靠重叠 + 灯环进度 |
+| v1 | iPod vertical card | Top single-point LED | Bottom scroll-wheel decoration |
+| v2 | Card without scroll wheel | Still single-point LED | None |
+| v3 (current) | AirTag-style circle | 360° ring light strip | None; overlap + ring progress |
 
-保留了低功耗卡牌体积感和 Matter 叠放。放弃了无交互的滚轮拟物。引入环形灯带，是为了在人群中形成信标效果。
+Kept the low-power card-like volume feel and Matter stacking. Dropped the non-interactive scroll-wheel skeuomorph. Introduced the ring light strip so it reads as a beacon in a crowd.
 
-### 2. 近场灯光
+### 2. Near-field lights
 
-拖动主控时，只有**最近一对**可匹配设备参与琥珀色频闪。
+While dragging the owner, only the **nearest pair** of matchable devices participate in amber strobing.
 
-有效距离约三倍设备直径。越近，频率越高、光晕越强。
+Effective range is about three device diameters. Closer means higher frequency and stronger glow.
 
-实现上使用持久 GSAP timeline，用 `timeScale` 调速。不要每帧销毁重建动画，否则频率无法随距离连续变化。
+Implementation uses a persistent GSAP timeline with `timeScale` for speed control. Do not destroy and recreate the animation every frame — otherwise frequency cannot change continuously with distance.
 
-### 3. 方向箭头
+### 3. Direction arrows
 
-灯环表达强度，箭头表达方向。
+The ring expresses intensity; arrows express direction.
 
-双方进入有效距离后，圆屏显示实时旋转箭头，指向对方。待机显示 ROADMATE 品牌字；箭头出现时让位。配对成功后箭头隐藏，改为匹配分与共同话题。
+Once both enter effective range, round screens show real-time rotating arrows pointing at each other. Idle shows the ROADMATE brand wordmark; it yields when the arrow appears. After a successful pair, arrows hide in favor of match score and shared topics.
 
-### 4. 碰一碰配对
+### 4. Tap-to-pair
 
-两机圆盘重叠后进入充能：
+When two discs overlap, charge begins:
 
-1. 灯环切到翠绿
-2. 保持重叠约 1 秒，进度沿灯环充填
-3. 完成则成功转场；拉远超过迟滞距离则取消
+1. Ring switches to emerald
+2. Hold overlap for ~1 second; progress fills along the ring
+3. On completion, success transition; if pulled beyond hysteresis distance, cancel
 
-曾用过屏外长按按钮。后来去掉，是为了让用户只做「持握靠近」，与量产 NFC 确认一致。
+An off-screen long-press button was used earlier. It was removed so users only “hold and approach,” consistent with production NFC confirmation.
 
-### 5. Dock 放大
+### 5. Dock scale-up
 
-主控进入约 225 px 范围时，目标设备放大到 1.35 倍，和灯环一起形成「被吸引」的近场隐喻。
+When the owner enters ~225 px range, the target device scales to 1.35×, forming a “being attracted” near-field metaphor together with the ring light.
 
-## 交互状态机
+## Interaction state machine
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Idle: 待机
-  Idle --> Proximity: 拖动主控靠近可匹配设备
-  Proximity --> Proximity: 灯环频闪 + Dock 放大 + 双向箭头
-  Proximity --> PairingHold: 圆盘重叠
-  PairingHold --> PairingHold: 翠绿灯环充能
-  PairingHold --> Proximity: 拉远超过迟滞距离
-  PairingHold --> MatchSuccess: 充能完成
-  MatchSuccess --> Roadmates: 转场
-  Proximity --> Idle: 超出有效距离
+  [*] --> Idle: Idle
+  Idle --> Proximity: Drag owner toward a matchable device
+  Proximity --> Proximity: Ring strobe + Dock scale-up + bidirectional arrows
+  Proximity --> PairingHold: Discs overlap
+  PairingHold --> PairingHold: Emerald ring charge
+  PairingHold --> Proximity: Pulled beyond hysteresis distance
+  PairingHold --> MatchSuccess: Charge complete
+  MatchSuccess --> Roadmates: Transition
+  Proximity --> Idle: Beyond effective range
 ```
 
-颜色语义：
+Color semantics:
 
-- 琥珀：近场寻缘
-- 翠绿：配对充能
+- Amber: near-field discovery
+- Emerald: pairing charge
 
-## 刻意不做的事情
+## Deliberately not done
 
-- 不在原型里做假实体键。确认仪式只保留靠近与重叠。
-- 不让所有接近对象同时闪灯。多人场景宁可漏闪，也不要噪声盖过信号。
-- 不在 Playground 里重算兴趣语义。匹配分来自 Lab 的 embedding 与标签重叠。
+- Do not fake physical keys in the prototype. The confirm ritual keeps only approach and overlap.
+- Do not strobe every nearby object at once. In multi-person scenes, prefer missing a strobe over letting noise drown the signal.
+- Do not recompute interest semantics in Playground. Match score comes from Lab embeddings and tag overlap.
 
-几何与距离常量集中在 `components/device-playground/constants.ts`。
+Geometry and distance constants live in `components/device-playground/constants.ts`.
 
-## 和其他模块的关系
+## Relationship to other modules
 
 ```
-Interest Lab 画像
+Interest Lab profile
       │
       ▼
-matchScoring（embedding 余弦 + 标签重叠）
+matchScoring (embedding cosine + tag overlap)
       │
       ▼
-Playground 近场反馈与配对
+Playground near-field feedback and pairing
       │
       ▼
-Roadmates 轻社交原型
+Roadmates lightweight social prototype
 ```
 
-Journey 转场会把 Lab 结果注入主控，再进入 Playground，形成「兴趣 → 近场 → 配对」演示路径。
+Journey transitions inject Lab results into the owner, then enter Playground — forming an “interest → near-field → pairing” demo path.
 
-推断侧细节见 [兴趣推断设计](./interest-inference.md)。
+Inference details: [Interest inference design](./interest-inference.md).
 
-## 后续方向
+## Next directions
 
-已在原型验证：环形 LED 距离频闪、圆屏箭头、重叠充能、Matter 叠放、embedding 匹配分。
+Already validated in the prototype: ring LED distance strobing, round-screen arrows, overlap charge, Matter stacking, embedding match score.
 
-下一步更贴近硬件：
+Closer to hardware next:
 
-- 真实 LED 驱动与低功耗策略
-- 圆形墨水屏刷新与残影
-- NFC 靠近确认，替代 Web 重叠模拟
-- 物理碰撞触发配对
+- Real LED drive and low-power strategy
+- Circular e-ink refresh and ghosting
+- NFC proximity confirmation replacing web overlap simulation
+- Physical collision triggering pairing
 
-## 总结
+## Summary
 
-这套设备设计的核心是：
+The core of this device design:
 
-> 把抽象匹配变成可感知的近场信号，同时让外形和确认方式对齐无键 NFC 硬件。
+> Turn abstract matching into a perceptible near-field signal, while aligning form and confirmation with keyless NFC hardware.
 
-具体来说：
+Concretely:
 
-- 正圆 + 环形灯带解决多人场景里的视认性
-- 灯环管强度，箭头管方向，重叠充能管确认
-- 只服务最近一对，控制视觉噪声
-- 语义匹配与近场反馈解耦，各自演进
+- Circle + ring light strip solve recognizability in multi-person scenes
+- Ring owns intensity, arrows own direction, overlap charge owns confirmation
+- Serve only the nearest pair to control visual noise
+- Decouple semantic matching from near-field feedback so each can evolve
 
-最终效果是：用户拖动主控，就能完整体验「发现 → 靠近 → 配对」。
+The result: the user drags the owner and fully experiences “discover → approach → pair.”

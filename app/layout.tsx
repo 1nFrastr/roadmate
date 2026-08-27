@@ -22,7 +22,7 @@ const devicePixel = VT323({
 
 export const metadata: Metadata = {
   title: "Roadmate",
-  description: "近场社交硬件设备交互 Demo",
+  description: "Near-field social hardware interaction demo",
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="zh-CN"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${devicePixel.variable} h-dvh antialiased`}
     >
       <body className="flex h-dvh flex-col">

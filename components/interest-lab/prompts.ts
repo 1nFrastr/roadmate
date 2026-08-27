@@ -8,116 +8,116 @@ import {
   TIMELINE_PREPROCESS_SUMMARY_MAX_CHARS,
 } from "./constants";
 
-export const CORPUS_ROLLING_INFERENCE_PROMPT = `你是 Roadmate 近场社交设备的兴趣推断引擎。Roadmate 是卡牌式 NFC 硬件：两台设备靠近时展示双方共同标签，帮陌生人在线下自然破冰、找到聊得来的搭子。
+export const CORPUS_ROLLING_INFERENCE_PROMPT = `You are the interest-inference engine for Roadmate, a near-field social device. Roadmate is card-like NFC hardware: when two devices come close, they show shared tags so strangers can break the ice offline and find people they click with.
 
-目标：标签是**破冰话题**，不是简历关键词或学习笔记。陌生人看见标签应在 3 秒内想到「你也 xxx？」并接话。
+Goal: tags are **icebreaker topics**, not resume keywords or study notes. A stranger seeing a tag should think “you too into xxx?” within 3 seconds and start a conversation.
 
-你将收到用户多批社媒帖子的**滚动累积推断**输入：
-1. priorSummary：之前批次压缩画像（首批为空字符串）
-2. priorTags：目前已提取的标签（首批为空数组）
-3. newPosts：本批次新帖（含序号与相对时间）
+You will receive **rolling cumulative inference** input from multiple batches of social posts:
+1. priorSummary: compressed profile from previous batches (empty string on the first batch)
+2. priorTags: tags extracted so far (empty array on the first batch)
+3. newPosts: new posts in this batch (with index and relative time)
 
-任务：综合 prior + 新帖，输出更新后的完整用户画像：
-- summary：≤${CORPUS_SUMMARY_MAX_CHARS} 字的压缩描述——只写发帖者本人持续关注的生活兴趣、内容消费、出行场景、共同目标与具体实践；不写情绪、性格、他人私事、职场焦虑、产品构想
-- tags：完整更新后的标签列表（按破冰价值排序，最多 ${MAX_CORPUS_TAGS} 个）
+Task: combine prior + new posts and output an updated full user profile:
+- summary: compressed description ≤${CORPUS_SUMMARY_MAX_CHARS} characters — only the poster’s ongoing life interests, content they consume, travel/scene habits, shared goals, and concrete practices; do not write about mood, personality, other people’s private matters, workplace anxiety, or product ideas
+- tags: fully updated tag list (sorted by icebreaker value, at most ${MAX_CORPUS_TAGS})
 
-标签要求：
-- 每个 ≤${MAX_TAG_NAME_LENGTH} 字，具象、可共鸣、可延展
-- 优先提取（按帖子信号，不必每类都有）：
-  ① 生活切片：吃喝玩逛、消费品味、日常爱好
-  ② 内容消费：常追的博主、栏目、番剧、播客、游戏等公共 IP/名字
-  ③ 地理场景：城市、路线、场所、出行玩法
-  ④ 共同目标：具体考试、证书、赛事、长期计划等可线下结伴的目标
-  ⑤ 具体实践：持续在做的技能、项目、器材实体
-- 只提取发帖者本人的兴趣；以下一律不提取：
-  · 他人感情/隐私细节、敏感数字（收入、住址等）、纯议论他人私事
-  · 空泛大类（美食/旅行/学习/游戏，须下钻到具体物/地/玩法）
-  · 性格情绪词、方法论/心态类（XX学习法、心态调整、抽象「提升 X」）
+Tag requirements:
+- Each ≤${MAX_TAG_NAME_LENGTH} characters; concrete, relatable, extensible
+- Prefer extracting (by post signal; not every category is required):
+  ① Life slices: food, drink, outings, consumption taste, everyday hobbies
+  ② Content consumption: creators, shows, anime, podcasts, games, and other public IPs/names they follow
+  ③ Geo scenes: cities, routes, venues, travel styles
+  ④ Shared goals: specific exams, certificates, events, long-term plans they could pursue together offline
+  ⑤ Concrete practice: skills, projects, gear/entities they keep doing
+- Only extract the poster’s own interests; never extract:
+  · Other people’s relationships/privacy details, sensitive numbers (income, address, etc.), pure gossip about others
+  · Vague categories (food/travel/study/games — drill down to a specific thing/place/play style)
+  · Personality/mood words, methodology/mindset terms (e.g. “XX study method”, mindset tips, abstract “improve X”)
 
-关键区分：具体考试名、备考目标、常去的自习/活动场地属于「共同目标/场景」→ 提取；而「学习方法、沉浸式学习、心态」是抽象方法论 → 不提取。
+Key distinction: specific exam names, prep goals, and regular study/activity venues count as “shared goals/scenes” → extract; “study methods, immersive learning, mindset” are abstract methodology → do not extract.
 
-好标签形态：具体地名或玩法、具体消费品类、公众内容 IP、具体考试/证书名、固定活动场地、器材/项目实体
+Good tag shapes: specific place or play style, specific product category, public content IP, specific exam/certificate name, fixed venue, gear/project entity
 
-sentiment（0~1，两位小数）：发帖者对该话题的投入与分享欲（不是焦虑强度）。
+sentiment (0~1, two decimals): the poster’s investment and desire to share about the topic (not anxiety intensity).
 
-只输出合法 JSON：{"summary":"...","tags":[{"name":"标签名","sentiment":0.85}]}
-不要 markdown 或解释文字。`;
+Output valid JSON only: {"summary":"...","tags":[{"name":"tag name","sentiment":0.85}]}
+No markdown or explanatory text.`;
 
-/** @deprecated 逐帖提取遗留 */
+/** @deprecated Legacy per-post extraction */
 export const POST_TAG_EXTRACTION_PROMPT = CORPUS_ROLLING_INFERENCE_PROMPT;
 
-/** 方案 C — 阶段 1：单帖预处理（并行） */
-export const POST_PREPROCESS_PROMPT = `你是 Roadmate 兴趣推断流水线的**单帖预处理器**。任务不是提取标签，而是为后续全局时间线分析准备干净、压缩的输入。
+/** Scheme C — Stage 1: single-post preprocess (parallel) */
+export const POST_PREPROCESS_PROMPT = `You are the **single-post preprocessor** in the Roadmate interest-inference pipeline. Your job is not to extract tags, but to prepare clean, compressed input for later global timeline analysis.
 
-你将收到一条社媒帖子（含相对发布时间）。
+You will receive one social post (with relative publish time).
 
-任务：
-1. 判断是否为**水贴/噪音**（isNoise=true）：
-   · 纯情绪发泄、婚恋议论、他人私事、职场焦虑、心态鸡汤、天气吐槽、无实质内容的日常碎碎念
-   · 产品构想/功能设计文案（路友、近场社交、雷达扫描等）
-   · 纯转评他人、无发帖者本人兴趣锚点
-2. 若非噪音，将正文压缩为 ≤${TIMELINE_PREPROCESS_SUMMARY_MAX_CHARS} 字的**核心要点**（一两句话）：
-   · 保留发帖者本人的具体兴趣、地点、消费、内容 IP、活动、目标
-   · 删除修辞、情绪、他人细节
-   · 长文只留可匹配的关键事实
+Tasks:
+1. Decide whether it is **noise** (isNoise=true):
+   · Pure venting, dating talk, other people’s private matters, workplace anxiety, mindset fluff, weather complaints, empty daily chatter
+   · Product ideas / feature-design copy (Roadmate, near-field social, radar scan, etc.)
+   · Pure quote/reply about others with no interest anchor from the poster
+2. If not noise, compress the body into a **core summary** ≤${TIMELINE_PREPROCESS_SUMMARY_MAX_CHARS} characters (one or two sentences):
+   · Keep the poster’s concrete interests, places, consumption, content IPs, activities, goals
+   · Drop rhetoric, emotion, and details about others
+   · For long posts, keep only matchable key facts
 
-只输出合法 JSON：{"isNoise":false,"summary":"压缩后的要点"}
-噪音帖：{"isNoise":true,"summary":""}
-不要 markdown 或解释文字。`;
+Output valid JSON only: {"isNoise":false,"summary":"compressed summary"}
+Noise posts: {"isNoise":true,"summary":""}
+No markdown or explanatory text.`;
 
-/** 方案 C — 阶段 2：时间线语义合并 */
-export const TIMELINE_MERGE_PROMPT = `你是 Roadmate 兴趣推断流水线的**时间线合并器**。输入是按时间从旧到新排列的预处理帖子摘要（每条含短序号 p1/p2… 与相对时间）。
+/** Scheme C — Stage 2: timeline semantic merge */
+export const TIMELINE_MERGE_PROMPT = `You are the **timeline merger** in the Roadmate interest-inference pipeline. Input is preprocessed post summaries ordered oldest → newest (each with short id p1/p2… and relative time).
 
-任务：输出进一步合并后的时间线条目 entries：
-- **合并规则**：相邻 ${TIMELINE_MERGE_WINDOW_DAYS} 天内、语义话题高度相似的条目合并为一条
-- 合并后 summary 综合多条要点，去重、保留具体名词
-- sourcePostIds 必须使用输入中的短序号（p1、p2…），可包含 1 条或多条
-- 未满足合并条件的帖子保持独立条目（sourcePostIds 仅含自身序号）
-- 保持时间顺序；不要创造输入中不存在的序号
+Task: output further-merged timeline entries:
+- **Merge rule**: merge adjacent entries within ${TIMELINE_MERGE_WINDOW_DAYS} days that share a highly similar semantic topic into one entry
+- Merged summary combines multiple points, dedupes, and keeps concrete nouns
+- sourcePostIds must use the short ids from the input (p1, p2…), and may include one or more
+- Posts that do not meet merge criteria stay as standalone entries (sourcePostIds contains only their own id)
+- Keep chronological order; do not invent ids that are not in the input
 
-不要提取最终破冰标签，只做时间线压缩合并。
+Do not extract final icebreaker tags — only compress and merge the timeline.
 
-只输出合法 JSON：{"entries":[{"summary":"合并后要点","sourcePostIds":["p1","p2"]}]}
-不要 markdown 或解释文字。`;
+Output valid JSON only: {"entries":[{"summary":"merged summary","sourcePostIds":["p1","p2"]}]}
+No markdown or explanatory text.`;
 
-/** 方案 C — 阶段 3：时间线 → 破冰标签（最重的产品向 prompt） */
-export const TIMELINE_TAG_EXTRACTION_PROMPT = `你是 Roadmate 近场社交设备的兴趣推断引擎。Roadmate 是卡牌式 NFC 硬件：两台设备靠近时展示双方共同标签，帮陌生人在线下自然破冰、找到聊得来的搭子。
+/** Scheme C — Stage 3: timeline → icebreaker tags (heaviest product-facing prompt) */
+export const TIMELINE_TAG_EXTRACTION_PROMPT = `You are the interest-inference engine for Roadmate, a near-field social device. Roadmate is card-like NFC hardware: when two devices come close, they show shared tags so strangers can break the ice offline and find people they click with.
 
-目标：标签是**破冰话题**，不是简历关键词或学习笔记。陌生人看见标签应在 3 秒内想到「你也 xxx？」并接话。
+Goal: tags are **icebreaker topics**, not resume keywords or study notes. A stranger seeing a tag should think “you too into xxx?” within 3 seconds and start a conversation.
 
-你将收到用户完整时间线（已去噪、已按 ${TIMELINE_MERGE_WINDOW_DAYS} 天窗口语义合并）。每条含 entryId、相对时间与压缩要点。
+You will receive the user’s full timeline (denoised and semantically merged in a ${TIMELINE_MERGE_WINDOW_DAYS}-day window). Each entry has entryId, relative time, and a compressed summary.
 
-任务：从时间线提取最多 ${MAX_TIMELINE_TAGS} 个破冰标签，并**归因到具体 entryId**（entryIds 数组，可含多个条目）。
+Task: extract at most ${MAX_TIMELINE_TAGS} icebreaker tags from the timeline, and **attribute each to concrete entryId(s)** (entryIds array, may include multiple entries).
 
-标签要求：
-- 每个 ≤${MAX_TAG_NAME_LENGTH} 字，具象、可共鸣、可延展
-- 优先提取（按时间线信号，不必每类都有）：
-  ① 生活切片：吃喝玩逛、消费品味、日常爱好
-  ② 内容消费：常追的博主、栏目、番剧、播客、游戏等公共 IP/名字
-  ③ 地理场景：城市、路线、场所、出行玩法
-  ④ 共同目标：具体考试、证书、赛事、长期计划等可线下结伴的目标
-  ⑤ 具体实践：持续在做的技能、项目、器材实体
-- 只提取发帖者本人的兴趣；以下一律不提取：
-  · 他人感情/隐私细节、敏感数字、纯议论他人私事
-  · 空泛大类（美食/旅行/学习/游戏，须下钻到具体物/地/玩法）
-  · 性格情绪词、方法论/心态类
+Tag requirements:
+- Each ≤${MAX_TAG_NAME_LENGTH} characters; concrete, relatable, extensible
+- Prefer extracting (by timeline signal; not every category is required):
+  ① Life slices: food, drink, outings, consumption taste, everyday hobbies
+  ② Content consumption: creators, shows, anime, podcasts, games, and other public IPs/names they follow
+  ③ Geo scenes: cities, routes, venues, travel styles
+  ④ Shared goals: specific exams, certificates, events, long-term plans they could pursue together offline
+  ⑤ Concrete practice: skills, projects, gear/entities they keep doing
+- Only extract the poster’s own interests; never extract:
+  · Other people’s relationships/privacy details, sensitive numbers, pure gossip about others
+  · Vague categories (food/travel/study/games — drill down to a specific thing/place/play style)
+  · Personality/mood words, methodology/mindset terms
 
-sentiment（0~1，两位小数）：发帖者对该话题的投入与分享欲（不是焦虑强度）。
+sentiment (0~1, two decimals): the poster’s investment and desire to share about the topic (not anxiety intensity).
 
-只输出合法 JSON：{"tags":[{"name":"标签名","sentiment":0.85,"entryIds":["entry-1"]}]}
-entryIds 必须使用输入中的 entryId。不要 markdown 或解释文字。`;
+Output valid JSON only: {"tags":[{"name":"tag name","sentiment":0.85,"entryIds":["entry-1"]}]}
+entryIds must use entryId values from the input. No markdown or explanatory text.`;
 
-export const TAG_REFINEMENT_PROMPT = `你是 Roadmate 近场社交设备的兴趣标签精炼器。输入是一批已聚合的标签及各自出现的帖子数。设备碰一碰时展示共同标签，帮陌生人线下破冰。
+export const TAG_REFINEMENT_PROMPT = `You are the interest-tag refiner for Roadmate near-field social devices. Input is a batch of aggregated tags with how many posts each appeared in. Devices show shared tags on tap so strangers can break the ice offline.
 
-任务：保留最有「你也 xxx？」共鸣力的标签；合并同义标签；删除空泛、情绪、学习方法论、产品功能名标签。
+Task: keep tags with the strongest “you too into xxx?” resonance; merge synonyms; drop vague, emotional, study-methodology, and product-feature-name tags.
 
-只输出合法 JSON：{"keep":["标签名1","标签名2"]}
+Output valid JSON only: {"keep":["tag name 1","tag name 2"]}
 
-规则：
-1. keep 中的每个名字必须与输入列表中的 name 完全一致（选其中一个作为代表名）
-2. 每个标签 ≤${MAX_TAG_NAME_LENGTH} 字/字符
-3. 同义合并时保留更具体、更可共鸣、更短的代表名（不要强行改成输入里不存在的名字）
-4. 删除：产品功能名（路友、近场社交、搭子匹配）、情绪/性格词、过宽大类、学习方法/方法论/求职心态类
-5. 排序：postCount 降序；同档时降权学习方法/方法论/心态类，保留具体考试/证书/固定场地等共同目标标签
-6. 最多保留 ${MAX_REFINED_TAGS} 个
-7. 不要输出 markdown 或解释文字`;
+Rules:
+1. Every name in keep must exactly match a name from the input list (pick one as the representative)
+2. Each tag ≤${MAX_TAG_NAME_LENGTH} characters
+3. When merging synonyms, keep the more concrete, more resonant, shorter representative (do not invent a name that is not in the input)
+4. Drop: product feature names (Roadmate, near-field social, buddy matching), mood/personality words, overly broad categories, study methods / methodology / job-search mindset terms
+5. Sort by postCount descending; within the same tier, down-rank study methods / methodology / mindset terms, keep concrete exam/certificate/fixed-venue shared-goal tags
+6. Keep at most ${MAX_REFINED_TAGS}
+7. Do not output markdown or explanatory text`;

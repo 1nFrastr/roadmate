@@ -1,154 +1,154 @@
-# 兴趣推断设计
+# Interest inference design
 
-从用户近期帖子抽出可破冰的具体兴趣标签，再经权重与 embedding，驱动设备匹配分和词云展示。
+Extract concrete icebreaker interest tags from a user’s recent posts, then weight and embed them to drive device match scores and the word-cloud display.
 
-当前主路径是三阶段时间线。代码入口：`components/interest-lab/`。
+The current main path is a three-stage timeline. Code entry: `components/interest-lab/`.
 
-## 要解决的问题
+## Problem to solve
 
-产品需要的不是「音乐 / 旅行」这类空泛分类，而是见面就能开口的具体话题。
+The product needs concrete topics you can open with in person — not vague buckets like “music / travel.”
 
-例如「周末 pour-over」「嵌入式 Rust」「科幻纪录片」。
+Examples: “weekend pour-over,” “embedded Rust,” “sci-fi documentaries.”
 
-同时还要回答：
+It also needs to answer:
 
-1. 这个兴趣出现得有多频繁？
-2. 它有多新？
-3. 哪几条帖子支撑了它？
+1. How often does this interest appear?
+2. How recent is it?
+3. Which posts support it?
 
-没有归因链，就很难算时效权重，也很难评测「推断是否靠谱」。
+Without an attribution chain, recency weights are hard to compute, and it is hard to evaluate whether inference is reliable.
 
-## 为什么朴素方案不够
+## Why naive approaches fall short
 
-先后试过三种做法。
+Three approaches were tried in sequence.
 
-**方案 A：逐帖并行提取**
+**Scheme A: Per-post parallel extraction**
 
-吞吐好，单帖归因也清楚。但各帖各自出标签，近义重复难合并，全局视角缺失。
+Good throughput and clear per-post attribution. But each post emits tags independently; near-duplicates are hard to merge, and a global view is missing.
 
-**方案 B：滚动语料压缩**
+**Scheme B: Rolling corpus compression**
 
-能带着 prior 往前推，上下文更省。但批次合并后很难稳定回到单帖，新鲜度权重不可靠，中间过程也难断言。
+Can carry a prior forward and save context. But after batch merges it is hard to stably return to individual posts; freshness weights become unreliable, and intermediate steps are hard to assert.
 
-真正需要的是：既保留帖级时间，又能在全局做语义去重，还能把最终标签追回到来源帖。
+What is actually needed: keep post-level timestamps, do global semantic deduplication, and trace final tags back to source posts.
 
-## 核心设计
+## Core design
 
-当前方案 C 把工作拆成三段，再交给代码算权重：
+Scheme C splits the work into three stages, then lets code compute weights:
 
 ```
-帖子输入
-  → 阶段 1 并行预处理
-  → 阶段 2 时间线合并
-  → 阶段 3 标签提取
-  → 代码聚合 frequency / sentiment / recency / weight
+Post input
+  → Stage 1 parallel preprocess
+  → Stage 2 timeline merge
+  → Stage 3 tag extraction
+  → Code aggregates frequency / sentiment / recency / weight
   → Embedding
-  → 词云 / 设备匹配
+  → Word cloud / device match
 ```
 
-| 阶段 | 模型做什么 | 代码做什么 |
+| Stage | What the model does | What code does |
 | --- | --- | --- |
-| 1 预处理 | 判水贴，压缩成短摘要 | 并发调度，过滤噪声 |
-| 2 时间线合并 | 近 7 天内语义相近的帖合并 | 合并时间取最新帖 |
-| 3 标签提取 | 产出破冰标签、情感、来源条目 | 频次、新近度、权重、淘汰 |
+| 1 Preprocess | Detect spam/noise posts; compress into short summaries | Concurrent scheduling; filter noise |
+| 2 Timeline merge | Merge semantically similar posts within ~7 days | Take the newest post’s time as the merge time |
+| 3 Tag extraction | Produce icebreaker tags, sentiment, and source entries | Frequency, recency, weight, and pruning |
 
-产品向的破冰规则集中在阶段 3。前两段偏工程预处理，可以单独调，不牵一发动全身。
+Product-facing icebreaker rules concentrate in stage 3. The first two stages are engineering preprocess and can be tuned independently without cascading changes.
 
-方案 A/B 代码仍保留对照，但 Web UI 与 `bench:timeline` 都走方案 C。
+Scheme A/B code remains for comparison, but the Web UI and `bench:timeline` both use Scheme C.
 
-## 关键机制
+## Key mechanisms
 
-### 1. 归因链
+### 1. Attribution chain
 
-标签不直接绑帖子 ID 就算完。链路是：
+Tags are not finished by merely binding post IDs. The chain is:
 
 ```
-标签 entryIds → 时间线条目 sourcePostIds → 帖子 createdAt
+Tag entryIds → timeline entry sourcePostIds → post createdAt
 ```
 
-这样 frequency 和 recency 都由代码按真实时间算，而不是让模型口头估计新鲜度。
+Thus frequency and recency are computed in code from real timestamps — the model does not verbally estimate freshness.
 
-### 2. 时间线合并窗口
+### 2. Timeline merge window
 
-相邻 7 天内语义高度相似的内容可以合并，用来控上下文长度。
+Content that is highly semantically similar within adjacent 7 days may merge, controlling context length.
 
-跨 7 天以上的同主题帖不合并。这样 frequency 仍能反映跨期重复兴趣，例如隔几周又提到咖啡。
+Same-theme posts more than 7 days apart do not merge. That way frequency still reflects recurring interests across periods — e.g. coffee mentioned again weeks later.
 
-模型合并失败时，退化为「一帖一条目」。不会丢帖，只是去重变弱。
+If the model fails to merge, fall back to “one post, one entry.” Posts are not dropped; dedupe simply weakens.
 
-### 3. 权重公式
+### 3. Weight formula
 
-同名标签先按小写合并，再算三维：
+Same-name tags merge by lowercase first, then three dimensions:
 
-- **frequency**：来源帖展开计数 / 总帖数
-- **sentiment**：各来源条目情感均值
-- **recency**：以最后一次出现为准，`exp(-λ × 距今天数)`，λ = 0.08
+- **frequency**: expanded source-post count / total posts
+- **sentiment**: mean sentiment across source entries
+- **recency**: based on last occurrence, `exp(-λ × days_ago)`, λ = 0.08
 
-最终：
+Final:
 
 ```
 weight = 0.40 × frequency + 0.20 × sentiment × recency + 0.40 × recency
 ```
 
-sentiment 乘 recency，是为了让旧兴趣的情感贡献也随时间减弱。
+Sentiment is multiplied by recency so older interests’ sentiment contribution also decays with time.
 
-过滤规则：
+Filter rules:
 
-- 至少出现 1 帖才保留
-- 只出现 1 次且超过 60 天 → 丢弃
-- 按 weight 取 top 20
+- Keep only if it appears in at least 1 post
+- Appears only once and older than 60 days → drop
+- Take top 20 by weight
 
-系数与窗口都在 `constants.ts`。
+Coefficients and windows live in `constants.ts`.
 
-### 4. 全量重跑
+### 4. Full re-run
 
-每次「推断并保存」都重跑三阶段，不做增量跳过。
+Each “Infer and save” re-runs all three stages — no incremental skip.
 
-换来的是结果可复现，也避免滚动 prior 漂移。代价是长列表延迟更高。
+The trade-off is reproducible results and avoiding rolling-prior drift. The cost is higher latency on long lists.
 
-### 5. Embedding 与词云
+### 5. Embedding and word cloud
 
-只对聚合后的标签名做向量。新标签惰性生成。
+Vectors are built only from aggregated tag names. New tags are generated lazily.
 
-词云里的球大小是当前 batch 内 min-max 归一化后的相对排名，不是 weight 绝对值线性映射像素。自定义标签由滑轨权重绝对映射。
+Sphere size in the word cloud is relative rank after min-max normalization within the current batch — not a linear pixel map of absolute weight. Custom tags map absolute slider weights.
 
-## 执行流
+## Execution flow
 
 ```mermaid
 flowchart LR
-  P[帖子列表 / X 拉取] --> S1[阶段1 预处理]
-  S1 --> S2[阶段2 合并]
-  S2 --> S3[阶段3 提取]
-  S3 --> A[代码聚合]
+  P[Post list / X fetch] --> S1[Stage 1 preprocess]
+  S1 --> S2[Stage 2 merge]
+  S2 --> S3[Stage 3 extract]
+  S3 --> A[Code aggregate]
   A --> E[Embedding]
-  E --> U[词云 / match 分]
+  E --> U[Word cloud / match score]
 ```
 
-输入有两种：
+Two input modes:
 
-- 帖子列表：可粘贴，也可按 `roadmate-posts/1` 文本导入导出
-- X 用户名：经 twitterapi.io 拉原创推文，落到同一套帖子结构
+- Post list: paste, or import/export as `roadmate-posts/1` text
+- X username: fetch original tweets via twitterapi.io into the same post schema
 
-帖子列表不写入 localStorage。刷新后需重新导入或拉取。画像只存标签与 embedding。
+The post list is not written to localStorage. After refresh, re-import or re-fetch. The profile stores only tags and embeddings.
 
-## 刻意不做的事情
+## Deliberately not done
 
-- 不把方案 A/B 当主路径。它们只作对照。
-- 不让模型直接输出最终 weight。频次和时效由代码算。
-- 不做增量推断。先保证可复现和可评测。
-- 不把帖子原文持久化到浏览器画像里。
+- Do not treat Scheme A/B as the main path. They are comparison only.
+- Do not let the model emit final weight directly. Frequency and recency are computed in code.
+- Do not do incremental inference. Prefer reproducibility and evaluability first.
+- Do not persist raw post text into the browser profile.
 
-## 和其他模块的关系
+## Relationship to other modules
 
-推断结果写入本地 profile 后，Playground 用 embedding 余弦和标签重叠计算 match 分。
+After inference writes the local profile, Playground computes match score via embedding cosine and tag overlap.
 
-设备侧不关心三阶段细节，只消费最终标签向量。拆开是为了让「谁值得靠近」和「靠近时如何反馈」可以分开迭代。
+The device side does not care about three-stage details — it only consumes final tag vectors. The split lets “who is worth approaching” and “how to feedback while approaching” iterate independently.
 
-设备交互见 [设备 Playground 设计](./device-playground.md)。
+Device interaction: [Device Playground design](./device-playground.md).
 
-## 评测
+## Evaluation
 
-CLI 与 Web UI 共用同一条管线：
+CLI and Web UI share the same pipeline:
 
 ```bash
 npm run bench:timeline
@@ -156,37 +156,37 @@ npm run bench:timeline -- --verbose
 npm run bench:timeline -- --case multi-theme-user
 ```
 
-用例在 `scripts/fixtures/corpus-cases/`。断言可检查关键词命中、禁词、标签数量、有效帖下限。
+Cases live in `scripts/fixtures/corpus-cases/`. Assertions can check keyword hits, banned words, tag count, and minimum valid-post floor.
 
-`--verbose` 会打印每帖噪声判断、合并条目、最终权重表，便于定位是哪一阶段出了问题。
+`--verbose` prints per-post noise judgments, merge entries, and the final weight table — useful for locating which stage went wrong.
 
-## 调参入口
+## Tuning entry points
 
-| 常量 | 作用 |
+| Constant | Role |
 | --- | --- |
-| `WEIGHT_FACTORS` | 三维权重比例 |
-| `RECENCY_DECAY_LAMBDA` | 时间衰减陡峭程度 |
-| `TIMELINE_MERGE_WINDOW_DAYS` | 合并窗口 |
-| `MAX_INFERRED_TAGS` / `STALE_TAG_DAYS` / `LLM_CONCURRENCY` | 输出上限、过期淘汰、并发 |
+| `WEIGHT_FACTORS` | Three-dimension weight ratios |
+| `RECENCY_DECAY_LAMBDA` | Steepness of time decay |
+| `TIMELINE_MERGE_WINDOW_DAYS` | Merge window |
+| `MAX_INFERRED_TAGS` / `STALE_TAG_DAYS` / `LLM_CONCURRENCY` | Output cap, stale pruning, concurrency |
 
-编排与 prompt 主要在：
+Orchestration and prompts mainly live in:
 
 - `server/timelineInference.ts`
 - `prompts.ts`
 - `tagUtils.ts`
 - `api/openrouter.ts`
 
-## 总结
+## Summary
 
-这套推断设计的核心是：
+The core of this inference design:
 
-> 先保住帖级时间归因，再做全局语义去重，最后用代码算可复现的兴趣权重。
+> Preserve post-level time attribution first, then do global semantic dedupe, and finally compute reproducible interest weights in code.
 
-具体来说：
+Concretely:
 
-- 阶段 1 保吞吐和判噪
-- 阶段 2 控重复和上下文长度
-- 阶段 3 产出可破冰标签
-- 代码侧负责 frequency / recency / weight，并接上 embedding
+- Stage 1 preserves throughput and noise filtering
+- Stage 2 controls duplicates and context length
+- Stage 3 produces icebreaker-worthy tags
+- Code owns frequency / recency / weight and connects embeddings
 
-最终效果是：标签更具体、更可解释、更可评测，也能稳定驱动近场匹配。
+The result: tags that are more concrete, more explainable, and more evaluable — and that stably drive near-field matching.

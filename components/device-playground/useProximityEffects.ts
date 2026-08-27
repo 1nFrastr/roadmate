@@ -298,7 +298,7 @@ export function useProximityEffects(reducedMotion: boolean) {
       }
       tl.timeScale(timeScale);
 
-      // 用 stack 整体透明度做距离亮度包络，避免与 timeline 频闪属性冲突
+      // Use the stack's overall opacity as a distance brightness envelope to avoid fighting timeline strobe props
       gsap.to(ledStack, {
         opacity: 0.28 + intensity * 0.72,
         duration: 0.22,

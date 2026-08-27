@@ -21,7 +21,7 @@ function playgroundRelativeCenter(
   };
 }
 
-/** Dock 用 bottom 锚点缩放；成功动画改以视觉中心为 transform-origin，避免放大时漂移 */
+/** Dock scales from a bottom anchor; success animation uses visual-center transform-origin to avoid drift while scaling */
 function prepareDeviceForCenterStage(
   element: HTMLDivElement,
   playgroundEl: HTMLElement,
@@ -38,7 +38,7 @@ function restoreDockTransformOrigin(element: HTMLDivElement) {
   element.style.transformOrigin = DEVICE_DOCK_TRANSFORM_ORIGIN;
 }
 
-/** center-bottom 快照的 x/y 转为 center-center 下等价的 top-left */
+/** Convert center-bottom snapshot x/y into equivalent top-left under center-center origin */
 function snapshotToCenterStagePosition(snapshot: DeviceTransformSnapshot) {
   return {
     x: snapshot.x,
@@ -56,7 +56,7 @@ function readDeviceSnapshot(element: HTMLDivElement): DeviceTransformSnapshot {
   };
 }
 
-/** 清除成功动画写入的 inline / GSAP 交互锁，恢复画布可拖拽 */
+/** Clear inline / GSAP interaction locks from the success animation so the canvas is draggable again */
 export function resetPlaygroundInteraction(
   deviceElements: Map<string, HTMLDivElement>,
   headerEl: HTMLElement | null,
@@ -425,7 +425,7 @@ function applyPairStageLayout(
   });
 }
 
-/** React 重渲染会写回 inline transform-origin，需在 commit 后再钉一次布局 */
+/** React re-renders rewrite inline transform-origin; re-pin layout after commit */
 function schedulePairStageLayout(
   ownerEl: HTMLDivElement,
   partnerEl: HTMLDivElement,

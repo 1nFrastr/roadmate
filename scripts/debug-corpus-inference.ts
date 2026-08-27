@@ -1,5 +1,5 @@
 /**
- * 调试语料滚动推断：打印每批 LLM 原始 JSON 响应
+ * Debug corpus rolling inference: print raw LLM JSON per batch
  * npx tsx scripts/debug-corpus-inference.ts [posts.txt]
  */
 
@@ -69,7 +69,7 @@ async function runBatch(
         { role: "system", content: CORPUS_ROLLING_INFERENCE_PROMPT },
         {
           role: "user",
-          content: `请滚动更新用户画像（综合 prior + 本批新帖）：\n\n${JSON.stringify(payload)}`,
+          content: `Please roll-update the user profile (combine prior + this batch of new posts):\n\n${JSON.stringify(payload)}`,
         },
       ],
     }),
@@ -104,7 +104,7 @@ async function runBatch(
     );
     console.log("summary:", parsed.summary?.slice(0, 150));
     console.log("raw tags:", parsed.tags?.length ?? 0, "→ filtered:", filtered.length);
-    console.log("tags:", filtered.map((t) => t.name).join(" · ") || "(空)");
+    console.log("tags:", filtered.map((t) => t.name).join(" · ") || "(empty)");
     return { summary: parsed.summary ?? priorSummary, tags: filtered };
   } catch {
     console.log("JSON parse failed");
@@ -115,7 +115,7 @@ async function runBatch(
 async function main() {
   loadEnvFromLocal();
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY 未配置");
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
   const model = process.env.INTEREST_LAB_LLM_MODEL ?? "deepseek/deepseek-v4-flash";
   const postsPath =
@@ -126,7 +126,7 @@ async function main() {
     posts.map((p) => ({ id: p.id, text: p.text, createdAt: p.createdAt })),
   );
 
-  console.log(`模型: ${model} · 帖子 ${posts.length} · 批次 ${batches.length}`);
+  console.log(`Model: ${model} · posts ${posts.length} · batches ${batches.length}`);
 
   let summary = "";
   let tags: { name: string; sentiment: number }[] = [];
@@ -145,8 +145,8 @@ async function main() {
     tags = result.tags;
   }
 
-  console.log(`\n=== 最终: ${tags.length} 标签 ===`);
-  console.log(tags.map((t) => t.name).join(" · ") || "(空)");
+  console.log(`\n=== Final: ${tags.length} tags ===`);
+  console.log(tags.map((t) => t.name).join(" · ") || "(empty)");
 }
 
 main().catch((err) => {

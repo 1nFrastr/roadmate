@@ -7,9 +7,9 @@ export { DEFAULT_LLM_MODEL } from "./llmModels";
 export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 
 export const TWITTER_API_BASE = "https://api.twitterapi.io";
-/** 浏览器经 Next 代理访问（twitterapi.io 无 CORS） */
+/** Browser access via Next proxy (twitterapi.io has no CORS) */
 export const TWITTER_PROXY_PATH = "/api/interest-lab/twitter/last-tweets";
-/** 同一 X 用户名拉取结果的 Next.js Data Cache revalidate（秒） */
+/** Next.js Data Cache revalidate (seconds) for the same X username fetch result */
 export const TWITTER_CACHE_REVALIDATE_SEC = 60 * 60;
 export const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
 
@@ -19,98 +19,99 @@ export const WEIGHT_FACTORS = {
   recency: 0.4,
 } as const;
 
-/** last_tweets 每页 API 上限（twitterapi.io 文档：每页最多 20 条） */
+/** last_tweets per-page API limit (twitterapi.io docs: max 20 per page) */
 export const TWITTER_TWEETS_PER_PAGE = 20;
 
-/** 单次拉取 API 请求次数（1 = 测试时只打 1 次，约 20 条） */
+/** Max API page requests per fetch (1 = one request for testing, ~20 tweets) */
 export const MAX_TWEET_PAGES = 1;
 
-/** 单次拉取最多帖子数（含 RT/引用，不含回复；= 页数 × 每页上限） */
+/** Max tweets per fetch (includes RTs/quotes, excludes replies; = pages × per-page limit) */
 export const MAX_TWEETS_FETCH = MAX_TWEET_PAGES * TWITTER_TWEETS_PER_PAGE;
 
-/** 分页请求间隔；免费 Key 约 0.2 QPS，需 ≥5s */
+/** Delay between page requests; free keys are ~0.2 QPS, so ≥5s */
 export const TWITTER_PAGE_DELAY_MS = 5_000;
 
-/** 429/503 等可重试状态的最大重试次数 */
+/** Max retries for retryable statuses like 429/503 */
 export const TWITTER_FETCH_MAX_RETRIES = 4;
 
-/** 指数退避上限（毫秒） */
+/** Exponential backoff cap (ms) */
 export const TWITTER_RETRY_MAX_DELAY_MS = 30_000;
 
-/** 每帖 LLM 最多提取标签数 */
+/** Max tags the LLM may extract per post */
 export const MAX_TAGS_PER_POST = 3;
 
-/** 标签名最大字数（词云 chip + 破冰话题宜短） */
+/** Max tag name length (word-cloud chip + icebreaker topics should stay short) */
 export const MAX_TAG_NAME_LENGTH = 6;
 
-/** 逐帖提取 temperature（0 = 最大稳定性） */
+/** Per-post extraction temperature (0 = max stability) */
 export const LLM_EXTRACT_TEMPERATURE = 0;
 
-/** 标签精炼 temperature */
+/** Tag refinement temperature */
 export const LLM_REFINE_TEMPERATURE = 0;
 
-/** OpenRouter seed（部分模型支持，不支持时忽略） */
+/** OpenRouter seed (supported by some models; ignored otherwise) */
 export const LLM_SEED = 42;
 
 /**
- * 结构化 JSON 提取不需要 thinking；DeepSeek V4 Flash 默认开 reasoning 会显著变慢，
- * 且 max_tokens 会先被思考占满导致 content 为空。OpenRouter: reasoning.effort = "none"
+ * Structured JSON extraction does not need thinking; DeepSeek V4 Flash enables
+ * reasoning by default, which slows things down and can fill max_tokens with
+ * reasoning so content is empty. OpenRouter: reasoning.effort = "none"
  */
 export const LLM_REASONING_EFFORT = "none" as const;
 
-/** 语料滚动推断 max_tokens（关闭 reasoning 后 800 足够） */
+/** Corpus rolling inference max_tokens (800 is enough with reasoning off) */
 export const LLM_CORPUS_MAX_TOKENS = 800;
 
-/** 方案 C — 阶段 1 单帖预处理 max_tokens */
+/** Scheme C — Stage 1 single-post preprocess max_tokens */
 export const LLM_PREPROCESS_MAX_TOKENS = 200;
 
-/** 方案 C — 阶段 2 时间线合并 max_tokens */
+/** Scheme C — Stage 2 timeline merge max_tokens */
 export const LLM_TIMELINE_MERGE_MAX_TOKENS = 1200;
 
-/** 方案 C — 阶段 3 最终标签提取 max_tokens */
+/** Scheme C — Stage 3 final tag extraction max_tokens */
 export const LLM_TIMELINE_EXTRACT_MAX_TOKENS = 800;
 
-/** 方案 C — 相邻帖子合并窗口（天） */
+/** Scheme C — adjacent-post merge window (days) */
 export const TIMELINE_MERGE_WINDOW_DAYS = 7;
 
-/** 方案 C — 单帖压缩摘要最大字数 */
+/** Scheme C — max characters for a single-post compressed summary */
 export const TIMELINE_PREPROCESS_SUMMARY_MAX_CHARS = 120;
 
-/** 方案 C — 最终标签上限 */
+/** Scheme C — final tag cap */
 export const MAX_TIMELINE_TAGS = 12;
 
-/** 标签精炼 max_tokens */
+/** Tag refinement max_tokens */
 export const LLM_REFINE_MAX_TOKENS = 400;
 
-/** 语料分批：每批最多帖数 */
+/** Corpus batching: max posts per batch */
 export const CORPUS_BATCH_MAX_POSTS = 5;
 
-/** 语料分批：每批帖子正文总字符上限 */
+/** Corpus batching: max total post-body characters per batch */
 export const CORPUS_BATCH_MAX_CHARS = 8000;
 
-/** 滚动压缩 summary 最大字数 */
+/** Max characters for the rolling compressed summary */
 export const CORPUS_SUMMARY_MAX_CHARS = 220;
 
-/** 语料推断最终标签上限（滚动累积输出） */
+/** Corpus inference final tag cap (rolling cumulative output) */
 export const MAX_CORPUS_TAGS = 12;
 
-/** 并发 LLM 请求上限 */
+/** Max concurrent LLM requests */
 export const LLM_CONCURRENCY = 30;
 
-/** 最终保留的推断标签上限 */
+/** Cap on inferred tags kept in the end */
 export const MAX_INFERRED_TAGS = 20;
 
-/** 至少出现在多少帖才保留（custom 不受限）；逐帖提取下标签重复率低，保持 1 */
+/** Keep only tags that appear in at least this many posts (custom tags exempt); per-post extraction has low tag overlap, so keep at 1 */
 export const MIN_TAG_POST_COUNT = 1;
 
-/** 仅出现 1 帖时，sentiment 低于此值的标签丢弃（过滤顺带提及） */
+/** When a tag appears in only 1 post, drop it if sentiment is below this (filters casual mentions) */
 export const MIN_SINGLE_POST_SENTIMENT = 0.45;
 
-/** profile 级精炼后最多保留的推断标签数 */
+/** Max inferred tags kept after profile-level refinement */
 export const MAX_REFINED_TAGS = 12;
 
-/** recency 指数衰减 λ（每天）；0.08 → 约 30 天降至 0.09，90 天降至 0.001 */
+/** Recency exponential decay λ (per day); 0.08 → ~0.09 at 30 days, ~0.001 at 90 days */
 export const RECENCY_DECAY_LAMBDA = 0.08;
 
-/** 超过此天数未出现且 postCount=1 的标签淘汰 */
+/** Drop tags older than this many days when postCount=1 */
 export const STALE_TAG_DAYS = 60;

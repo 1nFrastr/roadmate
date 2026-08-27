@@ -38,7 +38,7 @@ export const TagWordCloud = forwardRef<TagWordCloudHandle, TagWordCloudProps>(fu
     tags,
     height = PHYSICS.defaultHeight,
     className = "",
-    emptyMessage = "暂无标签",
+    emptyMessage = "No tags yet",
     interactive = true,
     size = "default",
     enableCustomTags = false,
@@ -555,7 +555,7 @@ export const TagWordCloud = forwardRef<TagWordCloudHandle, TagWordCloudProps>(fu
         </div>
       ) : null}
       {!isEmpty && liveLayouts.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-zinc-500">加载词云…</div>
+        <div className="flex h-full items-center justify-center text-sm text-zinc-500">Loading word cloud…</div>
       ) : null}
       {liveLayouts.map((layout) => {
         const isCustom = Boolean(layout.tag.custom);

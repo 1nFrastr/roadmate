@@ -6,13 +6,13 @@ export const JOURNEY_TIMINGS = {
   headerExit: 0.28,
   leftPanelExit: 0.4,
   previewAsideExit: 0.4,
-  /** UI 退场后立刻 navigate + 开始 inject */
+  /** Navigate and start inject immediately after UI exit */
   injectPhaseStart: 0.32,
   handoffWait: 0.05,
   tagInjectStagger: 0.02,
   tagInjectRandomDelay: 0.06,
   tagInjectDuration: 0.62,
-  /** inject 进度到此比例后再淡出标签 */
+  /** Fade tags out once inject progress reaches this ratio */
   tagInjectOpacityAt: 0.58,
   tagInjectScale: 0.07,
   handoffDuration: 0.55,
@@ -28,7 +28,7 @@ export const JOURNEY_EASE = {
 } as const;
 
 export const LANDING_VIEWPORT = {
-  /** 主控设备 landing 点：水平居中，垂直 55% */
+  /** Owner device landing point: horizontally centered, vertically at 55% */
   xRatio: 0.5,
   yRatio: 0.55,
   width: DEVICE_W,
@@ -44,7 +44,7 @@ export function computeLandingRect(viewportWidth: number, viewportHeight: number
   };
 }
 
-/** iPhone 14 逻辑分辨率 390×844 */
+/** iPhone 14 logical resolution 390×844 */
 const IPHONE_LOGICAL_WIDTH = 390;
 const IPHONE_LOGICAL_HEIGHT = 844;
 const FRAME_BEZEL = 10;
@@ -100,9 +100,9 @@ function buildIphoneFrameSpec(outerWidth: number): IphoneFrameSpec {
   };
 }
 
-/** iPhone 预览框固定尺寸（px），比例按 iPhone 14 逻辑分辨率推导 */
+/** Fixed iPhone preview frame size (px), aspect from iPhone 14 logical resolution */
 export const IPHONE_FRAME = {
-  /** Interest Lab 侧栏预览 */
+  /** Interest Lab sidebar preview */
   compact: buildIphoneFrameSpec(300),
   default: buildIphoneFrameSpec(320),
 } as const;

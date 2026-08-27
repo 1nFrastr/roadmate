@@ -1,4 +1,4 @@
-/** 开发环境或 INFERENCE_TIMING=1 时输出各阶段耗时 */
+/** Log stage timings in development or when INFERENCE_TIMING=1 */
 export function logInferenceTiming(
   phase: string,
   ms: number,

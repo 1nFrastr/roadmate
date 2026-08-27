@@ -1,16 +1,16 @@
 export interface InterestTag {
-  /** 自定义标签的稳定 id；推断标签无需持久化 id */
+  /** Stable id for custom tags; inferred tags do not need a persistent id */
   id?: string;
   name: string;
   weight: number;
   frequency: number;
   sentiment: number;
   recency: number;
-  /** 出现该标签的帖子数（推断标签） */
+  /** Number of posts the tag appeared in (inferred tags) */
   postCount?: number;
-  /** 最近一次出现时间 ISO */
+  /** ISO timestamp of the most recent appearance */
   lastSeenAt?: string;
-  /** 用户手动添加的标签，可编辑权重 */
+  /** User-added tag with editable weight */
   custom?: boolean;
 }
 
@@ -32,7 +32,7 @@ export interface PostRecord {
   tags?: PostTagDraft[];
 }
 
-/** 设备匹配 / Journey handoff 用的标签 + 向量切片 */
+/** Tag + embedding slice for device matching / Journey handoff */
 export interface InterestProfileSlice {
   tags: InterestTag[];
   embeddings: TagEmbedding[];
@@ -52,7 +52,7 @@ export interface StoredInterestProfile {
   tweetCount?: number;
 }
 
-/** @deprecated 整段语料推断遗留类型 */
+/** @deprecated Legacy type from whole-corpus inference */
 export interface LlmTagDraft {
   name: string;
   frequency: number;
@@ -68,7 +68,7 @@ export interface PostTagResponse {
   tags: PostTagDraft[];
 }
 
-/** 滚动语料推断的中间/最终状态 */
+/** Intermediate / final state for rolling corpus inference */
 export interface CorpusInferenceState {
   summary: string;
   tags: PostTagDraft[];
@@ -88,7 +88,7 @@ export interface CorpusRollingResponse {
   tags: PostTagDraft[];
 }
 
-/** 方案 C — 阶段 1：单帖预处理 */
+/** Scheme C — Stage 1: single-post preprocess */
 export interface PreprocessedPost {
   id: string;
   createdAt: string;
@@ -96,7 +96,7 @@ export interface PreprocessedPost {
   summary: string;
 }
 
-/** 方案 C — 阶段 2：时间线合并条目 */
+/** Scheme C — Stage 2: timeline merge entry */
 export interface TimelineEntry {
   id: string;
   createdAt: string;
@@ -104,7 +104,7 @@ export interface TimelineEntry {
   sourcePostIds: string[];
 }
 
-/** 方案 C — 阶段 3：带时间线条目归因的标签 */
+/** Scheme C — Stage 3: tag with timeline entry attribution */
 export interface TimelineTagDraft extends PostTagDraft {
   entryIds: string[];
 }

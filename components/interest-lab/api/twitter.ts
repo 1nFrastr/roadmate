@@ -16,7 +16,7 @@ export interface FetchedTweet {
 
 export interface FetchUserTweetsResult {
   tweets: FetchedTweet[];
-  /** 因 MAX_TWEETS_FETCH 截断 */
+  /** Truncated because of MAX_TWEETS_FETCH */
   truncated: boolean;
 }
 
@@ -28,11 +28,11 @@ interface TwitterTweetRaw {
   retweeted_tweet?: TwitterTweetRaw | null;
 }
 
-/** 单次响应内嵌套引用链最大深度（不额外调 API） */
+/** Max nested quote-chain depth within a single response (no extra API calls) */
 const MAX_NESTED_QUOTE_DEPTH = 5;
-const QUOTE_SEPARATOR = "\n\n[引用]\n";
+const QUOTE_SEPARATOR = "\n\n[Quote]\n";
 
-/** 从 last_tweets 单条 Tweet 对象展开 RT / 引用链正文 */
+/** Expand RT / quote-chain body from a single last_tweets Tweet object */
 export function extractTweetText(tweet: TwitterTweetRaw): string {
   const body = tweet.retweeted_tweet ?? tweet;
   const parts: string[] = [];
@@ -58,7 +58,7 @@ interface TwitterLastTweetsResponse {
     tweets?: TwitterTweetRaw[];
     pin_tweet?: unknown;
   };
-  /** 旧版/文档示例中的扁平结构 */
+  /** Flat shape from older docs / examples */
   tweets?: TwitterTweetRaw[];
   has_next_page?: boolean;
   next_cursor?: string;
@@ -86,7 +86,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** twitterapi.io 返回的 Twitter 日期 → ISO */
+/** Twitter date from twitterapi.io → ISO */
 export function parseTwitterCreatedAt(raw: string | undefined): string {
   if (!raw?.trim()) return new Date().toISOString();
   const ms = Date.parse(raw);
@@ -142,7 +142,7 @@ async function fetchTwitterJson(
       await sleep(retryDelayMs(response, attempt));
       return fetchTwitterJson(url, init, attempt + 1);
     }
-    throw new Error(`Twitter API 响应解析失败 (${response.status})`);
+    throw new Error(`Failed to parse Twitter API response (${response.status})`);
   }
 
   const shouldRetry =
@@ -202,10 +202,10 @@ async function fetchUserTweetsPaged(
     const { response, data } = await requestPage(cursor);
 
     if (!response.ok) {
-      throw new Error(getApiErrorMessage(data) || `Twitter API 请求失败 (${response.status})`);
+      throw new Error(getApiErrorMessage(data) || `Twitter API request failed (${response.status})`);
     }
     if (!isApiSuccess(data)) {
-      throw new Error(getApiErrorMessage(data) || "Twitter API 返回错误");
+      throw new Error(getApiErrorMessage(data) || "Twitter API returned an error");
     }
 
     appendTweetsFromPage(data, tweets, seenIds, cap);
@@ -219,21 +219,21 @@ async function fetchUserTweetsPaged(
   }
 
   if (tweets.length === 0) {
-    throw new Error("未获取到任何帖子，请检查用户名或账号是否有公开推文");
+    throw new Error("No posts fetched; check the username or whether the account has public tweets");
   }
 
   return { tweets, truncated: tweets.length >= cap || lastHasNext };
 }
 
-/** 脚本 / 服务端直连 twitterapi.io（不经 Next 代理） */
+/** Scripts / server: call twitterapi.io directly (not via Next proxy) */
 export async function fetchUserTweetsDirect(
   userName: string,
   apiKey: string,
   options?: { maxTweets?: number; maxPages?: number },
 ): Promise<FetchUserTweetsResult> {
   const handle = userName.replace(/^@/, "").trim();
-  if (!handle) throw new Error("请输入有效的 X 用户名");
-  if (!apiKey.trim()) throw new Error("缺少 TWITTER_API_KEY");
+  if (!handle) throw new Error("Enter a valid X username");
+  if (!apiKey.trim()) throw new Error("Missing TWITTER_API_KEY");
 
   const cap = Math.max(1, Math.min(options?.maxTweets ?? MAX_TWEETS_FETCH, MAX_TWEETS_FETCH));
   const maxPages = Math.max(1, options?.maxPages ?? MAX_TWEET_PAGES);
@@ -251,7 +251,7 @@ export async function fetchUserTweets(
   maxTweets = MAX_TWEETS_FETCH,
 ): Promise<FetchUserTweetsResult> {
   const handle = userName.replace(/^@/, "").trim();
-  if (!handle) throw new Error("请输入有效的 X 用户名");
+  if (!handle) throw new Error("Enter a valid X username");
 
   const cap = Math.max(1, Math.min(maxTweets, MAX_TWEETS_FETCH));
 

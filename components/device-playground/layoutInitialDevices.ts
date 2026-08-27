@@ -143,7 +143,7 @@ function gridLayout(
   return positions;
 }
 
-/** 与 journey landing 一致：水平居中、垂直 55% */
+/** Same as journey landing: horizontally centered, vertically at 55% */
 export function getOwnerDefaultPosition(size: PlaygroundSize): { x: number; y: number } {
   return clampPosition(
     size.width * 0.5 - DEVICE_W / 2,

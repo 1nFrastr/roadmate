@@ -103,7 +103,7 @@ async function callLlmJson<T>(
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenRouter 时间线推断失败 (${response.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`OpenRouter timeline inference failed (${response.status}): ${detail.slice(0, 200)}`);
   }
 
   const data = (await response.json()) as {
@@ -151,7 +151,7 @@ async function preprocessPost(
   const parsed = await callLlmJson<{ isNoise?: boolean; summary?: string }>(
     ctx,
     POST_PREPROCESS_PROMPT,
-    `请预处理以下帖子：\n\n${formatPostRelative(post.createdAt)}\n${post.text.trim().slice(0, 2000)}`,
+    `Preprocess the following post:\n\n${formatPostRelative(post.createdAt)}\n${post.text.trim().slice(0, 2000)}`,
     LLM_PREPROCESS_MAX_TOKENS,
   );
 
@@ -258,7 +258,7 @@ async function mergeTimeline(
   }>(
     ctx,
     TIMELINE_MERGE_PROMPT,
-    `请合并以下预处理时间线：\n\n${promptBody}`,
+    `Merge the following preprocessed timeline:\n\n${promptBody}`,
     LLM_TIMELINE_MERGE_MAX_TOKENS,
   );
 
@@ -329,7 +329,7 @@ async function extractTagsFromTimeline(
   }>(
     ctx,
     TIMELINE_TAG_EXTRACTION_PROMPT,
-    `请从以下时间线提取破冰标签（归因到 entryId）：\n\n${promptBody}`,
+    `Extract icebreaker tags from the following timeline (attribute to entryId):\n\n${promptBody}`,
     LLM_TIMELINE_EXTRACT_MAX_TOKENS,
   );
 

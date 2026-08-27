@@ -3,25 +3,25 @@ import { DEVICE_W } from "../constants";
 export const DEVICE_DOCK_TRANSFORM_ORIGIN = "center center";
 export const DEVICE_STAGE_TRANSFORM_ORIGIN = "center center";
 
-/** 两设备圆盘重叠：中心距小于单台直径 */
+/** Two device discs overlap when center distance is less than one diameter */
 export const PAIRING_OVERLAP_DISTANCE = DEVICE_W;
 
-/** 配对倒计时中需拉远到此距离才取消（迟滞，避免边界抖动） */
+/** During pairing countdown, cancel only after pulling apart past this distance (hysteresis against edge jitter) */
 export const PAIRING_OVERLAP_EXIT_DISTANCE = DEVICE_W * 1.08;
 
-/** 重叠后保持接触多久触发匹配成功（毫秒） */
+/** How long to keep contact after overlap before match success (ms) */
 export const MATCH_CONFIRM_HOLD_MS = 1000;
 
-/** Demo 用共同话题池（最多展示 3 条） */
+/** Demo shared-topic pool (show up to 3) */
 export const PLACEHOLDER_MATCH_TOPICS = [
-  "独立游戏",
-  "黑胶唱片",
-  "公路旅行",
-  "精品咖啡",
-  "胶片摄影",
+  "Indie Games",
+  "Vinyl Records",
+  "Road Trips",
+  "Specialty Coffee",
+  "Film Photography",
   "City Walk",
-  "科幻电影",
-  "徒步露营",
+  "Sci-Fi Movies",
+  "Hiking & Camping",
 ] as const;
 
 export function pickMatchTopics(count = 3): string[] {
